@@ -179,13 +179,189 @@ def comprehensive_analysis():
         if len(numeric_cols) > 1:
             corr_matrix = df[numeric_cols].corr().to_dict()
             results['analysis']['correlations'] = corr_matrix
-        
+                # Regression (if a target_col is specified and is numeric, use other numeric cols as predictors)
+        if target_col and target_col in df.columns and column_types.get(target_col) == 'numeric':
+            try:
+                # predictors = all numeric columns except target
+                predictors = [c for c in numeric_cols if c != target_col]
+                # drop rows with NaNs in y or X
+                sub = df[[target_col] + predictors].dropna()
+                if len(predictors) >= 1 and len(sub) >= 3:
+                    X = sub[predictors].to_numpy()
+                    y = sub[target_col].to_numpy()
+                    # Standard linear regression
+                    model = LinearRegression()
+                    model.fit(X, y)
+                    y_pred = model.predict(X)
+                    r2 = float(r2_score(y, y_pred)) if np.isfinite(r2_score(y, y_pred)) else None
+
+                    results['analysis']['regression'] = {
+                        'target': target_col,
+                        'predictors': predictors,
+                        'r2_score': r2,
+                        'intercept': float(model.intercept_) if np.isfinite(model.intercept_) else None,
+                        'coefficients': {
+                            predictors[i]: float(coef) if np.isfinite(coef) else None
+                            for i, coef in enumerate(model.coef_)
+                        },
+                        'n_obs': int(len(sub))
+                    }
+            except Exception as rex:
+                results.setdefault('analysis', {}).setdefault('errors', {})['regression'] = str(rex)
+
         # Group analysis if specified
         if group_col and target_col and group_col in df.columns and target_col in df.columns:
             if column_types.get(target_col) == 'numeric' and column_types.get(group_col) == 'categorical':
                 group_stats = df.groupby(group_col)[target_col].agg(['mean', 'std', 'count']).to_dict()
                 results['analysis']['group_analysis'] = group_stats
-        
+                # --- ANOVA (one-way) & T-Test (two-sample) when target numeric and group categorical ---
+        if group_col and target_col and group_col in df.columns and target_col in df.columns:
+            if column_types.get(target_col) == 'numeric' and column_types.get(group_col) == 'categorical':
+                # Clean data for stats tests
+                sub = df[[group_col, target_col]].dropna()
+                # Build groups
+                groups = []
+                for gval, gdf in sub.groupby(group_col):
+                    vals = pd.to_numeric(gdf[target_col], errors='coerce').dropna().to_numpy()
+                    if len(vals) > 0:
+                        groups.append((str(gval), vals))
+
+                # One-way ANOVA if ≥ 2 groups with data
+                if len(groups) >= 2:
+                    try:
+                        from scipy.stats import f_oneway, levene, ttest_ind
+                        # ANOVA
+                        labels, arrays = zip(*groups)
+                        f_stat, p_val = f_oneway(*arrays)
+                        # Basic effect size: eta-squared ≈ (SS_between / SS_total)
+                        # Compute SS_total and SS_between quickly
+                        all_vals = np.concatenate(arrays)
+                        grand_mean = np.mean(all_vals)
+                        ss_total = np.sum((all_vals - grand_mean) ** 2)
+                        ss_between = 0.0
+                        for lbl, arr in groups:
+                            n = arr.size
+                            ss_between += n * (np.mean(arr) - grand_mean) ** 2
+                        eta_sq = float(ss_between / ss_total) if ss_total > 0 else None
+
+                        results['analysis']['anova'] = {
+                            'target': target_col,
+                            'group': group_col,
+                            'k_groups': len(groups),
+                            'f_stat': float(f_stat) if np.isfinite(f_stat) else None,
+                            'p_value': float(p_val) if np.isfinite(p_val) else None,
+                            'eta_squared': eta_sq,
+                            'group_means': {lbl: float(np.mean(arr)) for lbl, arr in groups},
+                            'group_counts': {lbl: int(arr.size) for lbl, arr in groups},
+                        }
+
+                        # Two-sample T-Test only when exactly 2 groups
+                        if len(groups) == 2:
+                            (lbl1, a1), (lbl2, a2) = groups
+                            # Levene test for equal variances
+                            lev_stat, lev_p = levene(a1, a2, center='median')
+                            equal_var = bool(lev_p >= 0.05)  # if p>=0.05 assume equal variances
+                            t_stat, t_p = ttest_ind(a1, a2, equal_var=equal_var)
+
+                            # Cohen's d
+                            def cohens_d(x, y, use_pooled=True):
+                                x, y = np.asarray(x), np.asarray(y)
+                                nx, ny = x.size, y.size
+                                mx, my = np.mean(x), np.mean(y)
+                                vx, vy = np.var(x, ddof=1), np.var(y, ddof=1)
+                                if use_pooled:
+                                    sp2 = ((nx - 1) * vx + (ny - 1) * vy) / (nx + ny - 2) if (nx + ny - 2) > 0 else np.nan
+                                    sp = np.sqrt(sp2) if sp2 >= 0 else np.nan
+                                    return (mx - my) / sp if np.isfinite(sp) and sp != 0 else None
+                                else:
+                                    s = np.sqrt((vx + vy) / 2.0)
+                                    return (mx - my) / s if np.isfinite(s) and s != 0 else None
+
+                            d = cohens_d(a1, a2, use_pooled=equal_var)
+
+                            results['analysis']['t_test'] = {
+                                'target': target_col,
+                                'group': group_col,
+                                'groups': [lbl1, lbl2],
+                                'equal_var_assumed': equal_var,
+                                'levene_stat': float(lev_stat) if np.isfinite(lev_stat) else None,
+                                'levene_p': float(lev_p) if np.isfinite(lev_p) else None,
+                                't_stat': float(t_stat) if np.isfinite(t_stat) else None,
+                                'p_value': float(t_p) if np.isfinite(t_p) else None,
+                                'cohens_d': float(d) if d is not None and np.isfinite(d) else None,
+                                'group_means': {lbl1: float(np.mean(a1)), lbl2: float(np.mean(a2))},
+                                'group_counts': {lbl1: int(a1.size), lbl2: int(a2.size)},
+                            }
+                    except Exception as ex:
+                        # Non-fatal: attach error details
+                        results.setdefault('analysis', {}).setdefault('errors', {})['anova_ttest'] = str(ex)
+        # --- Chi-Square for all pairs of categorical variables (+ Cramér's V) ---
+        try:
+            from scipy.stats import chi2_contingency
+            def _cramers_v(contingency):
+                # Bias-corrected Cramér's V (Bergsma, 2013)
+                chi2, _, _, _ = chi2_contingency(contingency, correction=False)
+                n = contingency.to_numpy().sum()
+                if n == 0:
+                    return None
+                r, k = contingency.shape
+                phi2 = chi2 / n
+                phi2corr = max(0, phi2 - ((k - 1)*(r - 1))/(n - 1)) if n > 1 else 0
+                rcorr = r - ((r - 1)**2)/(n - 1) if n > 1 else r
+                kcorr = k - ((k - 1)**2)/(n - 1) if n > 1 else k
+                denom = min(kcorr - 1, rcorr - 1)
+                return float((phi2corr / denom) ** 0.5) if denom > 0 else None
+
+            chi_results = {}
+            if len(categorical_cols) >= 2:
+                for i in range(len(categorical_cols)):
+                    for j in range(i + 1, len(categorical_cols)):
+                        a, b = categorical_cols[i], categorical_cols[j]
+                        # Build contingency table (drop NaNs)
+                        sub = df[[a, b]].dropna()
+                        if sub.empty:
+                            continue
+                        table = pd.crosstab(sub[a].astype(str), sub[b].astype(str))
+                        # Skip trivial tables
+                        if table.size == 0 or table.shape[0] < 2 or table.shape[1] < 2:
+                            continue
+                        try:
+                            chi2, p, dof, expected = chi2_contingency(table)
+                            chi_results[f"{a}|{b}"] = {
+                                "chi2": float(chi2),
+                                "p_value": float(p),
+                                "dof": int(dof),
+                                "cramers_v": _cramers_v(table),
+                                "observed_shape": list(map(int, table.shape)),
+                                "sparsity": float((expected < 5).sum() / expected.size)  # rule-of-thumb indicator
+                            }
+                        except Exception as _ex:
+                            chi_results[f"{a}|{b}"] = {"error": str(_ex)}
+            if chi_results:
+                results['analysis']['chi_square'] = chi_results
+        except Exception as ex:
+            results.setdefault('analysis', {}).setdefault('errors', {})['chi_square'] = str(ex)
+        # Chi-Square test of independence (only when TWO categorical columns exist)
+        try:
+            if len(categorical_cols) >= 2:
+                # pick first two categorical columns for now (can be parameterized later)
+                cat_a, cat_b = categorical_cols[0], categorical_cols[1]
+                # Build contingency table
+                ct = pd.crosstab(df[cat_a], df[cat_b])
+                if ct.shape[0] >= 2 and ct.shape[1] >= 2:
+                    from scipy.stats import chi2_contingency
+                    chi2, p, dof, expected = chi2_contingency(ct)
+                    results.setdefault('analysis', {})['chi_square'] = {
+                        'variables': [cat_a, cat_b],
+                        'chi2': float(chi2),
+                        'p_value': float(p),
+                        'dof': int(dof),
+                        'observed': ct.astype(int).to_dict(),
+                        'expected': pd.DataFrame(expected, index=ct.index, columns=ct.columns).round(4).to_dict(),
+                    }
+        except Exception as ex:
+            results.setdefault('analysis', {}).setdefault('errors', {})['chi_square'] = str(ex)
+
         # Get AI insights
         data_summary = f"Dataset with {len(df)} rows, {len(numeric_cols)} numeric columns, {len(categorical_cols)} categorical columns"
         ai_insights = get_ai_analysis(data_summary, goal, target_col, group_col)

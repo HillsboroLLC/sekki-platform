@@ -1,0 +1,31 @@
+# Byte-compiled / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual envs
+venv/
+
+# Local env & secrets
+.env
+*.env
+
+# SQLite / local databases
+instance/*.db
+*.sqlite3
+*.sqlite
+
+# Runtime/session data
+runtime/
+sessions_data/
+
+# Logs
+*.log
+*.out
+*.err
+
+# Build / temp
+dist/
+build/
+.DS_Store

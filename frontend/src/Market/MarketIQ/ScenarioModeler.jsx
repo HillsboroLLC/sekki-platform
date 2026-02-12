@@ -5,9 +5,9 @@
 // ============================================================================
 import React, { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner, faPlay, faCheck, faUndo } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faPlay, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { MarketIQ } from '../../lib/MarketIQClient';
-import '../styles/MarketIQ.css';
+import Button from './ui/components/Button';
 
 // ============================================================================
 // HELPER: Extract editable levers from baseAnalysis
@@ -159,52 +159,52 @@ function formatValue(value, type) {
 // ============================================================================
 function BaselineColumn({ levers, result }) {
   return (
-    <div className="baseline-card">
-      <div className="baseline-header">
-        <div className="baseline-title">Baseline</div>
-        <div className="baseline-badge">Current</div>
+    <div className="miq-scenario-col">
+      <div className="miq-scenario-header">
+        Baseline
+        <span className="miq-scenario-badge">Current</span>
       </div>
-
-      <div className="baseline-body">
-        {levers.map(lever => (
-          <div key={lever.key} className="baseline-group">
-            <label className="baseline-label">{lever.label}</label>
-            <div className="baseline-value">{formatValue(lever.value, lever.type)}</div>
+      <div className="miq-scenario-body">
+        <div className="miq-scenario-field">
+          <span style={{ color: 'var(--miq-navy)' }}>NPV</span>
+          <span style={{ color: 'var(--miq-gray-500)', fontWeight: 500 }}>
+            {result?.financial_impact?.npv
+              ? formatValue(result.financial_impact.npv, 'currency')
+              : result?.financial_impact?.roi_opportunity || '—'}
+          </span>
+        </div>
+        <div className="miq-scenario-field">
+          <span style={{ color: 'var(--miq-navy)' }}>IRR</span>
+          <span style={{ color: 'var(--miq-gray-500)', fontWeight: 500 }}>
+            {result?.financial_impact?.irr
+              ? formatValue(result.financial_impact.irr, 'percentage')
+              : '—'}
+          </span>
+        </div>
+        <div className="miq-scenario-field">
+          <span style={{ color: 'var(--miq-navy)' }}>Payback</span>
+          <span style={{ color: 'var(--miq-gray-500)', fontWeight: 500 }}>
+            {result?.financial_impact?.payback_months
+              ? formatValue(result.financial_impact.payback_months, 'months')
+              : result?.financial_impact?.payback_period || '—'}
+          </span>
+        </div>
+        <div
+          style={{
+            textAlign: 'center',
+            paddingTop: '16px',
+            borderTop: '1px solid var(--miq-border)',
+            marginTop: '8px',
+          }}
+        >
+          <div style={{ fontSize: 'var(--miq-text-sm)', color: 'var(--miq-gray-500)' }}>
+            AI Agent Score
           </div>
-        ))}
-
-        <div className="results-box">
-          <div className="result-row">
-            <span className="result-label">NPV</span>
-            <span className="result-value">
-              {result?.financial_impact?.npv
-                ? formatValue(result.financial_impact.npv, 'currency')
-                : result?.financial_impact?.roi_opportunity || '—'}
-            </span>
+          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--miq-navy)' }}>
+            {result?.market_iq_score ?? '—'}
           </div>
-
-          <div className="result-row">
-            <span className="result-label">IRR</span>
-            <span className="result-value">
-              {result?.financial_impact?.irr
-                ? formatValue(result.financial_impact.irr, 'percentage')
-                : '—'}
-            </span>
-          </div>
-
-          <div className="result-row">
-            <span className="result-label">Payback</span>
-            <span className="result-value">
-              {result?.financial_impact?.payback_months
-                ? formatValue(result.financial_impact.payback_months, 'months')
-                : result?.financial_impact?.payback_period || '—'}
-            </span>
-          </div>
-
-          <div className="result-score">
-            <div className="result-score-label">Market IQ Score</div>
-            <div className="result-score-value">{result?.market_iq_score ?? '—'}</div>
-            <div className="result-score-change baseline-text">Current Score</div>
+          <div style={{ fontSize: 'var(--miq-text-sm)', color: 'var(--miq-gray-500)' }}>
+            Current Score
           </div>
         </div>
       </div>
@@ -242,49 +242,33 @@ function ScenarioColumn({
   };
 
   return (
-    <div className="scenario-card">
-      <div className="scenario-header">
-        <div className="scenario-title">{title}</div>
-      </div>
+    <div className="miq-scenario-col">
+      <div className="miq-scenario-header">{title}</div>
 
-      <div className="scenario-body">
+      <div className="miq-scenario-body" style={{ minHeight: '180px' }}>
         {levers.map(lever => {
-        const currentValue = values[lever.key] ?? lever.value;
-        const delta = calculateDelta(currentValue, lever.value, lever.type);
+          const currentValue = values[lever.key] ?? lever.value;
+          const delta = calculateDelta(currentValue, lever.value, lever.type);
 
-        return (
-          <div key={lever.key} className="input-group">
-            <label className="input-label">{lever.label}</label>
-            <div className="input-wrapper">
-              <input
-                type="number"
-                className="input-field"
-                value={currentValue}
-                min={lever.min}
-                max={lever.max}
-                step={lever.step ?? (lever.type === 'currency' ? 1000 : lever.type === 'percentage' ? 0.1 : 1)}
-                onChange={(e) => onChange({ ...values, [lever.key]: Number(e.target.value) })}
-                disabled={disabled}
-              />
-              <span className={`input-delta ${getDeltaClass(delta)}`}>{delta}</span>
-            </div>
+          return (
+            <div key={lever.key} className="input-group">
+              <label className="input-label">{lever.label}</label>
+              <div className="input-wrapper">
+                <input
+                  type="number"
+                  className="input-field"
+                  value={currentValue}
+                  min={lever.min}
+                  max={lever.max}
+                  step={lever.step ?? (lever.type === 'currency' ? 1000 : lever.type === 'percentage' ? 0.1 : 1)}
+                  onChange={(e) => onChange({ ...values, [lever.key]: Number(e.target.value) })}
+                  disabled={disabled}
+                />
+                <span className={`input-delta ${getDeltaClass(delta)}`}>{delta}</span>
+              </div>
             </div>
           );
         })}
-
-        <div className="scenario-actions">
-          <button className="btn btn-run" onClick={onRun} disabled={disabled || running}>
-            {running ? (
-              <><FontAwesomeIcon icon={faSpinner} spin /> Running...</>
-            ) : (
-              <><FontAwesomeIcon icon={faPlay} /> Run</>
-            )}
-          </button>
-
-          <button className="btn btn-adopt" onClick={onAdopt} disabled={!result || disabled}>
-            <FontAwesomeIcon icon={faCheck} /> Adopt
-          </button>
-        </div>
 
         {result && (
           <div className="results-box">
@@ -344,6 +328,23 @@ function ScenarioColumn({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="miq-scenario-actions">
+        <Button variant="outline" size="sm" onClick={onRun} disabled={disabled || running}>
+          {running ? (
+            <>
+              <FontAwesomeIcon icon={faSpinner} spin /> Running...
+            </>
+          ) : (
+            <>
+              <FontAwesomeIcon icon={faPlay} /> Run
+            </>
+          )}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onAdopt} disabled={!result || disabled}>
+          <FontAwesomeIcon icon={faCheck} /> Adopt
+        </Button>
       </div>
     </div>
   );
@@ -678,71 +679,77 @@ if (label === 'Scenario B') onResultB?.(snapshot);
   }
 
   return (
-    <div className="scenario-modeler-redesigned">
-      <div className="scenarios-container">
-        <div className="scenarios-header">
-          <h2>Scenario Modeling</h2>
-          <p>
-            Adjust key levers to model different scenarios. Run scenarios individually or all at once to see projected impact on your Market IQ score.
-          </p>
-        </div>
+    <div>
+      <div
+        style={{
+          background: 'var(--miq-navy)',
+          color: 'rgba(255,255,255,0.8)',
+          padding: '16px 20px',
+          fontSize: 'var(--miq-text-base)',
+          lineHeight: 1.5,
+          marginBottom: '24px',
+        }}
+      >
+        Adjust key levers to model different scenarios. Run scenarios individually or all at once to
+        see projected impact on your AI Agent score.
+      </div>
 
-        <div className="scenarios-body">
-          <div className="scenarios-grid">
-            <BaselineColumn levers={levers} result={baseAnalysis} />
+      <div className="miq-scenario-cols" style={{ marginBottom: '24px' }}>
+        <BaselineColumn levers={levers} result={baseAnalysis} />
 
-            <ScenarioColumn
-              title="Scenario A"
-              levers={levers}
-              values={scenarioA}
-              baselineValues={baseAnalysis}
-              onChange={setScenarioA}
-              onRun={() => runSingleScenario(scenarioA, setResultA, 'Scenario A')}
-              onAdopt={() => adoptScenario(resultA, 'Scenario A')}
-              result={resultA}
-              disabled={busy}
-              running={activeScenario === 'Scenario A'}
-            />
+        <ScenarioColumn
+          title="Scenario A"
+          levers={levers}
+          values={scenarioA}
+          baselineValues={baseAnalysis}
+          onChange={setScenarioA}
+          onRun={() => runSingleScenario(scenarioA, setResultA, 'Scenario A')}
+          onAdopt={() => adoptScenario(resultA, 'Scenario A')}
+          result={resultA}
+          disabled={busy}
+          running={activeScenario === 'Scenario A'}
+        />
 
-            <ScenarioColumn
-              title="Scenario B"
-              levers={levers}
-              values={scenarioB}
-              baselineValues={baseAnalysis}
-              onChange={setScenarioB}
-              onRun={() => runSingleScenario(scenarioB, setResultB, 'Scenario B')}
-              onAdopt={() => adoptScenario(resultB, 'Scenario B')}
-              result={resultB}
-              disabled={busy}
-              running={activeScenario === 'Scenario B'}
-            />
-          </div>
+        <ScenarioColumn
+          title="Scenario B"
+          levers={levers}
+          values={scenarioB}
+          baselineValues={baseAnalysis}
+          onChange={setScenarioB}
+          onRun={() => runSingleScenario(scenarioB, setResultB, 'Scenario B')}
+          onAdopt={() => adoptScenario(resultB, 'Scenario B')}
+          result={resultB}
+          disabled={busy}
+          running={activeScenario === 'Scenario B'}
+        />
+      </div>
 
-          <div className="global-actions">
-            <button className="btn-global btn-reset-all" onClick={resetAllToBaseline} disabled={busy}>
-              <FontAwesomeIcon icon={faUndo} /> Reset All to Baseline
-            </button>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '20px' }}>
+        <Button variant="outline" icon="fa-solid fa-rotate-left" onClick={resetAllToBaseline} disabled={busy}>
+          Reset All to Baseline
+        </Button>
+        <Button variant="primary" icon="fa-solid fa-play" onClick={runAllScenarios} disabled={busy}>
+          {activeScenario === 'all' ? 'Running All...' : 'Run All Scenarios'}
+        </Button>
+        {(resultA || resultB) && onCompare && (
+          <Button variant="outline" onClick={() => onCompare()}>
+            Compare Scenarios
+          </Button>
+        )}
+      </div>
 
-            <button className="btn-global btn-run-all" onClick={runAllScenarios} disabled={busy}>
-              {activeScenario === 'all' ? (
-                <><FontAwesomeIcon icon={faSpinner} spin /> Running All...</>
-              ) : (
-                <><FontAwesomeIcon icon={faPlay} /> Run All Scenarios</>
-              )}
-            </button>
-
-            {(resultA || resultB) && onCompare && (
-              <button className="btn-global btn-compare" onClick={() => onCompare()}>
-                Compare Scenarios
-              </button>
-            )}
-          </div>
-
-          <div className="helper-text">
-            Adjust values in Scenario A and B, then click "Run" to see projected impact.<br />
-            After running, click "Adopt" to apply that scenario as your current analysis.
-          </div>
-        </div>
+      <div
+        style={{
+          background: 'var(--miq-navy)',
+          color: 'rgba(255,255,255,0.7)',
+          padding: '14px 20px',
+          fontSize: 'var(--miq-text-sm)',
+          lineHeight: 1.5,
+        }}
+      >
+        Adjust values in Scenario A and B, then click "Run" to see projected impact.
+        <br />
+        After running, click "Adopt" to apply that scenario as your current analysis.
       </div>
     </div>
   );

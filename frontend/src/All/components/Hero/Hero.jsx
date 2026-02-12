@@ -3,76 +3,90 @@ import './Hero.css';
 
 export default function Hero() {
   return (
-<section id="hero" className="hero" data-scope="hero">
-      <div className="hero-content">
+    <section id="hero" className="hero">
+      <div className="hero-container">
         {/* Left column */}
         <div className="hero-left">
-          <h1 className="hero-headline">
-            Unlimited Business Analysis for Life. Pay Once, Analyze Forever.
-          </h1>
-          <p className="hero-subheadline">
-            Get unlimited access to our complete business analysis platform forever.
-            Pay once, analyze unlimited projects for life.
-          </p>
-          <div className="hero-cta">
-            <a href="#founder-payment" className="btn btn-primary btn-large">
-              Get Founder Access – $2,999
-            </a>
-            <a href="#pricing" className="btn btn-secondary btn-large">
-              View All Plans
-            </a>
+          <div className="hero-tagline">
+            <i className="fa-solid fa-bolt"></i>
+            AI-POWERED OPERATIONS STRATEGY
           </div>
-          <div className="hero-stats">
-            <div className="stat">
-              <div className="stat-number">10,000+</div>
-              <div className="stat-label">Analyses Created</div>
-            </div>
-            <div className="stat">
-              <div className="stat-number">500+</div>
-              <div className="stat-label">Businesses Validated</div>
-            </div>
-            <div className="stat">
-              <div className="stat-number">$2M+</div>
-              <div className="stat-label">Saved in Consulting</div>
-            </div>
+
+          <h1 className="hero-headline">
+            Your next strategic decision is five minutes away.
+          </h1>
+
+          <p className="hero-description">
+            AI Agent turns a raw idea into a scored business case, financial model, and execution plan — before your next meeting starts.
+          </p>
+
+          <div className="hero-cta">
+            <a href="#request-demo" className="btn btn-primary">
+              <i className="fa-solid fa-arrow-right"></i>
+              Request Demo
+            </a>
+            <a href="#how-it-works" className="btn btn-outline">
+              See How It Works
+            </a>
           </div>
         </div>
 
-        {/* Right column */}
-        <div className="hero-visual">
-          <h4>
-            <i className="fas fa-chart-line" />
-            <span>Recent Market Analysis</span>
-          </h4>
-
-          <div className="analysis-preview">
-            <h5>AI-Powered Food Delivery App</h5>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '85%' }} />
-            </div>
-            <p className="analysis-text">
-              Market Viability: 85% – Strong Opportunity
-            </p>
+        {/* Right column - Strategy Scorecard */}
+        <div className="hero-card">
+          <div className="card-header">
+            <i className="fa-solid fa-chart-line"></i>
+            STRATEGY SCORECARD
           </div>
 
-          <div className="analysis-preview">
-            <h5>Sustainable Fashion Platform</h5>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '72%' }} />
-            </div>
-            <p className="analysis-text">
-              Market Viability: 72% – Good Potential
-            </p>
-          </div>
+          <div className="card-body">
+            <div className="scorecard-main">
+              <div className="score-circle">
+                <span className="score-value">87</span>
+                <span className="score-label">SCORE</span>
+              </div>
 
-          <div className="analysis-preview">
-            <h5>B2B SaaS Analytics Tool</h5>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '91%' }} />
+              <div className="score-metrics">
+                <div className="metric-row">
+                  <span className="metric-name">ROI Opportunity</span>
+                  <span className="metric-value highlight">240%</span>
+                </div>
+                <div className="metric-row">
+                  <span className="metric-name">Projected Savings</span>
+                  <span className="metric-value">$360K</span>
+                </div>
+                <div className="metric-row">
+                  <span className="metric-name">Viability</span>
+                  <span className="metric-value highlight">Strong</span>
+                </div>
+              </div>
             </div>
-            <p className="analysis-text">
-              Market Viability: 91% – Excellent Match
-            </p>
+
+            <div className="scorecard-features">
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <i className="fa-solid fa-comments"></i>
+                </div>
+                <span>Intake</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <i className="fa-solid fa-magnifying-glass-chart"></i>
+                </div>
+                <span>Analysis</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <i className="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <span>Business Case</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <i className="fa-solid fa-list-check"></i>
+                </div>
+                <span>Execution</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

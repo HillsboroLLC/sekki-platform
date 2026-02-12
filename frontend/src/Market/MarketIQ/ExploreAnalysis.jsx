@@ -1,269 +1,184 @@
-import React, { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faArrowLeft,
-  faComments,
-  faChartLine,
-  faBalanceScale,
-  faProjectDiagram,
-  faDollarSign,
-  faBullseye,
-  faArrowTrendUp,
-  faUsers
-} from '@fortawesome/free-solid-svg-icons';
+import React, { useMemo, useState } from 'react';
 
-// --- normalize backend payload (handles compat + snake_case) ---
-const normalizeAnalysis = (analysis) => {
-  const hasCompat = !!(analysis && analysis.compat);
+export default function ExploreAnalysis({
+  analysisResult,
+  messages,
+  readinessPercent,
+  onSend,
+  onFinish,
+  onBackToSummary,
+  onOpenChat,
+  onOpenScenario,
+  onConvertToProject,
+}) {
+  const derivedMessages = useMemo(() => {
+    if (Array.isArray(messages)) return messages;
+    const history =
+      analysisResult?.chat_history ||
+      analysisResult?.conversation_history ||
+      analysisResult?.chatHistory ||
+      [];
+    if (!Array.isArray(history)) return [];
+    return history.map((m) => ({
+      role: m.role || m.sender || (m.is_user ? 'user' : 'ai'),
+      text: m.text || m.content || '',
+    }));
+  }, [messages, analysisResult]);
 
-  const score = hasCompat
-    ? (analysis.compat.score ?? 0)
-    : (analysis && analysis.market_iq_score) ?? 0;
+  const fallbackPercent = Number(analysisResult?.readiness?.percent ?? analysisResult?.readiness ?? 0);
+  const percent = Number.isFinite(readinessPercent)
+    ? Math.round(readinessPercent)
+    : (Number.isFinite(fallbackPercent) ? Math.round(fallbackPercent) : 0);
 
-  const title = hasCompat
-    ? (analysis.compat.title ?? 'Market IQ Project')
-    : (analysis && analysis.project_name) ?? 'Market IQ Project';
+  const [draft, setDraft] = useState('');
 
-  const components = hasCompat
-    ? analysis.compat.components
-    : {
-        financialHealth: analysis?.component_scores?.financial_health ?? 0,
-        operationalEfficiency: analysis?.component_scores?.operational_efficiency ?? 0,
-        marketPosition: analysis?.component_scores?.market_position ?? 0,
-        executionReadiness: analysis?.component_scores?.execution_readiness ?? 0
-      };
-
-  // financial strings are already formatted (e.g. "$1.2M")
-  const financials = hasCompat
-    ? analysis.compat.financials
-    : {
-        ebitdaAtRisk: analysis?.financial_impact?.ebitda_at_risk ?? '—',
-        potentialLoss: analysis?.financial_impact?.potential_loss ?? '—',
-        roiOpportunity: analysis?.financial_impact?.roi_opportunity ?? '—',
-        projectedEbitda: analysis?.financial_impact?.projected_ebitda ?? '—'
-      };
-
-  return { score, title, components, financials, raw: analysis };
-};
-
-export default function ExploreAnalysis({ analysisResult, onBackToSummary, onOpenChat, onOpenScenario, onConvertToProject }) {
-  const a = normalizeAnalysis(analysisResult);
-
-  const getScoreColor = (score) => {
-    if (score >= 70) return '#10b981';
-    if (score >= 50) return '#f59e0b';
-    return '#ef4444';
-  };
-
-  const scoreColor = getScoreColor(a.score || 0);
-
-  const componentIcons = {
-    'Execution Readiness': faUsers,
-    'Financial Health': faDollarSign,
-    'Market Position': faBullseye,
-    'Operational Efficiency': faArrowTrendUp
-  };
-
-  const methodologyData = [
-    {
-      component: 'Financial Health',
-      weight: '30%',
-      score: a.components?.financialHealth || 0,
-      contribution: ((a.components?.financialHealth || 0) * 0.3).toFixed(1)
-    },
-    {
-      component: 'Operational Efficiency',
-      weight: '20%',
-      score: a.components?.operationalEfficiency || 0,
-      contribution: ((a.components?.operationalEfficiency || 0) * 0.2).toFixed(1)
-    },
-    {
-      component: 'Market Position',
-      weight: '30%',
-      score: a.components?.marketPosition || 0,
-      contribution: ((a.components?.marketPosition || 0) * 0.3).toFixed(1)
-    },
-    {
-      component: 'Execution Readiness',
-      weight: '20%',
-      score: a.components?.executionReadiness || 0,
-      contribution: ((a.components?.executionReadiness || 0) * 0.2).toFixed(1)
+  const handleSend = () => {
+    if (onSend) {
+      onSend(draft);
+    } else if (onOpenChat) {
+      onOpenChat();
     }
-  ];
+    setDraft('');
+  };
 
-  const weightedSum = methodologyData
-    .reduce((sum, item) => sum + parseFloat(item.contribution), 0)
-    .toFixed(2);
-
-  const [whatsNextOpen, setWhatsNextOpen] = useState(false);
+  const handleFinish = () => {
+    if (onFinish) {
+      onFinish();
+    } else if (onBackToSummary) {
+      onBackToSummary();
+    } else if (onOpenScenario) {
+      onOpenScenario();
+    } else if (onConvertToProject) {
+      onConvertToProject();
+    }
+  };
 
   return (
-    <div className="explore-analysis">
-      {/* Header */}
-      <div className="dashboard-header">
-        <button className="back-button" onClick={onBackToSummary}>
-          <FontAwesomeIcon icon={faArrowLeft} />
-          Back
-        </button>
-        <h1 className="dashboard-title">Explore Analysis</h1>
-        <div className="explore-whats-next-dropdown">
-          <button 
-            className="explore-btn-whats-next"
-            onClick={() => setWhatsNextOpen(!whatsNextOpen)}
-          >
-            <span>What's Next</span>
-            <span className={`explore-dropdown-arrow ${whatsNextOpen ? 'open' : ''}`}>▼</span>
-          </button>
-          {whatsNextOpen && (
-            <div className="explore-dropdown-menu">
-              <button className="explore-dropdown-item" onClick={() => { onOpenChat(); setWhatsNextOpen(false); }}>
-                <FontAwesomeIcon icon={faComments} />
-                <span>Discuss with Analyst</span>
-              </button>
-              <button className="explore-dropdown-item" onClick={() => { onOpenScenario(); setWhatsNextOpen(false); }}>
-                <FontAwesomeIcon icon={faBalanceScale} />
-                <span>Scenario Modeling</span>
-              </button>
-              <button className="explore-dropdown-item" onClick={() => { onConvertToProject(); setWhatsNextOpen(false); }}>
-                <FontAwesomeIcon icon={faProjectDiagram} />
-                <span>Begin Project</span>
-              </button>
-            </div>
-          )}
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)' }}>
+      {/* Messages area */}
+      <div className="miq-chat-messages" style={{ flex: 1, overflowY: 'auto', padding: 0 }}>
+        {derivedMessages.map((msg, i) => {
+          if (msg.role === 'tag') {
+            return (
+              <span key={i} className="miq-chat-tag" style={{ alignSelf: 'flex-end' }}>
+                {msg.text}
+              </span>
+            );
+          }
+          return (
+            <div
+              key={i}
+              className={`miq-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`}
+              style={{
+                maxWidth: '80%',
+                padding: '14px 18px',
+                fontSize: 'var(--miq-text-md)',
+                lineHeight: 1.6,
+              }}
+              dangerouslySetInnerHTML={{
+                __html: String(msg.text || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
+              }}
+            />
+          );
+        })}
       </div>
 
-      {/* Score Summary */}
-      <div className="explore-score-summary">
-        <div className="explore-score-header">
-          <div
-            className="explore-score-circle"
-            style={{ borderColor: scoreColor, color: scoreColor }}
-          >
-            {a.score || '--'}
-          </div>
-          <div className="explore-score-details">
-            <div className="explore-score-label">Market IQ Score</div>
-            <div className="explore-score-category">{a.title}</div>
-          </div>
-        </div>
-
-        <div className="explore-financial-grid">
-          <div className="explore-financial-item">
-            <div className="explore-financial-label">EBITDA at Risk</div>
-            <div className="explore-financial-value risk">
-              {a.financials?.ebitdaAtRisk ?? '—'}
-            </div>
-          </div>
-          <div className="explore-financial-item">
-            <div className="explore-financial-label">Potential Loss</div>
-            <div className="explore-financial-value negative">
-              {a.financials?.potentialLoss ?? '—'}
-            </div>
-          </div>
-          <div className="explore-financial-item">
-            <div className="explore-financial-label">ROI Opportunity</div>
-            <div className="explore-financial-value opportunity">
-              {a.financials?.roiOpportunity ?? '—'}
-            </div>
-          </div>
-          <div className="explore-financial-item">
-            <div className="explore-financial-label">Projected EBITDA</div>
-            <div className="explore-financial-value positive">
-              {a.financials?.projectedEbitda ?? '—'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Methodology */}
-      <div className="methodology-section">
-        <h3>How Your Score Was Calculated</h3>
-        <p>
-          Your Market IQ score is a weighted average of four key components. Each component is
-          scored 0-100, then multiplied by its weight to determine its contribution to the final
-          score.
-        </p>
-
-        <div className="methodology-table">
-          <div className="methodology-header">
-            <div>Component</div>
-            <div>Weight</div>
-            <div>Score</div>
-            <div>Contribution</div>
-          </div>
-
-          {methodologyData.map((item, index) => (
-            <div key={index} className="methodology-row">
-              <div>{item.component}</div>
-              <div>{item.weight}</div>
-              <div style={{ color: getScoreColor(item.score), fontWeight: 600 }}>
-                {item.score}
-              </div>
-              <div>{item.contribution}</div>
-            </div>
-          ))}
-
-          <div className="methodology-footer">
-            <div>Weighted Sum</div>
-            <div></div>
-            <div></div>
-            <div style={{ color: scoreColor }}>{weightedSum}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Component Breakdown */}
-      <div className="component-breakdown-section">
-        <h3>Component Breakdown</h3>
-        <div className="breakdown-grid">
-          {methodologyData.map((item, index) => (
-            <div key={index} className="breakdown-item">
-              <div className="breakdown-icon" style={{ color: getScoreColor(item.score) }}>
-                <FontAwesomeIcon icon={componentIcons[item.component] || faChartLine} />
-              </div>
-              <div className="breakdown-content">
-                <div className="breakdown-label">{item.component}</div>
-                <div className="breakdown-score" style={{ color: getScoreColor(item.score) }}>
-                  {item.score}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Raw Analysis Data */}
-      <div className="raw-data-section">
-        <h3>Raw Analysis Data</h3>
-        <div className="raw-data-container">
-          <pre>{JSON.stringify(a.raw, null, 2)}</pre>
-        </div>
-        <div className="raw-data-actions">
+      {/* Bottom input area */}
+      <div style={{ flexShrink: 0, paddingTop: '16px' }}>
+        {/* Input row */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '10px' }}>
           <button
-            className="action-btn secondary"
-            onClick={() => {
-              navigator.clipboard.writeText(JSON.stringify(a.raw, null, 2));
-              alert('JSON copied to clipboard!');
+            style={{
+              width: 36,
+              height: 36,
+              border: '1px solid var(--miq-border)',
+              borderRadius: 'var(--miq-radius-sm)',
+              background: 'var(--miq-white)',
+              color: 'var(--miq-gray-600)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: 'var(--miq-text-md)',
+              flexShrink: 0,
+            }}
+            type="button"
+            aria-label="Attach"
+          >
+            <i className="fa-solid fa-plus" />
+          </button>
+
+          <textarea
+            className="miq-chat-textarea"
+            rows={1}
+            placeholder="Refine the conversation to improve your scorecard..."
+            style={{ flex: 1 }}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+
+          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+            <button
+              style={{
+                width: 36,
+                height: 36,
+                border: 'none',
+                borderRadius: 'var(--miq-radius-sm)',
+                background: 'none',
+                color: 'var(--miq-gray-600)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 'var(--miq-text-md)',
+              }}
+              type="button"
+              aria-label="Voice"
+            >
+              <i className="fa-solid fa-microphone" />
+            </button>
+            <button className="miq-chat-send" onClick={handleSend} type="button">
+              <i className="fa-solid fa-arrow-up" />
+            </button>
+          </div>
+        </div>
+
+        {/* Status row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="miq-progress" style={{ flex: 1 }}>
+            <div className="miq-progress-fill magenta" style={{ width: `${percent}%` }} />
+          </div>
+          <span
+            style={{
+              fontSize: 'var(--miq-text-sm)',
+              fontWeight: 600,
+              color: 'var(--miq-gray-600)',
+              whiteSpace: 'nowrap',
             }}
           >
-            Copy JSON
-          </button>
+            {percent}% ready
+          </span>
           <button
-            className="action-btn secondary"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify(a.raw, null, 2)], {
-                type: 'application/json'
-              });
-              const url = URL.createObjectURL(blob);
-              const aEl = document.createElement('a');
-              aEl.href = url;
-              aEl.download = `market-iq-analysis-${Date.now()}.json`;
-              aEl.click();
-              URL.revokeObjectURL(url);
+            onClick={handleFinish}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 20px',
+              border: 'none',
+              borderRadius: 'var(--miq-radius-sm)',
+              background: 'var(--miq-magenta)',
+              color: 'var(--miq-white)',
+              fontSize: 'var(--miq-text-base)',
+              fontWeight: 600,
+              fontFamily: 'var(--miq-font)',
+              cursor: 'pointer',
+              flexShrink: 0,
             }}
+            type="button"
           >
-            Download JSON
+            <i className="fa-solid fa-check" />
+            Finish &amp; Analyze
           </button>
         </div>
       </div>

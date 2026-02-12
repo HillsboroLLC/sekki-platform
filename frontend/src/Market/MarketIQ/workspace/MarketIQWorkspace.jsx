@@ -9,12 +9,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PM_API_BASE } from '../../../config/apiBase';
 import { useChatCommands, parseUIActions, ChatActionTypes } from 'All/shared/hooks/useChatCommands';
 import { useToast, ToastContainer } from 'All/shared/components/Toast';
+import { useAuth } from 'All/shared/auth/AuthContext';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faHistory, faQuestionCircle, faHome, faCogs,
+  faQuestionCircle, faHome, faCogs,
   faPaperPlane, faSpinner, faTimes, faBars, faCheck, faExclamationTriangle,
-  faChartLine, faTrash, faPlus, faMinus, faMicrophone, faChevronDown, faChevronRight, faWandMagicSparkles
+  faChartLine, faTrash, faPlus, faMinus, faMicrophone, faChevronDown, faChevronRight, faWandMagicSparkles,
+  faUser, faGear, faBolt, faBrain, faLayerGroup, faRobot, faListCheck, faArrowUpRightFromSquare, faArrowRightFromBracket, faGaugeHigh, faClockRotateLeft, faPaperclip, faArrowUp
 } from '@fortawesome/free-solid-svg-icons';
 import {
   MonitorCheck, MessageCircleQuestion,
@@ -30,9 +32,8 @@ import ScenarioModeler  from '../ScenarioModeler';
 import ComparisonView   from '../ComparisonView';
 import ThreadEditModal from '../../components/ThreadEditModal';
 
-// Styles
+// Styles - Single source of truth
 import './MarketIQWorkspace.css';
-import '../../components/Buttons/BeginProject.css';
 
 // === Header Icon Helpers =====================================================
 const PM_VARIANT  = "monitor-check";
@@ -140,6 +141,11 @@ export default function MarketIQWorkspace() {
   const [view, setView] = useState('intake');
   const [activeTab, setActiveTab] = useState('summary');
 
+  // User menu dropdown state
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userMenuRef = useRef(null);
+  const { user, logout } = useAuth();
+
   // Imperative control for scenario modeling (used by interactive chat actions)
   const scenarioModelerRef = useRef(null);
 
@@ -165,6 +171,7 @@ export default function MarketIQWorkspace() {
   const [busy, setBusy] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState(null);
+  const recognitionRef = useRef(null);
 
   const [analysisResult, setAnalysisResult] = useState(null);
   // Scenario results kept at the Workspace level (so Score tab can switch)
@@ -430,6 +437,89 @@ const refreshBundle = async (tid) => {
   };
 
   const navigate = useNavigate();
+
+  // User menu helpers
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+  const userInitials = getInitials(user?.name || user?.email || 'User');
+  const userName = user?.name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || 'user@example.com';
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserDropdownOpen(false);
+      }
+    };
+    if (userDropdownOpen) document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [userDropdownOpen]);
+
+  const toggleUserMenu = () => setUserDropdownOpen(prev => !prev);
+
+  // === Speech Recognition for Voice Input ===
+  useEffect(() => {
+    // Check for browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn('Speech recognition not supported in this browser');
+      return;
+    }
+
+    if (isRecording) {
+      // Start recording
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        // Append to existing input
+        setInput(prev => {
+          const separator = prev && !prev.endsWith(' ') ? ' ' : '';
+          return prev + separator + transcript;
+        });
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        // Only restart if still recording (user hasn't stopped)
+        if (recognitionRef.current === recognition) {
+          setIsRecording(false);
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } else {
+      // Stop recording
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, [isRecording]);
+
   // === Persist/Restore current session across refresh ===
   const LS_MIQ_LAST_SESSION = 'miq_last_session_id';
 
@@ -2200,8 +2290,8 @@ if (missingSections) {
 }
 
   dispatchSidebar({ type: 'CLOSE_HISTORY' });
-  dispatchSidebar({ type: 'OPEN_READINESS' });
-  fetchReadinessFor(id);
+  // Readiness sidebar only applies to in-progress (incomplete) sessions
+  // Completed sessions go directly to summary view
   setView('summary');
   setActiveTab('summary');
 
@@ -2441,6 +2531,7 @@ const handleSaveScenario = async (scenario) => {
   const renderWorkspaceShell = () => {
     const isReadinessOpen = activeTab === 'chat' && sidebarState.readiness;
     const isScenarioTab = activeTab === 'scenario';
+    const shellOpen = sidebarState.history || sidebarState.readiness;
     const TabButton = ({ id, label }) => (
       <button
         className={`miq-top-tab ${activeTab === id ? 'active' : ''}`}
@@ -2482,8 +2573,9 @@ setView(id === 'chat' ? 'intake' : id);
     }
 
     return (
-      <>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <div className={`miq miq-shell ${shellOpen ? 'drawer-open' : ''}`}>
+        <main className="miq-main">
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
 {activeTab === 'chat' && (
   <>
@@ -2681,48 +2773,49 @@ setView(id === 'chat' ? 'intake' : id);
               <TabButton id="summary"  label="Score" />
               <TabButton id="scenario" label="Scenarios" />
               <TabButton id="chat"     label="Refine & Rescore" />
-              
-  <select
-    className="miq-variant-select"
-    aria-label="Score View"
-    value={selectedVariantId}
-    onChange={(e) => setSelectedVariantId(e.target.value)}
-    style={{ marginRight: '0.5rem' }}
-  >
-    {scoreVariants.map(v => (
-      <option key={v.id} value={v.id}>{v.label}</option>
-    ))}
-  </select>
 
-              <div className="miq-right-rail">
-                <select
-                  className="miq-scores-select"
-                  aria-label="Completed Scores"
-                  onChange={(e) => {
-                    const sel = analysisHistory.find(s => s.id === e.target.value);
-                    if (sel?.result) handleSelectAnalysis(sel.result);
-                  }}
-                >
-                  <option value="">Completed Scores</option>
-                  {analysisHistory
-                    .filter(s => (s.result?.status || 'completed') === 'completed')
-                    .map(s => (
-                      <option key={s.id} value={s.id}>
-                        {(s.result?.project_name || 'Analysis').slice(0, 32)}
-                        {s.result?.market_iq_score != null ? ` — ${s.result.market_iq_score}` : ''}
-                      </option>
+              {/* Only show dropdowns and Begin Project on Score tab */}
+              {activeTab === 'summary' && (
+                <div className="miq-right-rail">
+                  <select
+                    className="miq-variant-select"
+                    aria-label="Score View"
+                    value={selectedVariantId}
+                    onChange={(e) => setSelectedVariantId(e.target.value)}
+                  >
+                    {scoreVariants.map(v => (
+                      <option key={v.id} value={v.id}>{v.label}</option>
                     ))}
-                </select>
+                  </select>
 
-{/* ===== REPLACE: Begin Project button ===== */}
-<button
-  className="begin-project-btn"
-  onClick={onBeginProject}
-  disabled={beginBusy}
->
-  {beginBusy ? "Working…" : "Begin Project"}
-</button>
-{/* ===== END REPLACE ===== */}
+                  <select
+                    className="miq-scores-select"
+                    aria-label="Completed Scores"
+                    onChange={(e) => {
+                      const sel = analysisHistory.find(s => s.id === e.target.value);
+                      if (sel?.result) handleSelectAnalysis(sel.result);
+                    }}
+                  >
+                    <option value="">Completed Scores</option>
+                    {analysisHistory
+                      .filter(s => (s.result?.status || 'completed') === 'completed')
+                      .map(s => (
+                        <option key={s.id} value={s.id}>
+                          {(s.result?.project_name || 'Analysis').slice(0, 32)}
+                          {s.result?.market_iq_score != null ? ` — ${s.result.market_iq_score}` : ''}
+                        </option>
+                      ))}
+                  </select>
+
+                  <button
+                    className="begin-project-btn"
+                    onClick={onBeginProject}
+                    disabled={beginBusy}
+                  >
+                    {beginBusy ? "Working…" : "Begin Project"}
+                  </button>
+                </div>
+              )}
 
 {/* ===== BEGIN: Begin Project overlay (fixed) ===== */}
 {beginBusy && (
@@ -2778,8 +2871,6 @@ setView(id === 'chat' ? 'intake' : id);
   </div>
 )}
 {/* ===== END: Begin Project overlay ===== */}
-
-              </div>
             </nav>
           </div>
 
@@ -3018,7 +3109,8 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
             )}
           </div>
         </div>
-      </>
+        </main>
+      </div>
     );
   };
 
@@ -3032,8 +3124,11 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
   }
 
   // Default: conversational intake (no tabs)
+  const intakeShellOpen = sidebarState.history || sidebarState.readiness;
   return (
-    <div className="chatgpt-interface">
+    <div className={`miq miq-shell ${intakeShellOpen ? 'drawer-open' : ''}`}>
+      <main className="miq-main">
+        <div className="chatgpt-interface">
       {busy && (
         <div className="thinking-overlay">
           <div className="thinking-content">
@@ -3042,6 +3137,29 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
           </div>
         </div>
       )}
+
+      {/* Drawer Tabs on Left Edge */}
+      {sessionId && messages.length > 0 && !sidebarState.readiness && (
+        <div
+          className={`miq-drawer-tab miq-drawer-tab-readiness ${sessionId && messages.length > 0 ? 'active' : ''}`}
+          onClick={() => dispatchSidebar({ type: 'OPEN_READINESS' })}
+        >
+          <FontAwesomeIcon icon={faGaugeHigh} />
+          READINESS
+        </div>
+      )}
+      {!sidebarState.history && (
+        <div
+          className="miq-drawer-tab miq-drawer-tab-history"
+          style={{ top: sessionId && messages.length > 0 && !sidebarState.readiness ? '160px' : '80px' }}
+          onClick={() => dispatchSidebar({ type: 'TOGGLE_HISTORY' })}
+        >
+          <FontAwesomeIcon icon={faClockRotateLeft} />
+          HISTORY
+        </div>
+      )}
+
+      {/* Drawer Overlay - non-blocking, just visual dimming */}
 
       {/* LEFT SIDEBAR - Readiness */}
       <div className={`miq-left-sidebar miq-readiness-sidebar ${sidebarState.readiness ? 'sidebar-open' : ''}`}>
@@ -3134,13 +3252,6 @@ const done = category.completed === true;
         </div>
       </div>
 
-      {sessionId && messages.length > 0 && !sidebarState.readiness && (
-        <div className="miq-sidebar-tab miq-tab-readiness" onClick={() => dispatchSidebar({ type: 'OPEN_READINESS' })}>
-          <FontAwesomeIcon icon={faChartLine} />
-          <span className="miq-tab-label">Readiness</span>
-        </div>
-      )}
-
       {/* LEFT SIDEBAR - History */}
       <div className={`miq-left-sidebar miq-history-sidebar ${sidebarState.history ? 'sidebar-open' : ''}`}>
         <div className="miq-sidebar-header">
@@ -3154,16 +3265,18 @@ const done = category.completed === true;
             <p className="miq-no-history">No previous analyses</p>
           ) : (
             analysisHistory.map((item, index) => (
-              <div key={index} className="miq-history-item">
-                <div className="miq-history-main" onClick={() => handleSelectAnalysis(item.result)}>
-                  <div className="miq-history-title">
+              <div key={index} className="miq-history-item" onClick={() => handleSelectAnalysis(item.result)}>
+                <div className="hi-text">
+                  <div className="hi-title">
                     {item.result?.project_name || `Analysis ${item.id?.slice(-8) || index + 1}`}
                   </div>
-                  <div className="miq-history-date">{new Date(item.createdAt).toLocaleDateString()}</div>
-                  {item.result?.market_iq_score && (<div className="miq-history-score">Score: {item.result.market_iq_score}</div>)}
+                  <div className="hi-meta">
+                    <span>{new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    {item.result?.market_iq_score && (<span className="hi-score">Score: {item.result.market_iq_score}</span>)}
+                  </div>
                 </div>
                 <button
-                  className="miq-history-delete"
+                  className="hi-delete"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteAnalysis(item.id);
@@ -3178,211 +3291,217 @@ const done = category.completed === true;
         </div>
       </div>
 
-      {!sidebarState.history && (
-        <div className="miq-sidebar-tab miq-tab-history" onClick={() => dispatchSidebar({ type: 'TOGGLE_HISTORY' })}>
-          <FontAwesomeIcon icon={faHistory} />
-          <span className="miq-tab-label">History</span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="chatgpt-header">
-        <div className="header-left">
-          <button type="button" className="logout-link" onClick={handleLogout} aria-label="Log out" title="Log out">
-            Log out
-          </button>
-        </div>
-
-        <div className="header-center">
-          <h2 className="header-title">Market IQ</h2>
-
+      {/* Header - Manus Style Top Bar */}
+      <div className="miq-chat-topbar">
+        <div className="miq-topbar-left">
+          <span className="miq-topbar-title">AI Agent</span>
           <button
-            className="header-icon-btn miq-new-session-btn"
+            className="miq-topbar-new"
             onClick={() => handleNewAnalysis(true)}
             title="New Session"
             aria-label="New Session"
           >
-            <LucidePlus size={20} strokeWidth={2} className="miq-icon miq-plus-icon" />
+            <FontAwesomeIcon icon={faPlus} />
           </button>
         </div>
 
-        <div className="header-right">
-          <button className="header-icon-btn" onClick={enterScorecardPreview} title="Preview Scorecard" aria-label="Preview Scorecard">
-            <BarChart3 size={28} strokeWidth={1.8} className="miq-icon" />
-          </button>
+        <div className="miq-topbar-right">
+          {/* User Avatar & Dropdown */}
+          <div className="miq-user-menu-wrapper" ref={userMenuRef}>
+            <button className="miq-user-avatar" onClick={toggleUserMenu} aria-haspopup="menu" aria-expanded={userDropdownOpen}>
+              {userInitials}
+            </button>
 
-          <button className="header-icon-btn" onClick={() => navigate("/ops/pm")} title="PM Dashboard" aria-label="PM Dashboard">
-            <MonitorCheck size={32} strokeWidth={1.6} className="miq-icon" />
-          </button>
+            <div className={`miq-user-dropdown ${userDropdownOpen ? 'open' : ''}`} role="menu">
+              <div className="miq-ud-header">
+                <div className="miq-ud-header-avatar">{userInitials}</div>
+                <div className="miq-ud-header-info">
+                  <div className="miq-ud-header-name">{userName}</div>
+                  <div className="miq-ud-header-email">{userEmail}</div>
+                </div>
+              </div>
 
-          <button className="header-icon-btn" onClick={() => navigate("/ops/lss")} title="LSS Dashboard" aria-label="LSS Dashboard">
-            <Sigma size={32} strokeWidth={1.6} className="miq-icon" />
-          </button>
+              {/* Navigation */}
+              <div className="miq-ud-section">
+                <div className="miq-ud-section-label">Navigate</div>
+                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); }}>
+                  <FontAwesomeIcon icon={faRobot} />
+                  <span className="miq-ud-item-label">AI Agent</span>
+                </button>
+                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); enterScorecardPreview(); }}>
+                  <FontAwesomeIcon icon={faChartLine} />
+                  <span className="miq-ud-item-label">Scorecard</span>
+                </button>
+                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); navigate('/ops/pm'); }}>
+                  <FontAwesomeIcon icon={faListCheck} />
+                  <span className="miq-ud-item-label">PM Dashboard</span>
+                </button>
+                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); navigate('/ops/activities'); }}>
+                  <FontAwesomeIcon icon={faLayerGroup} />
+                  <span className="miq-ud-item-label">In Queue</span>
+                  <span className="miq-ud-item-badge">3</span>
+                </button>
+              </div>
 
-          <button className="header-icon-btn" onClick={() => setHelpOpen(true)} title="Help" aria-label="Help">
-            <MessageCircleQuestion size={28} strokeWidth={1.8} className="miq-icon miq-help-icon" />
+              {/* Account */}
+              <div className="miq-ud-section">
+                <div className="miq-ud-section-label">Account</div>
+                <button className="miq-ud-item">
+                  <FontAwesomeIcon icon={faBolt} />
+                  <span className="miq-ud-item-label">Credits</span>
+                  <span className="miq-ud-item-badge">0</span>
+                </button>
+                <button className="miq-ud-item">
+                  <FontAwesomeIcon icon={faBrain} />
+                  <span className="miq-ud-item-label">Knowledge</span>
+                </button>
+                <button className="miq-ud-item">
+                  <FontAwesomeIcon icon={faUser} />
+                  <span className="miq-ud-item-label">Account</span>
+                </button>
+                <button className="miq-ud-item">
+                  <FontAwesomeIcon icon={faGear} />
+                  <span className="miq-ud-item-label">Settings</span>
+                </button>
+              </div>
+
+              {/* Links */}
+              <div className="miq-ud-section">
+                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); navigate('/'); }}>
+                  <FontAwesomeIcon icon={faHome} />
+                  <span className="miq-ud-item-label">Homepage</span>
+                  <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+                </button>
+                <button className="miq-ud-item" onClick={() => setHelpOpen(true)}>
+                  <FontAwesomeIcon icon={faQuestionCircle} />
+                  <span className="miq-ud-item-label">Get help</span>
+                  <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+                </button>
+              </div>
+
+              {/* Sign out */}
+              <div className="miq-ud-section">
+                <button className="miq-ud-item signout" onClick={() => { setUserDropdownOpen(false); handleLogout(); }}>
+                  <FontAwesomeIcon icon={faArrowRightFromBracket} />
+                  <span className="miq-ud-item-label">Sign out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Help button */}
+          <button className="miq-help-btn" onClick={() => setHelpOpen(true)} title="Help" aria-label="Help">
+            <FontAwesomeIcon icon={faQuestionCircle} />
           </button>
         </div>
-      </div>
-
-      {/* Mobile tabs */}
-      <div className="miq-tabs-mobile">
-        <button type="button" className="miq-pill" onClick={() => dispatchSidebar({ type: 'OPEN_HISTORY' })}>
-          History
-        </button>
-        <button type="button" className="miq-pill" onClick={() => dispatchSidebar({ type: 'OPEN_READINESS' })}>
-          Readiness
-        </button>
       </div>
 
       {/* Content */}
-      <div className="chatgpt-content">
-        <div className="chatgpt-messages">
-          {messages.length === 0 && (
-            <div className="chatgpt-welcome">
-              <h1>What would you like to work on?</h1>
-              <p>Tell me about your project or business idea, and I'll help you build a Market IQ scorecard through a natural conversation.</p>
-              <div className="chatgpt-suggestions">
-                {dynamicPrompts.map((p,i)=>(
-                  <button key={i} className="chatgpt-suggestion" onClick={()=>handleSuggestionClick(p)}>
-                    {p}
-                  </button>
-                ))}
+      <div className="miq-chat-content">
+        {messages.length === 0 ? (
+          <div className="miq-chat-welcome">
+            <div className="cw-icon">
+              <FontAwesomeIcon icon={faWandMagicSparkles} />
+            </div>
+            <h2>What would you like to work on?</h2>
+            <p>Describe your project or business idea and I'll help you build a complete strategy scorecard through a natural conversation.</p>
+            <div className="miq-prompt-suggestions">
+              {dynamicPrompts.map((p, i) => (
+                <button key={i} className="miq-prompt-suggestion" onClick={() => handleSuggestionClick(p)}>
+                  <FontAwesomeIcon icon={faChevronRight} />
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="miq-messages">
+            {error && (
+              <div className="chatgpt-error">
+                <FontAwesomeIcon icon={faExclamationTriangle} />
+                <span>{error}</span>
               </div>
-            </div>
-          )}
+            )}
 
-          {error && (
-            <div className="chatgpt-error">
-              <FontAwesomeIcon icon={faExclamationTriangle} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="chatgpt-conversation">
             {messages.map((m, idx) => (
-              <div key={idx} className={`chatgpt-message ${m.role === 'ai' ? 'ai' : 'user'}`}>
-                <div className="message-content">{m.text}</div>
-
-                {Array.isArray(m.attachments) && m.attachments.length > 0 && (
-                  <div className="message-attachments">
-                    {m.attachments.map((a, i) => (
-                      <div key={i} className="message-attachment">
-                        {a.preview && a.type?.startsWith?.('image/')
-                          ? (
-                            <img
-                              className="attachment-thumb"
-                              src={a.preview}
-                              alt={a.name}
-                              onLoad={() => {
-                                try { if (a.preview) URL.revokeObjectURL(a.preview); } catch {}
-                              }}
-                            />
-                          )
-                          : (
-                            <a
-                              className="attachment-link"
-                              href={a.preview || '#'}
-                              onClick={(e) => { if (!a.preview) e.preventDefault(); }}
-                              download={a.name}
-                              title={a.name}
-                            >
-                              {a.name}
-                            </a>
-                          )
-                        }
-                        <span className="attachment-meta">
-                          {Math.round((a.size || 0) / 1024)} KB
-                        </span>
-                      </div>
-                    ))}
-
-                    <div className="attachments-caption">
-                      Attached {m.attachments.length} {m.attachments.length === 1 ? 'file' : 'files'}
-                    </div>
-                  </div>
-                )}
+              <div key={idx} className={`miq-message ${m.role === 'ai' ? 'ai' : 'user'}`}>
+                <div className="miq-message-bubble">{m.text}</div>
               </div>
             ))}
 
             <div ref={endRef} />
           </div>
-        </div>
+        )}
 
-        {/* Input Area */}
-        <div className="chatgpt-input-area">
-          <div className="chatgpt-input-container">
-            <button
-              type="button"
-              className="chatgpt-plus"
-              aria-label="Attach files"
-              title="Attach files"
-              disabled={busy}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <FontAwesomeIcon icon={faPlus} />
-            </button>
+        {/* Input Area - Manus Style */}
+        <div className="miq-chat-input-area">
+          <input
+            ref={fileInputRef}
+            id="miq-file-input"
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
+            onChange={onFilesSelected}
+            style={{ display: 'none' }}
+          />
 
-            <input
-              ref={fileInputRef}
-              id="miq-file-input"
-              type="file"
-              multiple
-              accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
-              onChange={onFilesSelected}
-              style={{ display: 'none' }}
-            />
+          {pendingFiles?.length > 0 && (
+            <div className="miq-file-chips" style={{ maxWidth: '800px', margin: '0 auto 8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {pendingFiles.map((f, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', background: '#f1f3f5', borderRadius: '4px', fontSize: '0.75rem' }}>
+                  {f.name}
+                  <button
+                    type="button"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', fontSize: '0.875rem', color: '#868e96' }}
+                    title="Remove"
+                    onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
 
-            {pendingFiles?.length > 0 && (
-              <div className="miq-file-chips">
-                {pendingFiles.map((f, i) => (
-                  <span key={i} className="miq-file-chip">
-                    {f.name}
-                    <button
-                      type="button"
-                      className="miq-file-chip-remove"
-                      title="Remove"
-                      onClick={() =>
-                        setPendingFiles(prev => prev.filter((_, idx) => idx !== i))
-                      }
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
+          <div className="miq-chat-input-box">
             <textarea
               value={input}
-              onChange={(e)=>setInput(e.target.value)}
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKey}
               placeholder={sessionId ? "Continue the conversation..." : "Describe your project or goal..."}
-              className="chatgpt-input"
               rows={1}
               disabled={busy}
             />
-
-            <button
-              type="button"
-              className={`chatgpt-mic ${isRecording ? 'is-recording' : ''}`}
-              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-              aria-pressed={isRecording}
-              title={isRecording ? 'Stop recording' : 'Start recording'}
-              disabled={busy}
-              onClick={() => setIsRecording(prev => !prev)}
-            >
-              <FontAwesomeIcon icon={faMicrophone} />
-            </button>
-
-            <button
-              className="chatgpt-send"
-              onClick={onSubmit}
-              disabled={busy || (!input.trim() && pendingFiles.length === 0)}
-              title="Send"
-            >
-              {busy ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faPaperPlane} />}
-            </button>
+            <div className="miq-chat-input-icons">
+              <button
+                type="button"
+                className="miq-ci-btn"
+                aria-label="Attach files"
+                title="Attach"
+                disabled={busy}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FontAwesomeIcon icon={faPaperclip} />
+              </button>
+              <button
+                type="button"
+                className={`miq-ci-btn ${isRecording ? 'recording' : ''}`}
+                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                title="Voice"
+                disabled={busy}
+                onClick={() => setIsRecording(prev => !prev)}
+              >
+                <FontAwesomeIcon icon={faMicrophone} />
+              </button>
+              <button
+                className="miq-ci-btn send"
+                onClick={onSubmit}
+                disabled={busy || (!input.trim() && pendingFiles.length === 0)}
+                title="Send"
+              >
+                {busy ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faArrowUp} />}
+              </button>
+            </div>
           </div>
 
           {sessionId && (
@@ -3481,6 +3600,8 @@ const done = category.completed === true;
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
   );
 }

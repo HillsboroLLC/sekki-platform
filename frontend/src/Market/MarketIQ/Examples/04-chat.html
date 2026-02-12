@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent — Workspace</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+/* === Reset & Variables === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #161f3b;
+  --magenta: #a0036c;
+  --yellow: #f0f302;
+  --ice: #eff9fc;
+  --light-blue: #f0f3f2;
+  --orange: #fd6b02;
+  --tan: #eab67b;
+  --white: #ffffff;
+  --gray-50: #f8f9fa;
+  --gray-100: #f1f3f5;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-400: #ced4da;
+  --gray-500: #adb5bd;
+  --gray-600: #868e96;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --text-primary: #161f3b;
+  --text-secondary: #495057;
+  --text-muted: #868e96;
+  --border: #e9ecef;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 3px rgba(22,31,59,0.06);
+  --shadow-md: 0 4px 12px rgba(22,31,59,0.08);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --transition: 0.2s ease;
+}
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font); color: var(--text-primary); background: var(--white); line-height: 1.6; }
+a { color: var(--magenta); text-decoration: none; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; color: var(--navy); }
+p { color: var(--text-secondary); line-height: 1.7; }
+
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; }
+.avatar-sm { width: 28px; height: 28px; font-size: 0.625rem; }
+
+/* === Layout === */
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; }
+
+/* === Left Sidebar — LIGHT (#f0f3f2) === */
+.chat-sidebar {
+  width: 280px;
+  background: var(--light-blue);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  border-right: 1px solid var(--border);
+}
+.chat-sidebar .sb-brand {
+  padding: 18px 20px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.chat-sidebar .sb-brand i { color: var(--magenta); font-size: 0.875rem; }
+
+.chat-sidebar .sb-new-btn {
+  margin: 16px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--navy);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font);
+}
+.chat-sidebar .sb-new-btn:hover { border-color: var(--navy); }
+
+/* Readiness */
+.sb-readiness {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-readiness .rd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sb-readiness .rd-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.sb-readiness .rd-pct {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.sb-readiness .rd-bar {
+  height: 4px;
+  background: var(--gray-300);
+  border-radius: 100px;
+  overflow: hidden;
+}
+.sb-readiness .rd-bar .rd-fill {
+  height: 100%;
+  background: var(--magenta);
+  border-radius: 100px;
+  width: 0%;
+}
+
+/* History */
+.sb-section-label {
+  padding: 16px 20px 8px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.sb-history {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+.sb-history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.sb-history-item:hover { background: rgba(0,0,0,0.03); }
+.sb-history-item .hi-text { flex: 1; min-width: 0; }
+.sb-history-item .hi-title {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-history-item .hi-meta {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+}
+.sb-history-item .hi-score {
+  font-weight: 600;
+  color: var(--magenta);
+}
+.sb-history-item .hi-delete {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px;
+  transition: color var(--transition);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.sb-history-item .hi-delete:hover { color: var(--text-secondary); }
+
+/* Sidebar footer */
+.sb-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sb-footer .sb-user { display: flex; align-items: center; gap: 10px; }
+.sb-footer .sb-user-name { font-size: 0.8125rem; color: var(--text-secondary); }
+.sb-footer .sb-logout {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  transition: color var(--transition);
+}
+.sb-footer .sb-logout:hover { color: var(--navy); }
+
+/* === Main Chat Area === */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Chat Top Bar */
+.chat-topbar {
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+.chat-topbar .ct-title { font-size: 0.8125rem; font-weight: 600; color: var(--navy); }
+.chat-topbar .ct-actions { display: flex; gap: 4px; }
+.ct-action-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  transition: all var(--transition);
+}
+.ct-action-btn:hover { border-color: var(--navy); color: var(--navy); }
+
+/* Chat Content */
+.chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  overflow-y: auto;
+}
+.chat-welcome { text-align: center; max-width: 520px; }
+.chat-welcome .cw-icon {
+  width: 56px; height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--navy);
+  color: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem;
+  margin: 0 auto 20px;
+}
+.chat-welcome h2 { font-size: 1.375rem; margin-bottom: 8px; }
+.chat-welcome p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 28px; line-height: 1.6; }
+
+.prompt-suggestions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.prompt-suggestion {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: left;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.prompt-suggestion:hover { border-color: var(--navy); background: var(--white); }
+.prompt-suggestion i { color: var(--text-muted); font-size: 0.75rem; flex-shrink: 0; }
+
+/* Chat Input */
+.chat-input-area { padding: 16px 24px 20px; flex-shrink: 0; }
+.chat-input-box {
+  display: flex; align-items: flex-end; gap: 12px;
+  padding: 12px 16px;
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition);
+}
+.chat-input-box:focus-within { border-color: var(--navy); }
+.chat-input-box textarea {
+  flex: 1; border: none; outline: none;
+  font-size: 0.875rem; font-family: var(--font);
+  color: var(--text-primary); resize: none;
+  min-height: 24px; max-height: 120px;
+  line-height: 1.5; background: transparent;
+}
+.chat-input-box textarea::placeholder { color: var(--gray-400); }
+.chat-input-icons { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.ci-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none;
+  color: var(--text-muted); cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  transition: all var(--transition);
+}
+.ci-btn:hover { color: var(--navy); background: var(--gray-100); }
+.ci-btn.send { background: var(--navy); color: var(--white); }
+.ci-btn.send:hover { background: #1e2a4f; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="chat-sidebar">
+    <div class="sb-brand"><i class="fa-solid fa-cube"></i> AI Agent</div>
+
+    <button class="sb-new-btn"><i class="fa-solid fa-plus"></i> New Session</button>
+
+    <!-- Readiness -->
+    <div class="sb-readiness">
+      <div class="rd-header">
+        <span class="rd-label">Analysis Readiness</span>
+        <span class="rd-pct">0%</span>
+      </div>
+      <div class="rd-bar"><div class="rd-fill"></div></div>
+    </div>
+
+    <!-- History -->
+    <div class="sb-section-label">History</div>
+    <div class="sb-history">
+      <div class="sb-history-item">
+        <div class="hi-text">
+          <div class="hi-title">Expand manufacturing by 40% over 18 months</div>
+          <div class="hi-meta"><span>Feb 4</span><span class="hi-score">Score: 77</span></div>
+        </div>
+        <button class="hi-delete"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+      <div class="sb-history-item">
+        <div class="hi-text">
+          <div class="hi-title">Open 3 new retail locations in Texas</div>
+          <div class="hi-meta"><span>Feb 4</span><span class="hi-score">Score: 46</span></div>
+        </div>
+        <button class="hi-delete"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+      <div class="sb-history-item">
+        <div class="hi-text">
+          <div class="hi-title">CFO financial data consolidation platform</div>
+          <div class="hi-meta"><span>Feb 4</span><span class="hi-score">Score: 47</span></div>
+        </div>
+        <button class="hi-delete"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+      <div class="sb-history-item">
+        <div class="hi-text">
+          <div class="hi-title">Go-to-market for AI customer support tool</div>
+          <div class="hi-meta"><span>Feb 3</span></div>
+        </div>
+        <button class="hi-delete"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+      <div class="sb-history-item">
+        <div class="hi-text">
+          <div class="hi-title">B2B SaaS analytics platform in NA/EU</div>
+          <div class="hi-meta"><span>Feb 2</span></div>
+        </div>
+        <button class="hi-delete"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+      <div class="sb-history-item">
+        <div class="hi-text">
+          <div class="hi-title">Premium coffee subscription for urban professionals</div>
+          <div class="hi-meta"><span>Feb 2</span></div>
+        </div>
+        <button class="hi-delete"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="avatar avatar-sm">DU</div>
+        <span class="sb-user-name">Demo User</span>
+      </div>
+      <button class="sb-logout"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+    </div>
+  </aside>
+
+  <!-- Main Chat -->
+  <main class="chat-main">
+    <!-- Top Bar -->
+    <div class="chat-topbar">
+      <span class="ct-title">AI Agent</span>
+      <div class="ct-actions">
+        <button class="ct-action-btn" title="Scorecard"><i class="fa-solid fa-chart-column"></i></button>
+        <button class="ct-action-btn" title="PM Dashboard"><i class="fa-solid fa-list-check"></i></button>
+        <button class="ct-action-btn" title="Help"><i class="fa-solid fa-circle-question"></i></button>
+      </div>
+    </div>
+
+    <!-- Chat Content -->
+    <div class="chat-content">
+      <div class="chat-welcome">
+        <div class="cw-icon"><i class="fa-solid fa-robot"></i></div>
+        <h2>What would you like to work on?</h2>
+        <p>Describe your project or business idea and I'll help you build a complete strategy scorecard through a natural conversation.</p>
+        <div class="prompt-suggestions">
+          <button class="prompt-suggestion">
+            <i class="fa-solid fa-arrow-right"></i>
+            Launch a B2B SaaS analytics platform in NA/EU with a $2M budget within 12 months
+          </button>
+          <button class="prompt-suggestion">
+            <i class="fa-solid fa-arrow-right"></i>
+            Enterprise security product targeting healthcare; target ARR $5M in 18 months
+          </button>
+          <button class="prompt-suggestion">
+            <i class="fa-solid fa-arrow-right"></i>
+            Expand manufacturing by 40% over 18 months targeting 20% EBITDA improvement
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-area">
+      <div class="chat-input-box">
+        <textarea rows="1" placeholder="Describe your project or goal..."></textarea>
+        <div class="chat-input-icons">
+          <button class="ci-btn" title="Attach"><i class="fa-solid fa-paperclip"></i></button>
+          <button class="ci-btn" title="Voice"><i class="fa-solid fa-microphone"></i></button>
+          <button class="ci-btn send" title="Send"><i class="fa-solid fa-arrow-up"></i></button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

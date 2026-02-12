@@ -1,220 +1,292 @@
-header.header .nav-list .nav-link,
-header.header .nav-list .nav-link:visited {
+/* ===========================================================================
+   Header Component — AI Agent
+   Matches Manus reference design
+   =========================================================================== */
+
+/* ---- Header Base (high specificity to override App.css) ---- */
+header.header,
+.homepage header.header,
+.header {
+  --hdr-navy:       #161f3b;
+  --hdr-white:      #ffffff;
+  --hdr-gray-100:   #f1f3f5;
+  --hdr-gray-200:   #e9ecef;
+  --hdr-gray-500:   #6b7280;
+  --hdr-gray-600:   #4b5563;
+  --hdr-border:     #e5e7eb;
+  --hdr-radius-md:  8px;
+  --hdr-radius-full: 100px;
+  --hdr-shadow-lg:  0 8px 24px rgba(22, 31, 59, 0.10);
+  --hdr-transition: 0.2s ease;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 72px;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1000;
+  backdrop-filter: none;
+  box-sizing: border-box;
+}
+
+header.header .header-content,
+.header .header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+  width: 100%;
+}
+
+/* ---- Logo ---- */
+header.header .logo,
+.header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+header.header .logo-icon,
+.header .logo-icon {
+  flex-shrink: 0;
+  color: #a0036c;
+  font-size: 1rem;
+}
+
+header.header .logo-text,
+.header .logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
   color: #161f3b !important;
-  text-decoration: none !important;
+  letter-spacing: -0.01em;
 }
 
-header.header .nav-list .nav-link:hover,
-header.header .nav-list .nav-link:focus {
-  color: #A0006D !important;
+/* ---- Desktop Navigation ---- */
+.header .desktop-nav {
+  display: flex;
+  align-items: center;
+  margin-left: 48px;
 }
 
-header.header .nav-list .nav-link.active {
-  color: #A0006D !important;
-  font-weight: 600 !important;
+.header .nav-list {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-/* ===== Hamburger ===== */
-.hamburger {
-  display: none;                  /* show only on mobile */
+.header .nav-list .nav-link {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--hdr-gray-600);
+  text-decoration: none;
+  transition: color var(--hdr-transition);
+}
+
+.header .nav-list .nav-link:hover {
+  color: var(--hdr-navy);
+}
+
+/* ---- Header Actions ---- */
+.header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Login link (plain text) */
+.header .login-link {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--hdr-gray-600);
+  text-decoration: none;
+  transition: color var(--hdr-transition);
+}
+
+.header .login-link:hover {
+  color: var(--hdr-navy);
+}
+
+/* ---- Buttons ---- */
+.header .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  padding: 10px 20px;
+  border-radius: var(--hdr-radius-full);
+  cursor: pointer;
+  transition: background var(--hdr-transition),
+              transform var(--hdr-transition),
+              box-shadow var(--hdr-transition);
+  text-decoration: none;
+  border: none;
+}
+
+/* Primary = Navy background (rounded pill) */
+.header .btn-primary {
+  background: var(--hdr-navy);
+  color: var(--hdr-white);
+}
+
+.header .btn-primary:hover {
+  background: #1e2a4a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 31, 59, 0.15);
+}
+
+.header .btn-primary svg {
+  order: -1;
+}
+
+/* Outline button */
+.header .btn-outline {
+  background: transparent;
+  color: var(--hdr-navy);
+  border: 2px solid var(--hdr-navy);
+}
+
+.header .btn-outline:hover {
+  background: var(--hdr-navy);
+  color: var(--hdr-white);
+}
+
+/* ---- Hamburger (mobile only) ---- */
+.header .hamburger {
+  display: none;
   width: 40px;
-  height: 34px;
+  height: 40px;
   padding: 0;
   border: 0;
   background: transparent;
   position: relative;
+  cursor: pointer;
 }
-.hamburger span {
+
+.header .hamburger span {
   display: block;
   height: 2px;
-  width: 24px;
-  background: var(--ink);
+  width: 22px;
+  background: var(--hdr-navy);
   position: absolute;
-  left: 8px;
-  transition: transform .25s ease, opacity .2s ease, top .25s ease;
-}
-.hamburger span:nth-child(1) { top: 9px; }
-.hamburger span:nth-child(2) { top: 16px; }
-.hamburger span:nth-child(3) { top: 23px; }
-
-.hamburger.is-open span:nth-child(1) { top: 16px; transform: rotate(45deg); }
-.hamburger.is-open span:nth-child(2) { opacity: 0; }
-.hamburger.is-open span:nth-child(3) { top: 16px; transform: rotate(-45deg); }
-
-/* ===== Desktop vs Mobile visibility ===== */
-.desktop-nav,
-.desktop-actions { display: flex; }
-
-@media (max-width: 820px) {
-  .desktop-nav,
-  .desktop-actions { display: none; }
-  .hamburger { display: inline-block; }
+  left: 9px;
+  transition: transform 0.25s ease, opacity 0.2s ease, top 0.25s ease;
 }
 
-/* ===== Mobile panel ===== */
-.mobile-nav {
+.header .hamburger span:nth-child(1) { top: 12px; }
+.header .hamburger span:nth-child(2) { top: 19px; }
+.header .hamburger span:nth-child(3) { top: 26px; }
+
+.header .hamburger.is-open span:nth-child(1) {
+  top: 19px;
+  transform: rotate(45deg);
+}
+
+.header .hamburger.is-open span:nth-child(2) {
+  opacity: 0;
+}
+
+.header .hamburger.is-open span:nth-child(3) {
+  top: 19px;
+  transform: rotate(-45deg);
+}
+
+/* ---- Mobile Navigation Panel ---- */
+.header .mobile-nav {
   display: none;
   position: fixed;
-  top: 56px;              /* sits just under the fixed header */
-  left: 0; right: 0;
-  background: #ffffff;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 8px 20px rgba(0,0,0,.06);
+  top: 72px;
+  left: 0;
+  right: 0;
+  background: var(--hdr-white);
+  border-bottom: 1px solid var(--hdr-border);
+  box-shadow: var(--hdr-shadow-lg);
   z-index: 999;
   transform: translateY(-10px);
   opacity: 0;
-  transition: transform .25s ease, opacity .2s ease;
+  transition: transform 0.25s ease, opacity 0.2s ease;
 }
-.mobile-nav.show {
+
+.header .mobile-nav.show {
   display: block;
   transform: translateY(0);
   opacity: 1;
 }
 
-.mobile-nav-list {
+.header .mobile-nav-list {
   list-style: none;
   margin: 0;
-  padding: 12px 20px 4px;
-  display: grid;
-  gap: 10px;
+  padding: 20px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-.mobile-nav-list .nav-link {
+
+.header .mobile-nav-list li {
+  list-style: none;
+}
+
+.header .mobile-nav-list .nav-link {
   display: block;
-  padding: 10px 4px;
-  color: var(--ink);
+  padding: 12px 8px;
+  color: var(--hdr-navy);
   text-decoration: none;
   font-weight: 600;
-}
-.mobile-nav-list .nav-link:active { opacity: .8; }
-
-.mobile-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 10px 20px 16px;
-  border-top: 1px solid var(--border);
+  font-size: 1rem;
+  border-radius: 6px;
+  transition: background var(--hdr-transition);
 }
 
-/* ===== Center hero content on mobile/tablet ===== */
+.header .mobile-nav-list .nav-link:hover {
+  background: var(--hdr-gray-100);
+}
+
+/* ---- Mobile Actions ---- */
+.header .mobile-actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px 24px;
+  border-top: 1px solid var(--hdr-border);
+}
+
+.header .mobile-actions .btn {
+  flex: 1;
+  padding: 14px 20px;
+}
+
+/* ===========================================================================
+   Responsive Breakpoints
+   =========================================================================== */
+
 @media (max-width: 900px) {
-  .hero .container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 12px;
+  .header .desktop-nav,
+  .header .desktop-actions {
+    display: none;
   }
-  .hero-sub { margin-left: auto; margin-right: auto; }
-  .cta-row { justify-content: center; }
-  .metrics { margin-left: auto; margin-right: auto; }
+
+  .header .hamburger {
+    display: inline-block;
+  }
+
+  .header .header-content {
+    padding: 0 20px;
+  }
 }
 
-
-.mobile-nav .nav-list,
-.mobile-menu .nav-list,
-.mobile-drawer .nav-list,
-.mobile-nav ul,
-.mobile-menu ul,
-.mobile-drawer ul {
-  list-style: none !important;
-  padding-left: 0 !important;  /* iOS adds left padding */
-  margin: 0 !important;
+@media (max-width: 480px) {
+  .header .mobile-actions {
+    flex-direction: column;
+  }
 }
-
-.mobile-nav li,
-.mobile-menu li,
-.mobile-drawer li {
-  list-style: none !important;
-}
-
-.mobile-nav li::marker,
-.mobile-menu li::marker,
-.mobile-drawer li::marker {
-  content: "" !important;      /* Safari/iOS marker removal */
-}
-
-/* Mobile drawer item spacing/appearance */
-.mobile-nav .nav-list > li a,
-.mobile-menu .nav-list > li a,
-.mobile-drawer .nav-list > li a {
-  display: block;
-  padding: 14px 4px;
-  text-decoration: none;
-  color: #161f3b;
-}
-
-/* --- Account popover (desktop) --- */
-.account { position: relative; }
-.btn.btn-ghost.account-trigger {
-  background: transparent;
-  border: 1px solid var(--border, #e5e7eb);
-  color: #161f3b;
-  padding: 8px 12px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.btn.btn-ghost.account-trigger:hover {
-  border-color: #cbd5e1;
-}
-.account-trigger .chev { transition: transform .2s ease; }
-.account-menu.open ~ .account-trigger .chev,
-.account.open .chev { transform: rotate(180deg); }
-
-.account-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 190px;
-  background: #fff;
-  border: 1px solid var(--border, #e5e7eb);
-  box-shadow: 0 10px 28px rgba(0,0,0,.08);
-  border-radius: 10px;
-  padding: 8px;
-  opacity: 0;
-  transform: translateY(-6px);
-  pointer-events: none;
-  transition: opacity .2s ease, transform .2s ease;
-  z-index: 1000;
-}
-.account-menu.open {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.account-item {
-  display: block;
-  padding: 10px 10px;
-  border-radius: 8px;
-  color: #161f3b;
-  text-decoration: none;
-  font-weight: 600;
-}
-.account-item:hover { background: #f3f4f6; }
-
-/* --- Mobile actions layout updates --- */
-.mobile-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: minmax(44px, auto);
-  gap: 10px;
-  padding: 10px 20px 16px;
-  border-top: 1px solid var(--border, #e5e7eb);
-}
-.mobile-actions .btn.full {
-  grid-column: 1 / -1; /* founder spans full width */
-}
-
-/* Optional outline style used above for Sign Up on mobile */
-.btn.btn-outline {
-  background: transparent;
-  border: 1px solid #A0006D;
-  color: #A0006D;
-}
-.btn.btn-outline:hover {
-  background: #A0006D;
-  color: #fff;
-}
-
-/* Keep existing rules (no bullets in mobile lists) – your earlier CSS already covers this. */

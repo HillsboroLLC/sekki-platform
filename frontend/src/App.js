@@ -20,7 +20,7 @@ import Login         from './All/Login/Login';
 import SignUp        from './All/SignUp/SignUp';
 import Privacy       from './All/pages/Privacy/privacy';
 import Terms         from './All/pages/Terms/terms';
-import Support       from './All/pages/Support/support';
+import Support       from './All/pages/Support/Support';
 
 // Market
 import Solopreneurs  from './Market/Solopreneurs/Solopreneurs';

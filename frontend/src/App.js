@@ -20,9 +20,6 @@ import Terms         from './All/pages/Terms/terms';
 import Support       from './All/pages/Support/Support';
 
 // Market
-import Solopreneurs  from './Market/Solopreneurs/Solopreneurs';
-import SmallBusiness from './Market/SmallBusiness/SmallBusiness';
-import Enterprise    from './Market/Enterprise/Enterprise';
 import PricingResult from './Market/PricingResult/PricingResult';
 import Dashboard     from './Market/Dashboard/Dashboard';
 import Sessions      from './Market/Sessions/Sessions';
@@ -66,9 +63,6 @@ export default function App() {
         {/* Public */}
         <Route path="/"               element={withShell(<HomePage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/profile"        element={withShell(<Profile />)} />
-        <Route path="/solopreneurs"   element={withShell(<Solopreneurs />)} />
-        <Route path="/small-business" element={withShell(<SmallBusiness />)} />
-        <Route path="/enterprise"     element={withShell(<Enterprise />)} />
         <Route path="/login"          element={withShell(<Login />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/sign-up"        element={withShell(<SignUp />)} />
         <Route path="/pricing"        element={withShell(<PricingResult />)} />

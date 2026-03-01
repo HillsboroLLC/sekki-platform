@@ -15,7 +15,6 @@ import { AppShell } from './components/layout';
 import HomePage      from './All/components/HomePage/HomePage';
 import Home          from './All/pages/Home/Home';
 import Profile       from './All/Profile/Profile';
-import Blog          from './All/Blog/Blog';
 import Login         from './All/Login/Login';
 import SignUp        from './All/SignUp/SignUp';
 import Privacy       from './All/pages/Privacy/privacy';
@@ -118,7 +117,6 @@ export default function App() {
                 {/* Public */}
                 <Route path="/"               element={withShell(<HomePage />, { showHeader: false, fullBleed: true, noPadding: true })} />
                 <Route path="/profile"        element={withShell(<Profile />)} />
-                <Route path="/blog"           element={withShell(<Blog />)} />
                 <Route path="/solopreneurs"   element={withShell(<Solopreneurs />)} />
                 <Route path="/small-business" element={withShell(<SmallBusiness />)} />
                 <Route path="/enterprise"     element={withShell(<Enterprise />)} />

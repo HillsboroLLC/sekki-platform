@@ -90,6 +90,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  gap: 32px;
 }
 
 .jaspen-logo {
@@ -102,10 +104,9 @@
 
 .jaspen-nav-desktop {
   display: flex;
-  gap: 40px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  gap: 48px;
+  flex: 1;
+  justify-content: center;
 }
 
 .jaspen-nav-desktop a {
@@ -123,7 +124,8 @@
 .jaspen-header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 28px;
+  justify-content: flex-end;
 }
 
 .jaspen-login-link {
@@ -158,23 +160,26 @@
 .jaspen-btn-primary {
   background: var(--navy-deep);
   color: var(--white);
+  font-weight: 700;
+  padding: 13px 26px;
 }
 
 .jaspen-btn-primary:hover {
-  background: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -12px rgba(37, 99, 235, 0.45);
 }
 
 .jaspen-btn-outline {
-  background: transparent;
-  color: var(--navy-deep);
-  border-color: var(--gray-200);
+  background: rgba(15, 23, 42, 0.02);
+  color: var(--gray-700);
+  border-color: rgba(15, 23, 42, 0.12);
 }
 
 .jaspen-btn-outline:hover {
-  background: var(--gray-50);
-  border-color: var(--navy-deep);
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.2);
+  color: var(--navy-deep);
 }
 
 /* ============================================================================
@@ -231,7 +236,7 @@
 
 .jaspen-hero-cta {
   display: flex;
-  gap: 20px;
+  gap: 28px;
 }
 
 .jaspen-hero-visual {

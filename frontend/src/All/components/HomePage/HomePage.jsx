@@ -1,9 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './HomePage.css';
 
+const STEPS = [
+  {
+    id: 'clarify',
+    num: 1,
+    title: 'Clarify',
+    description: 'Capture the problem, constraints, and definition of success.',
+    icon: 'fa-solid fa-lightbulb',
+  },
+  {
+    id: 'decide',
+    num: 2,
+    title: 'Decide',
+    description: 'Generate options, tradeoffs, risks, and a decision-grade recommendation.',
+    icon: 'fa-solid fa-scale-balanced',
+  },
+  {
+    id: 'plan',
+    num: 3,
+    title: 'Plan',
+    description: 'Convert the decision into milestones, owners, artifacts, and timeline.',
+    icon: 'fa-solid fa-diagram-project',
+  },
+  {
+    id: 'execute',
+    num: 4,
+    title: 'Execute',
+    description: 'Track progress, decisions, risks, and updates in one place.',
+    icon: 'fa-solid fa-rocket',
+  },
+];
+
 export default function HomePage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [visibleSteps, setVisibleSteps] = useState(new Set());
+  const [activeStep, setActiveStep] = useState(-1);
+  const stepRefs = useRef([]);
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observers = [];
+
+    stepRefs.current.forEach((ref, index) => {
+      if (!ref) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              // Add to visible set
+              setVisibleSteps((prev) => new Set([...prev, index]));
+              // Update active step (highest visible)
+              setActiveStep((prev) => Math.max(prev, index));
+            }
+          });
+        },
+        {
+          threshold: 0.3,
+          rootMargin: '-10% 0px -10% 0px',
+        }
+      );
+
+      observer.observe(ref);
+      observers.push(observer);
+    });
+
+    return () => {
+      observers.forEach((obs) => obs.disconnect());
+    };
+  }, []);
 
   const scrollToSection = (e, sectionId) => {
     e.preventDefault();
@@ -13,6 +80,8 @@ export default function HomePage() {
       el.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  const progressHeight = activeStep >= 0 ? ((activeStep + 1) / STEPS.length) * 100 : 0;
 
   return (
     <div className="homepage">
@@ -30,8 +99,7 @@ export default function HomePage() {
           </button>
 
           <nav className="jaspen-nav-desktop">
-            <a href="#product" onClick={(e) => scrollToSection(e, 'product')}>Product</a>
-            <a href="#capabilities" onClick={(e) => scrollToSection(e, 'capabilities')}>Capabilities</a>
+            <a href="#product" onClick={(e) => scrollToSection(e, 'product')}>How it works</a>
             <a href="#about" onClick={(e) => scrollToSection(e, 'about')}>About</a>
           </nav>
 
@@ -43,8 +111,7 @@ export default function HomePage() {
 
         {/* Mobile nav */}
         <div className={`jaspen-mobile-nav ${mobileNavOpen ? 'show' : ''}`}>
-          <a href="#product" onClick={(e) => scrollToSection(e, 'product')}>Product</a>
-          <a href="#capabilities" onClick={(e) => scrollToSection(e, 'capabilities')}>Capabilities</a>
+          <a href="#product" onClick={(e) => scrollToSection(e, 'product')}>How it works</a>
           <a href="#about" onClick={(e) => scrollToSection(e, 'about')}>About</a>
           <div className="jaspen-mobile-actions">
             <Link to="/login" className="jaspen-btn jaspen-btn-outline">Log in</Link>
@@ -56,9 +123,9 @@ export default function HomePage() {
       {/* ========== HERO ========== */}
       <section className="jaspen-hero">
         <div className="jaspen-hero-inner">
-          <h1>Turn messy ideas into clear decisions and execution plans.</h1>
+          <h1>From idea to execution — with context that never gets lost.</h1>
           <p className="jaspen-hero-sub">
-            Jaspen helps operators and leaders move from vague concepts to structured action — faster than spreadsheets, cheaper than consultants.
+            Jaspen guides you from raw concept to structured plan. Clarify, decide, plan, execute — all in one continuous flow.
           </p>
           <div className="jaspen-hero-cta">
             <a href="#request-access" className="jaspen-btn jaspen-btn-primary jaspen-btn-lg">
@@ -71,100 +138,63 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ========== 3 PILLARS ========== */}
-      <section id="product" className="jaspen-pillars">
-        <div className="jaspen-pillars-inner">
-          <div className="jaspen-pillar">
-            <div className="jaspen-pillar-num">1</div>
-            <h3>Clarify</h3>
-            <p>Define what you're actually trying to solve. Our guided intake surfaces hidden assumptions and sharpens fuzzy goals into concrete objectives.</p>
-          </div>
-          <div className="jaspen-pillar-arrow">
-            <i className="fa-solid fa-arrow-right"></i>
-          </div>
-          <div className="jaspen-pillar">
-            <div className="jaspen-pillar-num">2</div>
-            <h3>Decide</h3>
-            <p>Weigh trade-offs with structured frameworks. Get a scored recommendation backed by risk analysis and projected outcomes — not gut feel.</p>
-          </div>
-          <div className="jaspen-pillar-arrow">
-            <i className="fa-solid fa-arrow-right"></i>
-          </div>
-          <div className="jaspen-pillar">
-            <div className="jaspen-pillar-num">3</div>
-            <h3>Execute</h3>
-            <p>Walk away with a roadmap, milestones, and ownership assignments. Everything you need to turn a decision into delivered results.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ========== CAPABILITIES CARDS ========== */}
-      <section id="capabilities" className="jaspen-capabilities">
-        <div className="jaspen-capabilities-inner">
+      {/* ========== TIMELINE ========== */}
+      <section id="product" className="jaspen-timeline-section">
+        <div className="jaspen-timeline-inner">
           <div className="jaspen-section-header">
-            <h2>What you can build with Jaspen</h2>
-            <p>A toolkit for strategic clarity — from first spark to finished plan.</p>
+            <h2>One flow. Full context. Zero handoffs.</h2>
+            <p>Every step builds on the last — nothing gets lost between tools or teams.</p>
           </div>
 
-          <div className="jaspen-caps-grid">
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-comments"></i></div>
-              <h4>Intake Assistant</h4>
-              <p>Guided questions that transform scattered thoughts into a well-defined problem statement.</p>
+          <div className="jaspen-timeline">
+            {/* Progress line (desktop) */}
+            <div className="jaspen-timeline-track">
+              <div className="jaspen-timeline-line" />
+              <div
+                className="jaspen-timeline-progress"
+                style={{ height: `${progressHeight}%` }}
+              />
             </div>
 
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-file-invoice-dollar"></i></div>
-              <h4>Business Case Builder</h4>
-              <p>Generate a quantified ROI narrative with financials, assumptions, and scenario ranges.</p>
-            </div>
+            {/* Steps */}
+            <div className="jaspen-timeline-steps">
+              {STEPS.map((step, index) => {
+                const isVisible = visibleSteps.has(index);
+                const isActive = index === activeStep;
+                const delay = index * 100; // stagger
 
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-triangle-exclamation"></i></div>
-              <h4>Risk &amp; FMEA Helper</h4>
-              <p>Identify failure modes, score severity, and prioritize mitigations before launch.</p>
+                return (
+                  <div
+                    key={step.id}
+                    ref={(el) => (stepRefs.current[index] = el)}
+                    className={`jaspen-timeline-step ${isVisible ? 'is-visible' : ''} ${isActive ? 'is-active' : ''}`}
+                    style={{ transitionDelay: `${delay}ms` }}
+                  >
+                    <div className="jaspen-step-dot">
+                      <span>{step.num}</span>
+                    </div>
+                    <div className="jaspen-step-content">
+                      <h3>{step.title}</h3>
+                      <p>{step.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          </div>
 
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-diagram-project"></i></div>
-              <h4>Project Planner</h4>
-              <p>Auto-generate a phased roadmap with milestones, dependencies, and resource estimates.</p>
-            </div>
-
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-book"></i></div>
-              <h4>Decision Log</h4>
-              <p>Capture the reasoning behind every choice so your team has a single source of truth.</p>
-            </div>
-
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-chart-line"></i></div>
-              <h4>KPI &amp; Scorecard Builder</h4>
-              <p>Define success metrics and build a balanced scorecard tied to your strategic objectives.</p>
-            </div>
-
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-people-arrows"></i></div>
-              <h4>Change Enablement Pack</h4>
-              <p>Stakeholder maps, communication plans, and adoption checklists for smooth rollouts.</p>
-            </div>
-
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-scale-balanced"></i></div>
-              <h4>Trade-off Analyzer</h4>
-              <p>Compare options side-by-side with weighted criteria to make defensible choices.</p>
-            </div>
-
-            <div className="jaspen-cap-card">
-              <div className="jaspen-cap-icon"><i className="fa-solid fa-clipboard-check"></i></div>
-              <h4>Post-Mortem Generator</h4>
-              <p>Structure lessons learned and action items after any initiative wraps up.</p>
+          {/* Contextual awareness callout */}
+          <div className="jaspen-context-callout">
+            <i className="fa-solid fa-link"></i>
+            <div>
+              <strong>Contextual awareness throughout</strong>
+              <p>The agent remembers every decision, constraint, and tradeoff — so you never have to repeat yourself.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ========== CREDIBILITY / WHO IT'S FOR ========== */}
+      {/* ========== WHO IT'S FOR ========== */}
       <section id="about" className="jaspen-credibility">
         <div className="jaspen-credibility-inner">
           <h2>Built for people who ship, not just strategize</h2>

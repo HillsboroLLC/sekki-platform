@@ -244,81 +244,22 @@
 }
 
 /* ============================================================================
-   3 PILLARS
+   TIMELINE SECTION
    ============================================================================ */
 
-.jaspen-pillars {
-  padding: 80px 24px;
-  background: var(--white);
-}
-
-.jaspen-pillars-inner {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 24px;
-}
-
-.jaspen-pillar {
-  flex: 1;
-  max-width: 280px;
-  text-align: center;
-}
-
-.jaspen-pillar-num {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--white);
-  font-size: 1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-}
-
-.jaspen-pillar h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--navy);
-  margin-bottom: 8px;
-}
-
-.jaspen-pillar p {
-  font-size: 0.9375rem;
-  color: var(--gray-600);
-  line-height: 1.6;
-}
-
-.jaspen-pillar-arrow {
-  display: flex;
-  align-items: center;
-  padding-top: 48px;
-  color: var(--gray-300);
-  font-size: 1.25rem;
-}
-
-/* ============================================================================
-   CAPABILITIES
-   ============================================================================ */
-
-.jaspen-capabilities {
-  padding: 80px 24px;
+.jaspen-timeline-section {
+  padding: 80px 24px 96px;
   background: var(--gray-50);
 }
 
-.jaspen-capabilities-inner {
-  max-width: 1100px;
+.jaspen-timeline-inner {
+  max-width: 800px;
   margin: 0 auto;
 }
 
 .jaspen-section-header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 64px;
 }
 
 .jaspen-section-header h2 {
@@ -334,53 +275,178 @@
   color: var(--gray-500);
 }
 
-.jaspen-caps-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+/* Timeline container */
+.jaspen-timeline {
+  position: relative;
+  display: flex;
+  gap: 32px;
 }
 
-.jaspen-cap-card {
+/* Progress track (left side) */
+.jaspen-timeline-track {
+  position: relative;
+  width: 3px;
+  flex-shrink: 0;
+  margin-left: 20px;
+}
+
+.jaspen-timeline-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--gray-200);
+  border-radius: 2px;
+}
+
+.jaspen-timeline-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: height 0.5s ease;
+}
+
+/* Steps container */
+.jaspen-timeline-steps {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+/* Individual step */
+.jaspen-timeline-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 24px;
   background: var(--white);
   border: 1px solid var(--gray-200);
-  border-radius: 8px;
-  padding: 24px;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  border-radius: 12px;
+
+  /* Animation: hidden state */
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 500ms ease, transform 500ms ease, box-shadow 200ms ease, border-color 200ms ease;
 }
 
-.jaspen-cap-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  border-color: var(--gray-300);
+/* Visible state */
+.jaspen-timeline-step.is-visible {
+  opacity: 0.7;
+  transform: translateY(0);
 }
 
-.jaspen-cap-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: var(--gray-100);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
+/* Active state (current step) */
+.jaspen-timeline-step.is-active {
+  opacity: 1;
+  border-color: var(--accent);
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.1);
 }
 
-.jaspen-cap-icon i {
-  font-size: 1rem;
+.jaspen-timeline-step.is-active .jaspen-step-dot {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.jaspen-timeline-step.is-active h3 {
   color: var(--accent);
 }
 
-.jaspen-cap-card h4 {
+/* Hover (desktop only) */
+@media (hover: hover) {
+  .jaspen-timeline-step:hover {
+    transform: translateY(-4px);
+    border-color: var(--gray-300);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .jaspen-timeline-step.is-active:hover {
+    border-color: var(--accent);
+  }
+}
+
+/* Step dot */
+.jaspen-step-dot {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  color: var(--gray-500);
   font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Step content */
+.jaspen-step-content {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.jaspen-step-content h3 {
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--navy);
   margin-bottom: 6px;
+  transition: color 0.3s ease;
 }
 
-.jaspen-cap-card p {
-  font-size: 0.875rem;
-  color: var(--gray-500);
-  line-height: 1.5;
+.jaspen-step-content p {
+  font-size: 0.9375rem;
+  color: var(--gray-600);
+  line-height: 1.6;
   margin: 0;
+}
+
+/* ============================================================================
+   CONTEXTUAL AWARENESS CALLOUT
+   ============================================================================ */
+
+.jaspen-context-callout {
+  margin-top: 64px;
+  padding: 24px 28px;
+  background: var(--navy);
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  color: var(--white);
+}
+
+.jaspen-context-callout > i {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--white);
+}
+
+.jaspen-context-callout strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.jaspen-context-callout p {
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* ============================================================================
@@ -544,12 +610,6 @@
    RESPONSIVE
    ============================================================================ */
 
-@media (max-width: 900px) {
-  .jaspen-caps-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
   /* Header */
   .jaspen-nav-desktop,
@@ -579,36 +639,53 @@
     align-items: stretch;
   }
 
-  /* Pillars */
-  .jaspen-pillars {
+  /* Timeline */
+  .jaspen-timeline-section {
     padding: 64px 20px;
   }
 
-  .jaspen-pillars-inner {
-    flex-direction: column;
-    align-items: center;
-    gap: 40px;
-  }
-
-  .jaspen-pillar {
-    max-width: 100%;
-  }
-
-  .jaspen-pillar-arrow {
-    display: none;
-  }
-
-  /* Capabilities */
-  .jaspen-capabilities {
-    padding: 64px 20px;
-  }
-
-  .jaspen-caps-grid {
-    grid-template-columns: 1fr;
+  .jaspen-section-header {
+    margin-bottom: 48px;
   }
 
   .jaspen-section-header h2 {
     font-size: 1.5rem;
+  }
+
+  /* Hide track on mobile, stack cards */
+  .jaspen-timeline {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .jaspen-timeline-track {
+    display: none;
+  }
+
+  .jaspen-timeline-steps {
+    gap: 20px;
+  }
+
+  .jaspen-timeline-step {
+    padding: 20px;
+  }
+
+  .jaspen-step-dot {
+    width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
+  }
+
+  .jaspen-step-content h3 {
+    font-size: 1.125rem;
+  }
+
+  /* Context callout */
+  .jaspen-context-callout {
+    margin-top: 48px;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
   }
 
   /* Credibility */

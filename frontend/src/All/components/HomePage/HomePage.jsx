@@ -44,7 +44,7 @@ export default function HomePage() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setVisibleElements((prev) => new Set([...prev, entry.target.id || entry.target.dataset.id]));
+            entry.target.classList.add('reveal-visible');
             if (entry.target.dataset.stepIndex !== undefined) {
               setActiveStep(parseInt(entry.target.dataset.stepIndex));
             }

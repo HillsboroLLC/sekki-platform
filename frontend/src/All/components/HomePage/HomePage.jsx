@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import StrategyAccessCard from './StrategyAccessCard';
 import './HomePage.css';
 
 const STEPS = [
@@ -86,7 +87,7 @@ export default function HomePage() {
           </nav>
 
           <div className="jaspen-header-actions">
-            <Link to="/login" className="jaspen-login-link">Log in</Link>
+            <Link to="/login" className="jaspen-login-link">Get in touch</Link>
             <a href="#request-access" className="jaspen-btn jaspen-btn-primary">Request access</a>
           </div>
 
@@ -106,35 +107,52 @@ export default function HomePage() {
         <section className="jaspen-hero">
           <div className="jaspen-hero-container">
             <div className="jaspen-hero-content scroll-reveal" id="hero-content">
-              <div className="jaspen-hero-tag">Intelligent Context Engine</div>
-              <h1>From idea to execution — with context that never gets lost.</h1>
+              <div className="jaspen-hero-tag">COHESIVE CONTEXT ENGINE</div>
+              <h1>Execution Intelligence</h1>
               <p className="jaspen-hero-sub">
-                Jaspen guides you from raw concept to structured plan. Clarify, decide, plan, execute — all in one continuous flow.
+                The AI for strategic decisions and coordinated execution.
               </p>
               <div className="jaspen-hero-cta">
                 <a href="#request-access" className="jaspen-btn jaspen-btn-primary jaspen-btn-lg">
-                  Request access
+                  Request Access
                 </a>
                 <a href="#product" onClick={(e) => scrollToSection(e, 'product')} className="jaspen-btn jaspen-btn-outline jaspen-btn-lg">
-                  See how it works
+                  See How It Works
                 </a>
               </div>
             </div>
             
             <div className="jaspen-hero-visual scroll-reveal" id="hero-visual">
               <div className="jaspen-visual-blob"></div>
-              <div className="jaspen-visual-card card-1">
-                <div className="card-dot"></div>
-                <div className="card-line"></div>
-                <div className="card-line short"></div>
+              <div className="jaspen-visual-orb orb-1"></div>
+              <div className="jaspen-visual-orb orb-2"></div>
+              <div className="jaspen-visual-orb orb-3"></div>
+              <div className="strategy-card-float">
+                <StrategyAccessCard />
               </div>
-              <div className="jaspen-visual-card card-2">
-                <div className="card-dot blue"></div>
-                <div className="card-line"></div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========== INTRO ========== */}
+        <section className="jaspen-intro-section">
+          <div className="jaspen-container">
+            <div className="jaspen-intro-header scroll-reveal" id="intro-header">
+              <h2>This is Jaspen.</h2>
+              <p>
+                Jaspen is an advanced AI partner built to evaluate ideas, prioritize opportunities, and structure cross-functional work into coordinated, executable plans.
+              </p>
+            </div>
+
+            <div className="jaspen-intro-feature scroll-reveal" id="intro-feature">
+              <div className="intro-feature-text">
+                <h3>Work with Jaspen</h3>
+                <p>
+                  Evaluate ideas, prioritize opportunities, and structure cross-functional work into executable plans.
+                </p>
               </div>
-              <div className="jaspen-visual-card card-3">
-                <div className="card-dot green"></div>
-                <div className="card-line"></div>
+              <div className="intro-gif-placeholder">
+                {/* TODO: insert gif */}
               </div>
             </div>
           </div>

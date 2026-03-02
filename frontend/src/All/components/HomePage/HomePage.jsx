@@ -99,15 +99,6 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Mobile nav */}
-        <div className={`jaspen-mobile-nav ${mobileNavOpen ? 'show' : ''}`}>
-          <a href="#product" onClick={(e) => scrollToSection(e, 'product')}>How it works</a>
-          <a href="#about" onClick={(e) => scrollToSection(e, 'about')}>About</a>
-          <div className="jaspen-mobile-actions">
-            <Link to="/login" className="jaspen-btn jaspen-btn-outline">Log in</Link>
-            <a href="#request-access" className="jaspen-btn jaspen-btn-primary">Request access</a>
-          </div>
-        </div>
       </header>
 
       <main>

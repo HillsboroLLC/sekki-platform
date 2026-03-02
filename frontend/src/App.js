@@ -11,8 +11,6 @@ import { AppShell } from './components/layout';
 
 // Shared
 import HomePage      from './All/components/HomePage/HomePage';
-import Home          from './All/pages/Home/Home';
-import Profile       from './All/Profile/Profile';
 import Login         from './All/Login/Login';
 import SignUp        from './All/SignUp/SignUp';
 import Privacy       from './All/pages/Privacy/privacy';
@@ -62,14 +60,12 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/"               element={withShell(<HomePage />, { showHeader: false, fullBleed: true, noPadding: true })} />
-        <Route path="/profile"        element={withShell(<Profile />)} />
         <Route path="/login"          element={withShell(<Login />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/sign-up"        element={withShell(<SignUp />)} />
         <Route path="/pricing"        element={withShell(<PricingResult />)} />
         <Route path="/pages/privacy"  element={withShell(<Privacy />)} />
         <Route path="/pages/terms"    element={withShell(<Terms />)} />
         <Route path="/pages/support"  element={withShell(<Support />)} />
-        <Route path="/pages/home"     element={withShell(<Home />)} />
 
         {/* Protected (Market) */}
         <Route path="/dashboard" element={<ProtectedRoute>{withShell(<Dashboard />)}</ProtectedRoute>} />

@@ -13,7 +13,7 @@ export default function AuthCallback() {
     let subscription;
 
     const redirectHome = () => {
-      navigate('/?auth=1', { replace: true });
+      navigate('/', { replace: true });
     };
 
     const redirectMarket = () => {

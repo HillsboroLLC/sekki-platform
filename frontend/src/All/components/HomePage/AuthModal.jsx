@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../shared/supabase/supabaseClient';
 
-const getRedirectUrl = () =>
-  typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '';
+const EMAIL_REDIRECT = `${window.location.origin}/auth/callback`;
 
 export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChange }) {
   const [email, setEmail] = useState('');
@@ -12,7 +11,6 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
   const isEmailMode = mode === 'email';
 
   const resetState = () => {
-    setEmail('');
     setStatus('idle');
     setError('');
   };
@@ -33,12 +31,6 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
   useEffect(() => {
     resetState();
   }, [mode]);
-
-  useEffect(() => {
-    if (isOpen) {
-      resetState();
-    }
-  }, [isOpen]);
 
   const statusMessage = useMemo(() => {
     if (status === 'sent') {
@@ -65,7 +57,7 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: getRedirectUrl(),
+        redirectTo: EMAIL_REDIRECT,
       },
     });
 
@@ -93,7 +85,7 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: getRedirectUrl(),
+        emailRedirectTo: EMAIL_REDIRECT,
       },
     });
 

@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 const TARGET_SCORE = 87;
 const ANIMATION_DURATION_MS = 1200;
 
-export default function StrategyAccessCard({ onGoogleClick, onEmailClick }) {
+export default function StrategyAccessCard() {
   const [score, setScore] = useState(0);
   const [status, setStatus] = useState('Pending');
+
   useEffect(() => {
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
@@ -55,20 +56,23 @@ export default function StrategyAccessCard({ onGoogleClick, onEmailClick }) {
       </div>
 
       <div className="strategy-card-section strategy-card-auth">
-        <button
-          type="button"
-          className="jaspen-btn jaspen-btn-outline strategy-google-btn"
-          onClick={onGoogleClick}
-        >
-          Continue with Google
-        </button>
-        <button
-          type="button"
-          className="jaspen-btn jaspen-btn-primary strategy-email-btn"
-          onClick={onEmailClick}
-        >
-          Continue with email
-        </button>
+        <>
+          <button type="button" className="jaspen-btn jaspen-btn-outline strategy-google-btn">
+            Continue with Google
+          </button>
+          <div className="strategy-card-divider"><span>OR</span></div>
+        </>
+        <form className="strategy-card-form" onSubmit={(e) => e.preventDefault()}>
+          <input
+            type="email"
+            className="strategy-email-input"
+            placeholder="Enter your email"
+            aria-label="Email address"
+          />
+          <button type="submit" className="jaspen-btn jaspen-btn-primary strategy-email-btn">
+            Continue with email
+          </button>
+        </form>
       </div>
 
       <div className="strategy-card-disclaimer">

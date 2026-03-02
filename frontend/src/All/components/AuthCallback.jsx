@@ -1,58 +1,52 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../shared/supabase/supabaseClient';
-import './AuthCallback.css';
-
-const FALLBACK_TIMEOUT_MS = 3500;
+import React, { useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "../shared/supabase/supabaseClient";
+import "./AuthCallback.css";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    let timeoutId;
-    let subscription;
-    const params = new URLSearchParams(window.location.search);
-    const next = params.get('next') || '/market-iq';
+    let cancelled = false;
 
-    const redirectHome = () => {
-      navigate('/?auth=1', { replace: true });
-    };
-
-    const redirectMarket = () => {
-      navigate(next, { replace: true });
+    const go = (path) => {
+      if (!cancelled) navigate(path, { replace: true });
     };
 
     const init = async () => {
-      if (!supabase) {
-        redirectHome();
-        return;
-      }
+      try {
+        if (!supabase) return go("/?auth=1");
 
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        redirectMarket();
-        return;
-      }
+        const params = new URLSearchParams(location.search);
+        const next = params.get("next") || "/market-iq";
+        const code = params.get("code");
 
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session) {
-          redirectMarket();
+        // PKCE flow: exchange ?code= for a session
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error("exchangeCodeForSession error:", error);
+            return go("/?auth=1");
+          }
         }
-      });
 
-      subscription = listener?.subscription;
-      timeoutId = setTimeout(redirectHome, FALLBACK_TIMEOUT_MS);
+        // Confirm we have a session
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) return go(next);
+
+        return go("/?auth=1");
+      } catch (e) {
+        console.error("AuthCallback init error:", e);
+        go("/?auth=1");
+      }
     };
 
     init();
-
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      subscription?.unsubscribe?.();
+      cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   return (
     <div className="auth-callback">

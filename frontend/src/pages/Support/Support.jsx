@@ -1,5 +1,5 @@
 // =====================================================
-// File: src/All/pages/Support/support.jsx
+// File: src/pages/Support/Support.jsx
 // =====================================================
 import React from 'react';
 import './support.css'; // reuses Terms styles for identical layout

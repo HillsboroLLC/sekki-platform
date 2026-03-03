@@ -1,9 +1,0 @@
-/* LSS Main Styles Entry Point */
-
-/* Import all style files in the correct order */
-@import './variables.css';
-@import './globals.css';
-@import './utilities.css';
-
-/* Additional component-specific styles can be imported here */
-

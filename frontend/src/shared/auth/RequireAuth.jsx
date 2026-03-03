@@ -1,4 +1,4 @@
-// filepath: src/All/auth/RequireAuth.jsx
+// filepath: src/shared/auth/RequireAuth.jsx
 import { useEffect, useState } from "react";
 import { useLocation, Navigate } from "react-router-dom";
 

@@ -6,27 +6,26 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import './App.css';
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import ProtectedRoute from './All/components/ProtectedRoute';
-import { AppShell } from './components/layout';
+import ProtectedRoute from './homeSections/ProtectedRoute';
+import { AppShell } from './jaspenInterface/layout';
 
 // Shared
-import HomePage      from './All/components/HomePage/HomePage';
-import GetInTouch    from './All/GetInTouch/GetInTouch';
-import SignUp        from './All/SignUp/SignUp';
-import Privacy       from './All/pages/Privacy/privacy';
-import Terms         from './All/pages/Terms/terms';
-import Support       from './All/pages/Support/Support';
-import AuthCallback  from './All/components/AuthCallback';
+import HomePage      from './homeSections/HomePage/HomePage';
+import GetInTouch    from './pages/GetInTouch/GetInTouch';
+import Privacy       from './pages/Privacy/privacy';
+import Terms         from './pages/Terms/terms';
+import Support       from './pages/Support/Support';
+import AuthCallback  from './shared/components/AuthCallback';
 
-// Market
-import PricingResult from './MarketIQ/PricingResult/PricingResult';
-import Dashboard     from './MarketIQ/Dashboard/Dashboard';
-import Sessions      from './MarketIQ/Sessions/Sessions';
-import Account       from './MarketIQ/Account/Account';
-import PaymentPage   from './MarketIQ/PaymentPage/PaymentPage';
+// Jaspen
+import PricingResult from './jaspenInterface/PricingResult/PricingResult';
+import Dashboard     from './jaspenInterface/Dashboard/Dashboard';
+import Sessions      from './jaspenInterface/Sessions/Sessions';
+import Account       from './jaspenInterface/Account/Account';
+import PaymentPage   from './jaspenInterface/PaymentPage/PaymentPage';
 
-// Market IQ (NEW)
-import JaspenWorkspace from './MarketIQ/MarketIQ/workspace/MarketIQWorkspace';
+// Jaspen.ai Workspace
+import JaspenWorkspace from './jaspenInterface/Workspace/JaspenWorkspace';
 console.log("[BOOT] App.js loaded", window.location.href);
 export default function App() {
   const getDisplayName = (node) =>
@@ -62,7 +61,6 @@ export default function App() {
         {/* Public */}
         <Route path="/"               element={withShell(<HomePage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/login"          element={withShell(<GetInTouch />, { showHeader: false, fullBleed: true, noPadding: true })} />
-        <Route path="/sign-up"        element={withShell(<SignUp />)} />
         <Route path="/pricing"        element={withShell(<PricingResult />)} />
         <Route path="/pages/privacy"  element={withShell(<Privacy />)} />
         <Route path="/pages/terms"    element={withShell(<Terms />)} />

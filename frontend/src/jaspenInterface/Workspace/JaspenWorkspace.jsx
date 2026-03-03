@@ -14,7 +14,7 @@ import { useAuth } from 'shared/auth/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faQuestionCircle, faHome, faCogs,
-  faPaperPlane, faSpinner, faTimes, faBars, faCheck, faExclamationTriangle,
+  faPaperPlane, faSpinner, faTimes, faBars, faCheck, faExclamationTriangle, faPen,
   faChartLine, faTrash, faPlus, faMinus, faMicrophone, faWandMagicSparkles,
   faUser, faGear, faBolt, faBrain, faLayerGroup, faRobot, faListCheck, faArrowUpRightFromSquare, faArrowRightFromBracket, faGaugeHigh, faClockRotateLeft, faPaperclip, faArrowUp
 } from '@fortawesome/free-solid-svg-icons';
@@ -518,49 +518,62 @@ const refreshBundle = async (tid) => {
 
   const renderUserMenuContent = (onClose) => (
     <>
-      <div className="miq-ud-profile">
-        <div className="miq-ud-profile-label">Display name</div>
-        {!editingName ? (
-          <div className="miq-ud-profile-row">
-            <span className="miq-ud-profile-name">{userName}</span>
-            <button
-              type="button"
-              className="miq-ud-profile-edit"
-              onClick={() => setEditingName(true)}
-            >
-              Edit
-            </button>
-          </div>
-        ) : (
-          <div className="miq-ud-profile-row">
-            <input
-              className="miq-ud-profile-input"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              placeholder="What should I call you?"
-            />
-            <button
-              type="button"
-              className="miq-ud-profile-save"
-              onClick={() => {
-                const trimmed = nameInput.trim();
-                if (!trimmed) return;
-                persistDisplayName(trimmed);
-                setEditingName(false);
-              }}
-              disabled={!nameInput.trim()}
-            >
-              Save
-            </button>
-          </div>
-        )}
-      </div>
-
       <div className="miq-ud-header">
         <div className="miq-ud-header-avatar">{userInitials}</div>
         <div className="miq-ud-header-info">
-          <div className="miq-ud-header-name">{userName}</div>
+          <div className="miq-ud-header-name-row">
+            <div className="miq-ud-header-name">{userName}</div>
+            <button
+              type="button"
+              className="miq-ud-edit-btn"
+              onClick={() => {
+                setNameInput(userName);
+                setEditingName(true);
+              }}
+              aria-label="Edit display name"
+              title="Edit name"
+            >
+              <FontAwesomeIcon icon={faPen} />
+            </button>
+          </div>
           <div className="miq-ud-header-email">{userEmail}</div>
+          {editingName && (
+            <div className="miq-ud-name-edit">
+              <input
+                className="miq-ud-name-input"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="What should I call you?"
+              />
+              <button
+                type="button"
+                className="miq-ud-name-save"
+                onClick={() => {
+                  const trimmed = nameInput.trim();
+                  if (!trimmed) return;
+                  persistDisplayName(trimmed);
+                  setEditingName(false);
+                }}
+                disabled={!nameInput.trim()}
+                title="Save"
+                aria-label="Save name"
+              >
+                <FontAwesomeIcon icon={faCheck} />
+              </button>
+              <button
+                type="button"
+                className="miq-ud-name-cancel"
+                onClick={() => {
+                  setNameInput(userName);
+                  setEditingName(false);
+                }}
+                title="Cancel"
+                aria-label="Cancel"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

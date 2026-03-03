@@ -485,43 +485,35 @@
   border-bottom: none;
 }
 
-.miq-ud-profile {
-  padding: 12px 18px 8px;
-  border-bottom: 1px solid var(--border);
-}
-.miq-ud-profile-label {
-  font-size: 0.5625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--gray-500);
-  margin-bottom: 8px;
-}
-.miq-ud-profile-row {
+.miq-ud-header-name-row {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 6px;
 }
-.miq-ud-profile-name {
-  font-size: 0.875rem;
-  color: var(--navy);
-  font-weight: 600;
-  flex: 1;
-}
-.miq-ud-profile-edit {
+.miq-ud-edit-btn {
   border: 1px solid var(--gray-300);
   background: var(--white);
-  color: var(--gray-700);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  color: var(--gray-600);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all var(--transition);
 }
-.miq-ud-profile-edit:hover {
+.miq-ud-edit-btn:hover {
   border-color: var(--navy);
   color: var(--navy);
 }
-.miq-ud-profile-input {
+.miq-ud-name-edit {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.miq-ud-name-input {
   flex: 1;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
@@ -530,22 +522,35 @@
   font-family: var(--font);
   color: var(--navy);
 }
-.miq-ud-profile-input:focus {
+.miq-ud-name-input:focus {
   outline: none;
   border-color: var(--navy);
 }
-.miq-ud-profile-save {
-  border: none;
-  background: var(--navy);
-  color: var(--white);
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+.miq-ud-name-save,
+.miq-ud-name-cancel {
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  color: var(--gray-600);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all var(--transition);
 }
-.miq-ud-profile-save:disabled {
+.miq-ud-name-save:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.miq-ud-name-save:hover {
+  border-color: var(--navy);
+  color: var(--navy);
+}
+.miq-ud-name-cancel:hover {
+  border-color: var(--magenta);
+  color: var(--magenta);
 }
 
 .miq-ud-section-label {

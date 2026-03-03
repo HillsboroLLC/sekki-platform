@@ -1,45 +1,52 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../shared/supabase/supabaseClient';
 import Spinner from './Spinner/Spinner';
 
+const API_BASE =
+  process.env.REACT_APP_API_BASE ||
+  process.env.VITE_API_BASE ||
+  'https://api.jaspen.ai';
+
 export default function SupabaseProtectedRoute({ children }) {
-  const [session, setSession] = useState(null);
+  const [ok, setOk] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let subscription;
+    let alive = true;
 
-    const init = async () => {
-      if (!supabase) {
-        setSession(null);
+    const check = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          method: 'GET',
+          credentials: 'include', // send the sekki_access cookie
+        });
+
+        if (!alive) return;
+
+        if (res.ok) {
+          setOk(true);
+        } else {
+          setOk(false);
+        }
+      } catch (_e) {
+        if (!alive) return;
+        setOk(false);
+      } finally {
+        if (!alive) return;
         setLoading(false);
-        return;
       }
-
-      const { data } = await supabase.auth.getSession();
-      setSession(data?.session ?? null);
-      setLoading(false);
-
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-        setSession(nextSession);
-      });
-
-      subscription = listener?.subscription;
     };
 
-    init();
-
+    check();
     return () => {
-      subscription?.unsubscribe?.();
+      alive = false;
     };
   }, []);
 
-  if (loading) {
-    return <Spinner />;
-  }
+  if (loading) return <Spinner />;
 
-  if (!session) {
+  if (!ok) {
+    // This keeps your existing behavior (opens the auth modal on home)
     return <Navigate to="/?auth=1" replace />;
   }
 

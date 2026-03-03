@@ -1,349 +1,123 @@
-/* ===========================================================================
-   Login Page — AI Agent
-   Split-screen layout matching Manus reference design
-   =========================================================================== */
+/* ============================================================================
+   Get In Touch Page — Jaspen
+   ============================================================================ */
 
-/* --- Design Tokens --- */
-.login-page {
-  --login-navy: #161f3b;
-  --login-magenta: #a0036c;
-  --login-white: #ffffff;
-  --login-gray-100: #f8f9fa;
-  --login-gray-200: #e5e7eb;
-  --login-gray-400: #9ca3af;
-  --login-gray-500: #6b7280;
-  --login-gray-600: #4b5563;
-  --login-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.get-in-touch-page {
+  --navy: #0f172a;
+  --navy-deep: #020617;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --gray-100: #e2e8f0;
+  --gray-500: #64748b;
+  --white: #ffffff;
+  --shadow-premium: 0 10px 30px -10px rgba(15, 23, 42, 0.12),
+    0 6px 16px -8px rgba(15, 23, 42, 0.08);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* --- Page Container --- */
-.login-page {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.get-in-touch-page {
   min-height: 100vh;
-  width: 100%;
-  font-family: var(--login-font);
-}
-
-/* ===========================================================================
-   LEFT PANEL - Branding (Navy Background)
-   =========================================================================== */
-
-.login-page .login-branding {
-  background: var(--login-navy);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 120px 24px;
+  background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 65%), #ffffff;
+}
+
+.get-in-touch-card {
+  width: min(520px, 100%);
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: 24px;
   padding: 48px;
-}
-
-.login-page .branding-content {
-  max-width: 400px;
-}
-
-/* Logo */
-.login-page .login-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 48px;
-}
-
-.login-page .login-logo .logo-icon {
-  flex-shrink: 0;
-}
-
-.login-page .login-logo .logo-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--login-white);
-  letter-spacing: -0.01em;
-}
-
-/* Headline */
-.login-page .branding-headline {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--login-white);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  margin: 0 0 20px;
-}
-
-/* Description */
-.login-page .branding-description {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
-  margin: 0 0 48px;
-}
-
-/* Stats */
-.login-page .branding-stats {
-  display: flex;
-  gap: 32px;
-}
-
-.login-page .stat-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.login-page .stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--login-white);
-  line-height: 1.2;
-}
-
-.login-page .stat-label {
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-  margin-top: 4px;
-}
-
-/* ===========================================================================
-   RIGHT PANEL - Login Form (White Background)
-   =========================================================================== */
-
-.login-page .login-form-panel {
-  background: var(--login-white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-}
-
-.login-page .login-form-container {
-  width: 100%;
-  max-width: 400px;
-}
-
-/* Error Message */
-.login-page .login-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  margin-bottom: 24px;
-}
-
-/* Form Header */
-.login-page .form-header {
-  margin-bottom: 32px;
-}
-
-.login-page .form-header h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--login-navy);
-  margin: 0 0 8px;
-  letter-spacing: -0.02em;
-}
-
-.login-page .form-header p {
-  font-size: 1rem;
-  color: var(--login-gray-500);
-  margin: 0;
-}
-
-/* Form */
-.login-page .login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Form Groups */
-.login-page .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.login-page .form-group label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--login-navy);
-}
-
-.login-page .form-group input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--login-gray-200);
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: var(--login-font);
-  color: var(--login-navy);
-  background: var(--login-white);
-  box-sizing: border-box;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.login-page .form-group input::placeholder {
-  color: var(--login-gray-400);
-}
-
-.login-page .form-group input:focus {
-  outline: none;
-  border-color: var(--login-magenta);
-  box-shadow: 0 0 0 3px rgba(160, 3, 108, 0.1);
-}
-
-/* Remember / Forgot */
-.login-page .remember-forgot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.login-page .remember-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
-  color: var(--login-gray-600);
-  cursor: pointer;
-}
-
-.login-page .remember-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--login-navy);
-  cursor: pointer;
-}
-
-.login-page .forgot-link {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--login-magenta);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.login-page .forgot-link:hover {
-  color: #8a025a;
-  text-decoration: underline;
-}
-
-/* Submit Button */
-.login-page .login-submit-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 14px 24px;
-  background: var(--login-navy);
-  color: var(--login-white);
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  font-family: var(--login-font);
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.login-page .login-submit-btn:hover:not(:disabled) {
-  background: #1e2a4a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(22, 31, 59, 0.2);
-}
-
-.login-page .login-submit-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.login-page .login-submit-btn svg {
-  flex-shrink: 0;
-}
-
-/* Sign Up Link */
-.login-page .signup-link {
   text-align: center;
-  font-size: 0.875rem;
-  color: var(--login-gray-500);
-  margin-top: 24px;
+  box-shadow: var(--shadow-premium);
+  position: relative;
 }
 
-.login-page .signup-link a {
-  font-weight: 500;
-  color: var(--login-magenta);
+.get-in-touch-card::before {
+  content: "";
+  position: absolute;
+  inset: -16px 24px 24px -16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  z-index: -1;
+}
+
+.get-in-touch-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--gray-500);
+  margin-bottom: 16px;
+}
+
+.get-in-touch-title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--navy-deep);
+  margin-bottom: 16px;
+  letter-spacing: -0.04em;
+}
+
+.get-in-touch-subtext {
+  font-size: 1.1rem;
+  color: var(--gray-500);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.get-in-touch-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.jaspen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  padding: 14px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
   text-decoration: none;
-  transition: color 0.2s ease;
+  border: 1px solid transparent;
+  font-size: 1rem;
 }
 
-.login-page .signup-link a:hover {
-  color: #8a025a;
-  text-decoration: underline;
+.jaspen-btn-primary {
+  background: var(--navy-deep);
+  color: var(--white);
 }
 
-/* ===========================================================================
-   RESPONSIVE
-   =========================================================================== */
-
-@media (max-width: 900px) {
-  .login-page {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
-  .login-page .login-branding {
-    padding: 32px 24px;
-  }
-
-  .login-page .branding-content {
-    max-width: 100%;
-    text-align: center;
-  }
-
-  .login-page .login-logo {
-    justify-content: center;
-    margin-bottom: 24px;
-  }
-
-  .login-page .branding-headline {
-    font-size: 1.5rem;
-  }
-
-  .login-page .branding-description {
-    margin-bottom: 24px;
-  }
-
-  .login-page .branding-stats {
-    justify-content: center;
-    gap: 24px;
-  }
-
-  .login-page .stat-item {
-    align-items: center;
-  }
-
-  .login-page .stat-value {
-    font-size: 1.25rem;
-  }
-
-  .login-page .login-form-panel {
-    padding: 32px 24px;
-  }
+.jaspen-btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -12px rgba(37, 99, 235, 0.45);
 }
 
-@media (max-width: 480px) {
-  .login-page .branding-stats {
-    flex-direction: column;
-    gap: 16px;
+.jaspen-btn-outline {
+  background: rgba(15, 23, 42, 0.02);
+  color: var(--navy);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+.jaspen-btn-outline:hover {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.2);
+  color: var(--navy-deep);
+}
+
+@media (max-width: 600px) {
+  .get-in-touch-card {
+    padding: 36px 28px;
   }
 
-  .login-page .remember-forgot {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+  .get-in-touch-title {
+    font-size: 2rem;
   }
 }

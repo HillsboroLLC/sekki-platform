@@ -2,7 +2,7 @@
 
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, decode_token
 from app import db
 from app.models import User
 import stripe
@@ -100,4 +100,25 @@ def get_current_user():
     user = User.query.get(user_id)
     if not user:
         return jsonify(error="User not found"), 404
+    return jsonify(id=user.id, email=user.email, name=user.name), 200
+
+
+@auth_bp.route('/me-cookie', methods=['GET'])
+def get_current_user_from_cookie():
+    token = request.cookies.get('sekki_access')
+    if not token:
+        return jsonify(error="Missing auth cookie"), 401
+
+    try:
+        decoded = decode_token(token)
+        user_id = decoded.get("sub")
+        if not user_id:
+            return jsonify(error="Invalid token"), 401
+    except Exception:
+        return jsonify(error="Invalid token"), 401
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify(error="User not found"), 404
+
     return jsonify(id=user.id, email=user.email, name=user.name), 200

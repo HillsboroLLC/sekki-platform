@@ -38,7 +38,7 @@ export default function Header() {
 
         {/* Desktop actions */}
         <div className="header-actions desktop-actions">
-          <a href="/?auth=1" className="login-link">Get in touch</a>
+          <a href="/login" className="login-link">Get in touch</a>
           <a href="#request-demo" className="btn btn-primary">
             <i className="fa-solid fa-arrow-right"></i>
             Request Demo
@@ -55,7 +55,7 @@ export default function Header() {
         </ul>
 
         <div className="mobile-actions">
-          <a href="/?auth=1" className="btn btn-outline" onClick={closeMobile}>Get in touch</a>
+          <a href="/login" className="btn btn-outline" onClick={closeMobile}>Get in touch</a>
           <a href="#request-demo" className="btn btn-primary" onClick={closeMobile}>
             Request Demo
           </a>

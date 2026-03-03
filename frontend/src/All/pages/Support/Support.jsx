@@ -47,7 +47,7 @@ const Support = () => {
 
           <h3>Account</h3>
           <ul>
-            <li>Login issues and password resets</li>
+            <li>Access issues and password resets</li>
             <li>Data export and deletion requests</li>
             <li>Device or progress sync</li>
           </ul>

@@ -65,6 +65,7 @@ const API_BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) ||
   (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) ||
   'https://api.sekki.io';
+const DISABLE_LEGACY_AUTH = true;
 
 // Small helper to always send cookies + attach Bearer token if present
 async function authFetch(path, options = {}) {
@@ -138,6 +139,11 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
 const token = localStorage.getItem('access_token') || localStorage.getItem('token'); // backward-compat
+if (DISABLE_LEGACY_AUTH) {
+  // Skip legacy cookie auth bootstrap; Supabase handles auth.
+  setLoading(false);
+  return;
+}
 const res = await authFetch('/api/auth/me', {
   method: 'GET',
   headers: {

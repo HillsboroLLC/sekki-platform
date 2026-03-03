@@ -450,20 +450,33 @@ const refreshBundle = async (tid) => {
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
   };
-  const getUserKey = () => user?.id || user?.email || 'anon';
+  const getUserStorageKeys = (u) => {
+    const keys = [];
+    if (u?.id) keys.push(`jaspen_display_name_id_${u.id}`);
+    if (u?.email) keys.push(`jaspen_display_name_email_${String(u.email).toLowerCase()}`);
+    keys.push('jaspen_display_name_last');
+    return keys;
+  };
   const [displayName, setDisplayName] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [nameModalOpen, setNameModalOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  const userInitials = getInitials(displayName || user?.name || user?.email || 'User');
-  const userName = displayName || user?.name || user?.email?.split('@')[0] || 'User';
-  const userEmail = user?.email || 'user@example.com';
+  const savedEmail = (() => {
+    try { return localStorage.getItem('jaspen_last_email'); } catch { return null; }
+  })();
+  const userInitials = getInitials(displayName || user?.name || user?.email || savedEmail || 'User');
+  const userName = displayName || user?.name || user?.email?.split('@')[0] || savedEmail?.split?.('@')[0] || 'User';
+  const userEmail = user?.email || savedEmail || 'user@example.com';
 
   useEffect(() => {
     if (!user) return;
-    const key = `jaspen_display_name_${getUserKey()}`;
+    const keys = getUserStorageKeys(user);
     const saved = (() => {
-      try { return localStorage.getItem(key); } catch { return null; }
+      try {
+        return keys.map((k) => localStorage.getItem(k)).find(Boolean) || null;
+      } catch {
+        return null;
+      }
     })();
     const fallback = user?.name || user?.email?.split('@')[0] || '';
     const initial = saved || fallback;
@@ -471,13 +484,18 @@ const refreshBundle = async (tid) => {
     setNameInput(initial);
     setEditingName(false);
     if (!saved) setNameModalOpen(true);
+    try {
+      if (user?.email) localStorage.setItem('jaspen_last_email', user.email);
+    } catch {}
   }, [user]);
 
   const persistDisplayName = (value) => {
     const trimmed = String(value || '').trim();
     if (!trimmed) return;
-    const key = `jaspen_display_name_${getUserKey()}`;
-    try { localStorage.setItem(key, trimmed); } catch {}
+    try {
+      const keys = getUserStorageKeys(user);
+      keys.forEach((k) => localStorage.setItem(k, trimmed));
+    } catch {}
     setDisplayName(trimmed);
     setUser?.((prev) => prev ? { ...prev, name: trimmed } : prev);
   };

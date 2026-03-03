@@ -62,32 +62,9 @@ export default function StrategyAccessCard() {
       ? 'strategy-card-disclaimer is-success'
       : 'strategy-card-disclaimer';
 
-  const handleGoogleClick = async () => {
-    console.log('[Auth] Google button clicked, supabase client:', supabase ? 'exists' : 'NULL');
-    if (!supabase) {
-      console.error('[Auth] Supabase client is null. Check REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY env vars.');
-      setAuthError('Auth not configured. Please contact support.');
-      return;
-    }
-
-    setAuthError('');
-    setAuthStatus('idle');
-
-    try {
-      const redirectUrl = getRedirectUrl();
-      console.log('[Auth] Starting OAuth with redirectTo:', redirectUrl);
-
-window.location.href = "https://api.jaspen.ai/api/auth/google/start";
-return;
-      console.log('[Auth] signInWithOAuth result:', { data, error });
-
-      if (error) {
-        setAuthError(error.message || 'Unable to start Google sign-in.');
-      }
-    } catch (err) {
-      console.error('[Auth] signInWithOAuth threw:', err);
-      setAuthError('Unexpected error starting sign-in.');
-    }
+  const handleGoogleClick = () => {
+    setAuthError(null);
+    window.location.href = "https://api.jaspen.ai/api/auth/google/start";
   };
 
   const handleEmailSubmit = async (event) => {

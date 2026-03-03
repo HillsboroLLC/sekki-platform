@@ -19,14 +19,14 @@ import Support       from './All/pages/Support/Support';
 import AuthCallback  from './All/components/AuthCallback';
 
 // Market
-import PricingResult from './Market/PricingResult/PricingResult';
-import Dashboard     from './Market/Dashboard/Dashboard';
-import Sessions      from './Market/Sessions/Sessions';
-import Account       from './Market/Account/Account';
-import PaymentPage   from './Market/PaymentPage/PaymentPage';
+import PricingResult from './MarketIQ/PricingResult/PricingResult';
+import Dashboard     from './MarketIQ/Dashboard/Dashboard';
+import Sessions      from './MarketIQ/Sessions/Sessions';
+import Account       from './MarketIQ/Account/Account';
+import PaymentPage   from './MarketIQ/PaymentPage/PaymentPage';
 
 // Market IQ (NEW)
-import MarketIQWorkspace from './Market/MarketIQ/workspace/MarketIQWorkspace';
+import JaspenWorkspace from './MarketIQ/MarketIQ/workspace/MarketIQWorkspace';
 console.log("[BOOT] App.js loaded", window.location.href);
 export default function App() {
   const getDisplayName = (node) =>
@@ -72,9 +72,10 @@ export default function App() {
         {/* Protected (Market) */}
         <Route path="/dashboard" element={<ProtectedRoute>{withShell(<Dashboard />)}</ProtectedRoute>} />
         <Route
-          path="/market-iq"
-          element={withShell(<MarketIQWorkspace />, { title: 'Market IQ', showHeader: false, fullBleed: true, noPadding: true })}
+          path="/new"
+          element={withShell(<JaspenWorkspace />, { title: 'Jaspen', showHeader: false, fullBleed: true, noPadding: true })}
         />
+        <Route path="/market-iq" element={<Navigate to="/new" replace />} />
         <Route path="/sessions"  element={<ProtectedRoute>{withShell(<Sessions />)}</ProtectedRoute>} />
         <Route path="/account"   element={<ProtectedRoute>{withShell(<Account />)}</ProtectedRoute>} />
         <Route path="/payment"   element={<ProtectedRoute>{withShell(<PaymentPage />)}</ProtectedRoute>} />

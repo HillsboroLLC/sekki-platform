@@ -355,6 +355,17 @@
   color: var(--navy);
 }
 
+.miq-topbar-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.miq-topbar-link:hover {
+  text-decoration: underline;
+}
+
 .miq-topbar-new {
   background: none;
   border: 1px solid var(--border);
@@ -1256,6 +1267,10 @@
   margin-left: 380px;
   transition: margin-left 0.3s ease;
 }
+.miq-workspace.miq-settings-open {
+  margin-left: 380px;
+  transition: margin-left 0.3s ease;
+}
 
 /* Floating button to reopen AI drawer */
 .miq-ai-float-btn {
@@ -1499,7 +1514,8 @@
   }
 
   .miq-workspace.miq-ai-open,
-  .miq-workspace.miq-readiness-open {
+  .miq-workspace.miq-readiness-open,
+  .miq-workspace.miq-settings-open {
     margin-left: 0;
   }
 }

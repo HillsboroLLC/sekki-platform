@@ -15,7 +15,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faQuestionCircle, faHome, faCogs,
   faPaperPlane, faSpinner, faTimes, faBars, faCheck, faExclamationTriangle,
-  faChartLine, faTrash, faPlus, faMinus, faMicrophone, faChevronDown, faChevronRight, faWandMagicSparkles,
+  faChartLine, faTrash, faPlus, faMinus, faMicrophone,
   faUser, faGear, faBolt, faBrain, faLayerGroup, faRobot, faListCheck, faArrowUpRightFromSquare, faArrowRightFromBracket, faGaugeHigh, faClockRotateLeft, faPaperclip, faArrowUp
 } from '@fortawesome/free-solid-svg-icons';
 import {
@@ -74,19 +74,25 @@ function clampPercent(p) {
 const sidebarReducer = (state, action) => {
   switch (action.type) {
     case 'OPEN_HISTORY':
-      return { ...state, history: true, readiness: false, userDismissedReadiness: true };
+      return { ...state, history: true, readiness: false, settings: false, userDismissedReadiness: true };
     case 'OPEN_READINESS':
-      return { ...state, history: false, readiness: true };
+      return { ...state, history: false, readiness: true, settings: false };
+    case 'OPEN_SETTINGS':
+      return { ...state, history: false, readiness: false, settings: true };
     case 'CLOSE_HISTORY':
       return { ...state, history: false };
     case 'CLOSE_READINESS':
       return { ...state, readiness: false, userDismissedReadiness: true };
+    case 'CLOSE_SETTINGS':
+      return { ...state, settings: false };
     case 'CLOSE_ALL':
-      return { ...state, history: false, readiness: false };
+      return { ...state, history: false, readiness: false, settings: false };
     case 'TOGGLE_HISTORY':
-      return { ...state, history: !state.history, readiness: false };
+      return { ...state, history: !state.history, readiness: false, settings: false };
     case 'TOGGLE_READINESS':
-      return { ...state, history: false, readiness: !state.readiness };
+      return { ...state, history: false, readiness: !state.readiness, settings: false };
+    case 'TOGGLE_SETTINGS':
+      return { ...state, history: false, readiness: false, settings: !state.settings };
     case 'NEW_SESSION':
       return { ...state, userDismissedReadiness: false };
     default:
@@ -152,6 +158,7 @@ export default function MarketIQWorkspace() {
   const [sidebarState, dispatchSidebar] = useReducer(sidebarReducer, {
     history: false,
     readiness: false,
+    settings: false,
     userDismissedReadiness: false
   });
 
@@ -449,6 +456,80 @@ const refreshBundle = async (tid) => {
   const userName = user?.name || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || 'user@example.com';
 
+  const renderUserMenuContent = (onClose) => (
+    <>
+      <div className="miq-ud-header">
+        <div className="miq-ud-header-avatar">{userInitials}</div>
+        <div className="miq-ud-header-info">
+          <div className="miq-ud-header-name">{userName}</div>
+          <div className="miq-ud-header-email">{userEmail}</div>
+        </div>
+      </div>
+
+      <div className="miq-ud-section">
+        <div className="miq-ud-section-label">Navigate</div>
+        <button className="miq-ud-item" onClick={() => { onClose?.(); window.location.reload(); }}>
+          <FontAwesomeIcon icon={faRobot} />
+          <span className="miq-ud-item-label">Jaspen</span>
+        </button>
+        <button className="miq-ud-item" onClick={() => { onClose?.(); enterScorecardPreview(); }}>
+          <FontAwesomeIcon icon={faChartLine} />
+          <span className="miq-ud-item-label">Scorecard</span>
+        </button>
+        <button className="miq-ud-item" onClick={() => { onClose?.(); navigate('/ops/pm'); }}>
+          <FontAwesomeIcon icon={faListCheck} />
+          <span className="miq-ud-item-label">PM Dashboard</span>
+        </button>
+        <button className="miq-ud-item" onClick={() => { onClose?.(); navigate('/ops/activities'); }}>
+          <FontAwesomeIcon icon={faLayerGroup} />
+          <span className="miq-ud-item-label">In Queue</span>
+          <span className="miq-ud-item-badge">3</span>
+        </button>
+      </div>
+
+      <div className="miq-ud-section">
+        <div className="miq-ud-section-label">Account</div>
+        <button className="miq-ud-item">
+          <FontAwesomeIcon icon={faBolt} />
+          <span className="miq-ud-item-label">Credits</span>
+          <span className="miq-ud-item-badge">0</span>
+        </button>
+        <button className="miq-ud-item">
+          <FontAwesomeIcon icon={faBrain} />
+          <span className="miq-ud-item-label">Knowledge</span>
+        </button>
+        <button className="miq-ud-item">
+          <FontAwesomeIcon icon={faUser} />
+          <span className="miq-ud-item-label">Account</span>
+        </button>
+        <button className="miq-ud-item">
+          <FontAwesomeIcon icon={faGear} />
+          <span className="miq-ud-item-label">Settings</span>
+        </button>
+      </div>
+
+      <div className="miq-ud-section">
+        <button className="miq-ud-item" onClick={() => { onClose?.(); navigate('/'); }}>
+          <FontAwesomeIcon icon={faHome} />
+          <span className="miq-ud-item-label">Homepage</span>
+          <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+        </button>
+        <button className="miq-ud-item" onClick={() => { onClose?.(); setHelpOpen(true); }}>
+          <FontAwesomeIcon icon={faQuestionCircle} />
+          <span className="miq-ud-item-label">Get help</span>
+          <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+        </button>
+      </div>
+
+      <div className="miq-ud-section">
+        <button className="miq-ud-item signout" onClick={() => { onClose?.(); handleLogout(); }}>
+          <FontAwesomeIcon icon={faArrowRightFromBracket} />
+          <span className="miq-ud-item-label">Sign out</span>
+        </button>
+      </div>
+    </>
+  );
+
   // Close user dropdown when clicking outside
   useEffect(() => {
     const onDocClick = (e) => {
@@ -558,17 +639,6 @@ const [aiInput, setAiInput] = useState('');
   // Previous session snapshot
   const [previousSessionState, setPreviousSessionState] = useState(null);
 
-  // Suggestions
-  const suggestionsPool = useMemo(() => ([
-    "Launch a B2B SaaS analytics platform in NA/EU with a $2M budget within 12 months",
-    "Expand manufacturing by 40% over 18 months targeting 20% EBITDA improvement",
-    "Go-to-market for an AI customer support tool; budget $750k; target SMBs",
-    "Open 3 new retail locations in Texas in 9 months with a $1.2M budget",
-    "Enterprise security product targeting healthcare; target ARR $5M in 18 months",
-    "Premium coffee subscription for urban professionals; $150k budget; $50/mo price"
-  ]), []);
-  const [dynamicPrompts, setDynamicPrompts] = useState([]);
-  
   // Fetch readiness spec on mount (ONCE) - single source, no duplicates
   useEffect(() => {
     const apiBase = process.env.REACT_APP_API_BASE || 'https://api.sekki.io';
@@ -596,10 +666,8 @@ const [aiInput, setAiInput] = useState('');
   }, []);
   
   useEffect(() => {
-    const picks = [...suggestionsPool].sort(() => 0.5 - Math.random()).slice(0, 3);
-    setDynamicPrompts(picks);
     fetchSessions();
-  }, [suggestionsPool]);
+  }, []);
 
   // --- Chat helper that returns reply + readiness ---
   const chatWithReadiness = async (message, forcedSid) => {
@@ -865,6 +933,7 @@ useEffect(() => {
       !sidebarState.userDismissedReadiness &&
       !sidebarState.readiness &&
       !sidebarState.history &&
+      !sidebarState.settings &&
       firstOpenedFor.current !== sessionId
     ) {
       dispatchSidebar({ type: 'OPEN_READINESS' });
@@ -875,7 +944,8 @@ useEffect(() => {
     messages.length,
     sidebarState.userDismissedReadiness,
     sidebarState.readiness,
-    sidebarState.history
+    sidebarState.history,
+    sidebarState.settings
   ]);
 
   useEffect(() => {
@@ -2323,8 +2393,6 @@ await fetch(`https://api.sekki.io/api/ai-agent/threads/${itemId}`, {
     await fetchSessions();
   };
 
-  const handleSuggestionClick = (suggestion) => setInput(suggestion);
-
   // Persist a scenario row to the backend, then refresh bundle
 async function persistScenario(label, values) {
   try {
@@ -2530,8 +2598,9 @@ const handleSaveScenario = async (scenario) => {
 
   const renderWorkspaceShell = () => {
     const isReadinessOpen = activeTab === 'chat' && sidebarState.readiness;
+    const isSettingsOpen = sidebarState.settings;
     const isScenarioTab = activeTab === 'scenario';
-    const shellOpen = sidebarState.history || sidebarState.readiness;
+    const shellOpen = sidebarState.history || sidebarState.readiness || sidebarState.settings;
     const TabButton = ({ id, label }) => (
       <button
         className={`miq-top-tab ${activeTab === id ? 'active' : ''}`}
@@ -2646,6 +2715,33 @@ setView(id === 'chat' ? 'intake' : id);
   </>
 )}
 
+      {/* LEFT SIDEBAR - User Settings */}
+      <div className={`miq-left-sidebar miq-settings-sidebar ${sidebarState.settings ? 'sidebar-open' : ''}`}>
+        <div className="miq-sidebar-header">
+          <h3>User Settings</h3>
+          <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_SETTINGS' })}>
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
+        </div>
+        <div className="miq-sidebar-content">
+          {renderUserMenuContent(() => dispatchSidebar({ type: 'CLOSE_SETTINGS' }))}
+        </div>
+      </div>
+
+      {!sidebarState.settings && (
+        <div
+          className="miq-sidebar-tab miq-tab-settings"
+          onClick={() => dispatchSidebar({ type: 'TOGGLE_SETTINGS' })}
+          role="button"
+          aria-label="User settings"
+          title="User settings"
+          style={{ top: '160px' }}
+        >
+          <FontAwesomeIcon icon={faGear} />
+          <span className="miq-tab-label">Settings</span>
+        </div>
+      )}
+
       {busy && (
         <div className="thinking-overlay">
           <div className="thinking-content">
@@ -2663,7 +2759,7 @@ setView(id === 'chat' ? 'intake' : id);
     aria-label="Assistant"
     title="Assistant"
   >
-    <FontAwesomeIcon icon={faWandMagicSparkles} />
+    <FontAwesomeIcon icon={faRobot} />
     <span className="miq-tab-label">Assistant</span>
   </div>
 )}
@@ -2675,7 +2771,7 @@ setView(id === 'chat' ? 'intake' : id);
       <div className="miq-ai-title">
         <span>{isScenarioTab && scenarioDrawerView === 'scorecard' ? 'Score Summary' : 'Assistant'}</span>
         <span className="miq-ai-badge">
-          <FontAwesomeIcon icon={isScenarioTab && scenarioDrawerView === 'scorecard' ? faChartLine : faWandMagicSparkles} />
+          <FontAwesomeIcon icon={isScenarioTab && scenarioDrawerView === 'scorecard' ? faChartLine : faRobot} />
         </span>
       </div>
       <button className="miq-close-btn" onClick={toggleAIDrawer}>
@@ -2760,7 +2856,7 @@ setView(id === 'chat' ? 'intake' : id);
         }}
       />
 
-        <div className={`miq-workspace ${aiDrawerOpen ? 'miq-ai-open' : ''} ${isReadinessOpen ? 'miq-readiness-open' : ''}`}>
+        <div className={`miq-workspace ${aiDrawerOpen ? 'miq-ai-open' : ''} ${isReadinessOpen ? 'miq-readiness-open' : ''} ${isSettingsOpen ? 'miq-settings-open' : ''}`}>
           <div className="miq-workspace-header">
             <div className="miq-workspace-title">
               <span className="miq-brand-small">SEKKI • Market IQ</span>
@@ -3124,7 +3220,8 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
   }
 
   // Default: conversational intake (no tabs)
-  const intakeShellOpen = sidebarState.history || sidebarState.readiness;
+  const intakeShellOpen = sidebarState.history || sidebarState.readiness || sidebarState.settings;
+  const intakeHasReadinessTab = sessionId && messages.length > 0 && !sidebarState.readiness;
   return (
     <div className={`miq miq-shell ${intakeShellOpen ? 'drawer-open' : ''}`}>
       <main className="miq-main">
@@ -3139,7 +3236,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       )}
 
       {/* Drawer Tabs on Left Edge */}
-      {sessionId && messages.length > 0 && !sidebarState.readiness && (
+      {intakeHasReadinessTab && (
         <div
           className={`miq-drawer-tab miq-drawer-tab-readiness ${sessionId && messages.length > 0 ? 'active' : ''}`}
           onClick={() => dispatchSidebar({ type: 'OPEN_READINESS' })}
@@ -3151,11 +3248,21 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       {!sidebarState.history && (
         <div
           className="miq-drawer-tab miq-drawer-tab-history"
-          style={{ top: sessionId && messages.length > 0 && !sidebarState.readiness ? '160px' : '80px' }}
+          style={{ top: intakeHasReadinessTab ? '160px' : '80px' }}
           onClick={() => dispatchSidebar({ type: 'TOGGLE_HISTORY' })}
         >
           <FontAwesomeIcon icon={faClockRotateLeft} />
           HISTORY
+        </div>
+      )}
+      {!sidebarState.settings && (
+        <div
+          className="miq-drawer-tab miq-drawer-tab-settings"
+          style={{ top: intakeHasReadinessTab ? '240px' : '160px' }}
+          onClick={() => dispatchSidebar({ type: 'TOGGLE_SETTINGS' })}
+        >
+          <FontAwesomeIcon icon={faGear} />
+          SETTINGS
         </div>
       )}
 
@@ -3291,10 +3398,30 @@ const done = category.completed === true;
         </div>
       </div>
 
+      {/* LEFT SIDEBAR - User Settings */}
+      <div className={`miq-left-sidebar miq-settings-sidebar ${sidebarState.settings ? 'sidebar-open' : ''}`}>
+        <div className="miq-sidebar-header">
+          <h3>User Settings</h3>
+          <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_SETTINGS' })}>
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
+        </div>
+        <div className="miq-sidebar-content">
+          {renderUserMenuContent(() => dispatchSidebar({ type: 'CLOSE_SETTINGS' }))}
+        </div>
+      </div>
+
       {/* Header - Manus Style Top Bar */}
       <div className="miq-chat-topbar">
         <div className="miq-topbar-left">
-          <span className="miq-topbar-title">AI Agent</span>
+          <button
+            type="button"
+            className="miq-topbar-title miq-topbar-link"
+            onClick={() => window.location.reload()}
+            title="Refresh"
+          >
+            Jaspen
+          </button>
           <button
             className="miq-topbar-new"
             onClick={() => handleNewAnalysis(true)}
@@ -3313,79 +3440,7 @@ const done = category.completed === true;
             </button>
 
             <div className={`miq-user-dropdown ${userDropdownOpen ? 'open' : ''}`} role="menu">
-              <div className="miq-ud-header">
-                <div className="miq-ud-header-avatar">{userInitials}</div>
-                <div className="miq-ud-header-info">
-                  <div className="miq-ud-header-name">{userName}</div>
-                  <div className="miq-ud-header-email">{userEmail}</div>
-                </div>
-              </div>
-
-              {/* Navigation */}
-              <div className="miq-ud-section">
-                <div className="miq-ud-section-label">Navigate</div>
-                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); }}>
-                  <FontAwesomeIcon icon={faRobot} />
-                  <span className="miq-ud-item-label">AI Agent</span>
-                </button>
-                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); enterScorecardPreview(); }}>
-                  <FontAwesomeIcon icon={faChartLine} />
-                  <span className="miq-ud-item-label">Scorecard</span>
-                </button>
-                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); navigate('/ops/pm'); }}>
-                  <FontAwesomeIcon icon={faListCheck} />
-                  <span className="miq-ud-item-label">PM Dashboard</span>
-                </button>
-                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); navigate('/ops/activities'); }}>
-                  <FontAwesomeIcon icon={faLayerGroup} />
-                  <span className="miq-ud-item-label">In Queue</span>
-                  <span className="miq-ud-item-badge">3</span>
-                </button>
-              </div>
-
-              {/* Account */}
-              <div className="miq-ud-section">
-                <div className="miq-ud-section-label">Account</div>
-                <button className="miq-ud-item">
-                  <FontAwesomeIcon icon={faBolt} />
-                  <span className="miq-ud-item-label">Credits</span>
-                  <span className="miq-ud-item-badge">0</span>
-                </button>
-                <button className="miq-ud-item">
-                  <FontAwesomeIcon icon={faBrain} />
-                  <span className="miq-ud-item-label">Knowledge</span>
-                </button>
-                <button className="miq-ud-item">
-                  <FontAwesomeIcon icon={faUser} />
-                  <span className="miq-ud-item-label">Account</span>
-                </button>
-                <button className="miq-ud-item">
-                  <FontAwesomeIcon icon={faGear} />
-                  <span className="miq-ud-item-label">Settings</span>
-                </button>
-              </div>
-
-              {/* Links */}
-              <div className="miq-ud-section">
-                <button className="miq-ud-item" onClick={() => { setUserDropdownOpen(false); navigate('/'); }}>
-                  <FontAwesomeIcon icon={faHome} />
-                  <span className="miq-ud-item-label">Homepage</span>
-                  <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
-                </button>
-                <button className="miq-ud-item" onClick={() => setHelpOpen(true)}>
-                  <FontAwesomeIcon icon={faQuestionCircle} />
-                  <span className="miq-ud-item-label">Get help</span>
-                  <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
-                </button>
-              </div>
-
-              {/* Sign out */}
-              <div className="miq-ud-section">
-                <button className="miq-ud-item signout" onClick={() => { setUserDropdownOpen(false); handleLogout(); }}>
-                  <FontAwesomeIcon icon={faArrowRightFromBracket} />
-                  <span className="miq-ud-item-label">Sign out</span>
-                </button>
-              </div>
+              {renderUserMenuContent(() => setUserDropdownOpen(false))}
             </div>
           </div>
 
@@ -3401,18 +3456,10 @@ const done = category.completed === true;
         {messages.length === 0 ? (
           <div className="miq-chat-welcome">
             <div className="cw-icon">
-              <FontAwesomeIcon icon={faWandMagicSparkles} />
+              <FontAwesomeIcon icon={faRobot} />
             </div>
             <h2>What would you like to work on?</h2>
             <p>Describe your project or business idea and I'll help you build a complete strategy scorecard through a natural conversation.</p>
-            <div className="miq-prompt-suggestions">
-              {dynamicPrompts.map((p, i) => (
-                <button key={i} className="miq-prompt-suggestion" onClick={() => handleSuggestionClick(p)}>
-                  <FontAwesomeIcon icon={faChevronRight} />
-                  {p}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           <div className="miq-messages">

@@ -219,7 +219,7 @@ if (data?.token) {
     setLssUsers([]);
 
     // Redirect
-    window.location.href = '/login';
+    window.location.href = '/?auth=1';
   };
 
   const signup = async (email, password, name) => {

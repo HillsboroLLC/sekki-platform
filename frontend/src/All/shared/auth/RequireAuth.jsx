@@ -43,7 +43,7 @@ export default function RequireAuth({ children }) {
   if (state === "anon") {
     return (
       <Navigate
-        to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`}
+        to={`/?auth=1&next=${encodeURIComponent(loc.pathname + loc.search)}`}
         replace
       />
     );

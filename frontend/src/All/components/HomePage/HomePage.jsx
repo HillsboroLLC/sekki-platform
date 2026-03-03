@@ -98,7 +98,7 @@ export default function HomePage() {
           </nav>
 
           <div className="jaspen-header-actions">
-            <Link to="/login" className="jaspen-login-link">Get in touch</Link>
+            <Link to="/?auth=1" className="jaspen-login-link">Get in touch</Link>
             <a href="#request-access" className="jaspen-btn jaspen-btn-primary">Request access</a>
           </div>
 

@@ -53,14 +53,9 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
       return;
     }
 
-    setError('');
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: EMAIL_REDIRECT,
-      },
-    });
-
+setError('');
+window.location.href = "https://api.jaspen.ai/api/auth/google/start";
+return;
     if (signInError) {
       setError(signInError.message || 'Unable to start Google sign-in.');
     }

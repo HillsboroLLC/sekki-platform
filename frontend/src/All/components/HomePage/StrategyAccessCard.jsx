@@ -77,13 +77,8 @@ export default function StrategyAccessCard() {
       const redirectUrl = getRedirectUrl();
       console.log('[Auth] Starting OAuth with redirectTo:', redirectUrl);
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-        },
-      });
-
+window.location.href = "https://api.jaspen.ai/api/auth/google/start";
+return;
       console.log('[Auth] signInWithOAuth result:', { data, error });
 
       if (error) {

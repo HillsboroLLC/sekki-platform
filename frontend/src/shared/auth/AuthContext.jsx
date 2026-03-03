@@ -65,7 +65,56 @@ const API_BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) ||
   (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) ||
   'https://api.sekki.io';
-const DISABLE_LEGACY_AUTH = true;
+const DISABLE_LEGACY_AUTH = false;
+
+// Normalize user shape across email + Google sign-in payloads.
+const normalizeUser = (raw) => {
+  if (!raw) return null;
+  const email =
+    raw.email ||
+    raw.user_metadata?.email ||
+    raw.profile?.email ||
+    raw.identity?.email ||
+    null;
+
+  let name =
+    raw.name ||
+    raw.full_name ||
+    raw.user_metadata?.full_name ||
+    raw.user_metadata?.name ||
+    raw.profile?.name ||
+    null;
+
+  if (!name) {
+    const first =
+      raw.given_name ||
+      raw.first_name ||
+      raw.user_metadata?.given_name ||
+      raw.user_metadata?.first_name ||
+      raw.profile?.given_name ||
+      raw.profile?.first_name ||
+      null;
+    const last =
+      raw.family_name ||
+      raw.last_name ||
+      raw.user_metadata?.family_name ||
+      raw.user_metadata?.last_name ||
+      raw.profile?.family_name ||
+      raw.profile?.last_name ||
+      null;
+    name = [first, last].filter(Boolean).join(' ').trim() || null;
+  }
+
+  if (!name && email) {
+    name = email.split('@')[0] || null;
+  }
+
+  return {
+    ...raw,
+    email: email || raw.email || null,
+    name: name || raw.name || null
+  };
+};
 
 // Small helper to always send cookies + attach Bearer token if present
 async function authFetch(path, options = {}) {
@@ -139,11 +188,6 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
 const token = localStorage.getItem('access_token') || localStorage.getItem('token'); // backward-compat
-if (DISABLE_LEGACY_AUTH) {
-  // Skip legacy cookie auth bootstrap; Supabase handles auth.
-  setLoading(false);
-  return;
-}
 const res = await authFetch('/api/auth/me', {
   method: 'GET',
   headers: {
@@ -153,7 +197,7 @@ const res = await authFetch('/api/auth/me', {
 
       if (res.ok) {
         const userData = await res.json();
-        setUser(userData);
+        setUser(normalizeUser(userData));
       } else {
         // Clear any stale token if server says no
         clearAuthTokens();
@@ -184,7 +228,7 @@ if (data?.token) {
   localStorage.setItem('token', data.token);          // backward-compat
   localStorage.setItem('access_token', data.token);   // preferred key
 }
-        setUser(data?.user || { email });
+        setUser(normalizeUser(data?.user || { email }));
         return { success: true };
       } else {
         return { success: false, error: data?.message || 'Sign-in failed' };
@@ -237,7 +281,7 @@ if (data?.token) {
   localStorage.setItem('token', data.token);          // backward-compat
   localStorage.setItem('access_token', data.token);   // preferred key
 }
-        setUser(data?.user || { email, name });
+        setUser(normalizeUser(data?.user || { email, name }));
         return { success: true };
       } else {
         return { success: false, error: data?.message || 'Signup failed' };

@@ -485,6 +485,50 @@
   border-bottom: none;
 }
 
+.miq-ud-profile {
+  padding: 12px 18px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.miq-ud-profile-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gray-500);
+  margin-bottom: 8px;
+}
+.miq-ud-profile-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.miq-ud-profile-input {
+  flex: 1;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  font-family: var(--font);
+  color: var(--navy);
+}
+.miq-ud-profile-input:focus {
+  outline: none;
+  border-color: var(--navy);
+}
+.miq-ud-profile-save {
+  border: none;
+  background: var(--navy);
+  color: var(--white);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.miq-ud-profile-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .miq-ud-section-label {
   padding: 6px 18px 4px;
   font-size: 0.5625rem;
@@ -570,6 +614,72 @@
 }
 .miq-help-btn:hover {
   opacity: 0.85;
+}
+
+/* Name capture modal */
+.miq-name-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 24, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.miq-name-modal {
+  width: min(420px, 90vw);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 20px 50px rgba(22, 31, 59, 0.18);
+  color: var(--navy);
+}
+
+.miq-name-modal h3 {
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.miq-name-modal p {
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+  margin-bottom: 14px;
+}
+
+.miq-name-input {
+  width: 100%;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  font-family: var(--font);
+  color: var(--navy);
+  margin-bottom: 14px;
+}
+.miq-name-input:focus {
+  outline: none;
+  border-color: var(--navy);
+}
+
+.miq-name-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.miq-name-save {
+  border: none;
+  background: var(--magenta);
+  color: var(--white);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.miq-name-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ============================================================================

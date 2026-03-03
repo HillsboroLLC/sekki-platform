@@ -147,7 +147,7 @@ export default function MarketIQWorkspace() {
   const [view, setView] = useState('intake');
   const [activeTab, setActiveTab] = useState('summary');
 
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
 
   // Imperative control for scenario modeling (used by interactive chat actions)
   const scenarioModelerRef = useRef(null);
@@ -450,12 +450,96 @@ const refreshBundle = async (tid) => {
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
   };
-  const userInitials = getInitials(user?.name || user?.email || 'User');
-  const userName = user?.name || user?.email?.split('@')[0] || 'User';
+  const getUserKey = () => user?.id || user?.email || 'anon';
+  const [displayName, setDisplayName] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [nameModalOpen, setNameModalOpen] = useState(false);
+  const userInitials = getInitials(displayName || user?.name || user?.email || 'User');
+  const userName = displayName || user?.name || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || 'user@example.com';
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `jaspen_display_name_${getUserKey()}`;
+    const saved = (() => {
+      try { return localStorage.getItem(key); } catch { return null; }
+    })();
+    const fallback = user?.name || user?.email?.split('@')[0] || '';
+    const initial = saved || fallback;
+    setDisplayName(saved || '');
+    setNameInput(initial);
+    if (!saved) setNameModalOpen(true);
+  }, [user]);
+
+  const persistDisplayName = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return;
+    const key = `jaspen_display_name_${getUserKey()}`;
+    try { localStorage.setItem(key, trimmed); } catch {}
+    setDisplayName(trimmed);
+    setUser?.((prev) => prev ? { ...prev, name: trimmed } : prev);
+  };
+
+  const renderNameModal = () => {
+    if (!nameModalOpen) return null;
+    return (
+      <div className="miq-name-modal-backdrop" role="presentation">
+        <div className="miq-name-modal" role="dialog" aria-modal="true" aria-label="Choose your name">
+          <h3>What should I call you?</h3>
+          <p>We can use this across Jaspen. You can change it anytime in Settings.</p>
+          <input
+            className="miq-name-input"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+            autoFocus
+          />
+          <div className="miq-name-actions">
+            <button
+              type="button"
+              className="miq-name-save"
+              onClick={() => {
+                const trimmed = nameInput.trim();
+                if (!trimmed) return;
+                persistDisplayName(trimmed);
+                setNameModalOpen(false);
+              }}
+              disabled={!nameInput.trim()}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderUserMenuContent = (onClose) => (
     <>
+      <div className="miq-ud-profile">
+        <div className="miq-ud-profile-label">Display name</div>
+        <div className="miq-ud-profile-row">
+          <input
+            className="miq-ud-profile-input"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="What should I call you?"
+          />
+          <button
+            type="button"
+            className="miq-ud-profile-save"
+            onClick={() => {
+              const trimmed = nameInput.trim();
+              if (!trimmed) return;
+              persistDisplayName(trimmed);
+            }}
+            disabled={!nameInput.trim()}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
       <div className="miq-ud-header">
         <div className="miq-ud-header-avatar">{userInitials}</div>
         <div className="miq-ud-header-info">
@@ -2748,6 +2832,9 @@ setView(id === 'chat' ? 'intake' : id);
           </div>
         </div>
       )}
+
+      {renderNameModal()}
+
 {/* Assistant Vertical Tab (Score + Scenarios only) */}
 {activeTab !== 'chat' && !aiDrawerOpen && (
   <div
@@ -3440,6 +3527,8 @@ const done = category.completed === true;
 
         <div className="miq-topbar-right" />
       </div>
+
+      {renderNameModal()}
 
       {/* Content */}
       <div className="miq-chat-content">

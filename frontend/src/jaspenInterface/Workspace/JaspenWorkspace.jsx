@@ -3581,7 +3581,14 @@ const done = category.completed === true;
       <div className="miq-chat-content">
         {messages.length === 0 ? (
           <div className="miq-chat-welcome">
-            <h2>What would you like to work on?</h2>
+            <h2 className="miq-chat-welcome-title">
+              <img
+                className="miq-chat-welcome-unicorn"
+                src="/android-chrome-192x192.png"
+                alt="Jaspen unicorn"
+              />
+              <span>What would you like to work on?</span>
+            </h2>
             <p>Describe your project or business idea and I'll help you build a complete strategy scorecard through a natural conversation.</p>
           </div>
         ) : (

@@ -742,6 +742,20 @@
   color: var(--navy);
 }
 
+.miq-chat-welcome-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.miq-chat-welcome-unicorn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .miq-chat-welcome p {
   font-size: 1rem;
   color: var(--gray-600);

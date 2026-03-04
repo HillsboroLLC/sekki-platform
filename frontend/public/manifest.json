@@ -3,12 +3,12 @@
   "name": "Jaspen",
   "icons": [
     {
-      "src": "JaspenBlack.png",
+      "src": "favicon.ico",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "JaspenBlack.png",
+      "src": "favicon.ico",
       "type": "image/png",
       "sizes": "512x512"
     }

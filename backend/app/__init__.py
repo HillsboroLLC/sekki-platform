@@ -58,20 +58,6 @@ def create_app():
     # WHY: Minimal CORS for actual /api/* responses (preflight handled at Nginx).
     #      Kept local to avoid hidden global side effects.
     # =========================================================================
-    @app.after_request
-    def _cors_apply(resp):
-        try:
-            from flask import request
-
-            if request.path.startswith("/api/"):
-                origin = request.headers.get("Origin")
-                if origin:
-                    resp.headers["Access-Control-Allow-Origin"] = origin
-                    resp.headers["Access-Control-Allow-Credentials"] = "true"
-                    resp.headers["Vary"] = "Origin"
-        except Exception:
-            pass
-        return resp
 
     # =========================================================================
     # WHY: Configuration must remain centralized and deterministic.

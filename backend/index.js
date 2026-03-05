@@ -9,17 +9,19 @@ app.use(express.json());
 
 // health check
 app.get('/health', (_req, res) => {
-  res.status(200).json({ ok: true, service: 'sekki-node', ts: Date.now() });
+  res.status(200).json({ ok: true, service: 'jaspen-node', ts: Date.now() });
 });
 
 // health alias for cases where /api-node prefix isn't stripped
 app.get('/api-node/health', (_req, res) => {
-  res.status(200).json({ ok: true, service: 'sekki-node', ts: Date.now() });
+  res.status(200).json({ ok: true, service: 'jaspen-node', ts: Date.now() });
 });
 
 
-// --- CORS (allow sekki.io frontends to call api.sekki.io) ---
+// --- CORS (allow jaspen.ai frontends to call api.jaspen.ai) ---
 const ALLOWED_ORIGINS = [
+  'https://jaspen.ai',
+  'https://www.jaspen.ai',
   'https://sekki.io',
   'https://www.sekki.io',
   'http://localhost:3000',
@@ -46,7 +48,7 @@ app.use((req, res, next) => {
 
 // --- Health check (for uptime probes) ---
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'sekki-backend', ts: Date.now() });
+  res.json({ ok: true, service: 'jaspen-backend', ts: Date.now() });
 });
 
 /**
@@ -98,9 +100,9 @@ app.post('/billing/checkout-session', (req, res) => {
 
   // Map plan -> URL (stub for now)
   const PLAN_URLS = {
-    standard:   'https://sekki.io/pricing?checkout=standard',
-    premium:    'https://sekki.io/pricing?checkout=premium',
-    enterprise: 'https://sekki.io/pricing?checkout=enterprise',
+    standard:   'https://jaspen.ai/pricing?checkout=standard',
+    premium:    'https://jaspen.ai/pricing?checkout=premium',
+    enterprise: 'https://jaspen.ai/pricing?checkout=enterprise',
   };
 
   const url = PLAN_URLS[key];
@@ -114,7 +116,7 @@ app.post('/billing/checkout-session', (req, res) => {
 
 app.post('/billing/portal-session', (req, res) => {
   try {
-    return res.json({ ok: true, url: 'https://sekki.io/billing-portal' });
+    return res.json({ ok: true, url: 'https://jaspen.ai/billing-portal' });
   } catch (err) {
     console.error('portal-session error:', err);
     return res.status(500).json({ ok: false, error: 'Portal session failed' });
@@ -128,7 +130,7 @@ app.post('/billing/portal-session', (req, res) => {
 
 // Also accept the stripped path when NGINX removes /api-node
 app.post('/billing/portal-session', (_req, res) => {
-  res.json({ ok: true, url: 'https://sekki.io/billing-portal' });
+  res.json({ ok: true, url: 'https://jaspen.ai/billing-portal' });
 });
 
 
@@ -139,7 +141,7 @@ app.post('/api-node/billing/portal-session', (req, res) => {
   // For now, return a stable URL you control.
   res.json({
     ok: true,
-    url: 'https://sekki.io/billing-portal'
+    url: 'https://jaspen.ai/billing-portal'
   });
 });
 
@@ -210,8 +212,10 @@ app.get('/api-node/account/plan', (req, res) => {
 
 // --- Start server ---
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`SEKKI backend listening on port ${PORT}`);
+const HOST = process.env.HOST || '127.0.0.1';
+
+app.listen(PORT, HOST, () => {
+  console.log(`jaspen backend listening on http://${HOST}:${PORT}`);
 });
 
 
@@ -222,9 +226,9 @@ app.post('/api-node/billing/checkout-session', (req, res) => {
     const key = String(plan || '').toLowerCase();
 
     const PLAN_URLS = {
-      standard:   'https://sekki.io/pricing?checkout=standard',
-      premium:    'https://sekki.io/pricing?checkout=premium',
-      enterprise: 'https://sekki.io/pricing?checkout=enterprise',
+      standard:   'https://jaspen.ai/pricing?checkout=standard',
+      premium:    'https://jaspen.ai/pricing?checkout=premium',
+      enterprise: 'https://jaspen.ai/pricing?checkout=enterprise',
     };
 
     const url = PLAN_URLS[key];

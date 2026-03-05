@@ -50,7 +50,9 @@ market_iq_analyze_bp = Blueprint("market_iq_analyze", __name__)
 # Demo bypass (analyze only)
 # ---------------------------------------------------------------------------
 
-DEMO_EMAIL_DEFAULT = "demo@sekki.io"
+# Demo bypass is DISABLED unless you explicitly set DEMO_USER_EMAIL
+# via Flask config or environment variable.
+DEMO_EMAIL_DEFAULT = None
 
 
 def _resolve_jwt_email_best_effort() -> str | None:
@@ -108,7 +110,7 @@ def _is_demo_analyze_user() -> bool:
     Allows demo user to call /analyze without an active subscription.
 
     This is intentionally narrow:
-      - only demo email
+      - only DEMO_USER_EMAIL (explicitly configured)
       - only affects the /analyze endpoint (scenarios remain unchanged)
     """
     demo_email = (
@@ -116,13 +118,16 @@ def _is_demo_analyze_user() -> bool:
         or os.getenv("DEMO_USER_EMAIL")
         or DEMO_EMAIL_DEFAULT
     )
+
+    # If DEMO_USER_EMAIL is not configured, bypass is OFF.
     if not isinstance(demo_email, str) or not demo_email.strip():
-        demo_email = DEMO_EMAIL_DEFAULT
-    demo_email = demo_email.strip().lower()
+        return False
 
     caller_email = _resolve_jwt_email_best_effort()
-    return bool(caller_email and caller_email == demo_email)
+    if not caller_email:
+        return False
 
+    return caller_email == demo_email.strip().lower()
 
 def subscription_required_or_demo(fn):
     """

@@ -411,6 +411,33 @@ def list_threads():
     return jsonify({"success": True, "sessions": sessions_list}), 200
 
 
+@ai_agent_bp.route("/threads", methods=["DELETE"])
+@jwt_required()
+def reset_threads():
+    user_id = str(get_jwt_identity())
+    sessions = load_user_sessions(user_id) or {}
+    cleared_threads = len(sessions) if isinstance(sessions, dict) else 0
+
+    # Reset per-user AI Agent sessions.
+    save_user_sessions(user_id, {})
+
+    # Reset per-user scenario storage used by ScenarioModeler.
+    scenarios_path = os.path.join("scenarios_data", f"user_{user_id}_scenarios.json")
+    scenarios_cleared = False
+    try:
+        if os.path.exists(scenarios_path):
+            os.remove(scenarios_path)
+            scenarios_cleared = True
+    except Exception:
+        scenarios_cleared = False
+
+    return jsonify({
+        "success": True,
+        "cleared_threads": cleared_threads,
+        "cleared_scenarios": scenarios_cleared,
+    }), 200
+
+
 @ai_agent_bp.route("/threads/<thread_id>", methods=["GET"])
 @jwt_required()
 def get_thread(thread_id):

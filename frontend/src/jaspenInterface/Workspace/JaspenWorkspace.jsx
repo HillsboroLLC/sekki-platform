@@ -836,7 +836,6 @@ return {
   // Fetch sessions (cookie OR bearer)
   const fetchSessions = async () => {
     try {
-      const localSessions = storage.getHistory();
       const token = localStorage.getItem('access_token') || localStorage.getItem('token');
 
       const headers = { };
@@ -871,21 +870,17 @@ return {
               },
             };
           });
-          const allSessions = [...apiSessions, ...localSessions];
-          const uniqueSessions = allSessions.filter((session, index, self) =>
-            index === self.findIndex(s => s.id === session.id)
-          );
-          uniqueSessions.sort((a, b) => b.createdAt - a.createdAt);
-          setAnalysisHistory(uniqueSessions);
+          apiSessions.sort((a, b) => b.createdAt - a.createdAt);
+          setAnalysisHistory(apiSessions);
         } else {
-          setAnalysisHistory(localSessions);
+          setAnalysisHistory([]);
         }
       } else {
-        setAnalysisHistory(localSessions);
+        setAnalysisHistory([]);
       }
     } catch (error) {
       console.error('Error fetching sessions:', error);
-      setAnalysisHistory(storage.getHistory());
+      setAnalysisHistory([]);
     } finally {
       setSessionsLoading(false);
     }
@@ -1894,8 +1889,6 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
 
       await refreshBundle(currentSessionId || sessionId);
 
-      storage.pushHistory({ id: sessionId, createdAt: Date.now(), result });
-
 // REMOVED - AI Agent backend handles persistence automatically
 // await saveSessionToBackend({...});
 
@@ -2603,9 +2596,8 @@ const handleScenarioUpdate = async (newAnalysis) => {
     console.debug('[handleScenarioUpdate] refreshBundle failed', e);
   }
 
-  // Keep local history in step with the new result
-  storage.pushHistory({ id: sessionId, createdAt: Date.now(), result: newAnalysis });
-  setAnalysisHistory(storage.getHistory());
+  // Refresh server history as the source of truth
+  await fetchSessions();
 };
 
 const handleSaveScenario = async (scenario) => {

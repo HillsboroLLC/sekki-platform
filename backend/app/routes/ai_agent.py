@@ -438,6 +438,12 @@ def reset_threads():
     }), 200
 
 
+@ai_agent_bp.route("/threads/reset", methods=["POST"])
+@jwt_required()
+def reset_threads_post():
+    return reset_threads()
+
+
 @ai_agent_bp.route("/threads/<thread_id>", methods=["GET"])
 @jwt_required()
 def get_thread(thread_id):

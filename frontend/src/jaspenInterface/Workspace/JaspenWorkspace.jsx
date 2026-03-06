@@ -1352,7 +1352,9 @@ async function fetchReadinessFor(sid) {
 // ======= UI Readiness - SINGLE SOURCE FROM BACKEND ====================
 // ONLY source: readinessAudit.overall.percent from GET /api/readiness/audit
 // NO fallbacks, NO cached values, NO guessing
-const uiReadiness = readinessAudit?.overall?.percent != null
+const hasConversationMessages = Array.isArray(messages)
+  && messages.some((m) => String(m?.text || '').trim().length > 0);
+const uiReadiness = hasConversationMessages && readinessAudit?.overall?.percent != null
   ? clampPercent(readinessAudit.overall.percent)
   : 0;
 
@@ -3275,7 +3277,7 @@ setView(id === 'chat' ? 'intake' : id);
                       </button>
                     </div>
 
-                    {sessionId && (
+                    {sessionId && hasConversationMessages && (
                       <div className="chatgpt-footer">
                         <div className="progress-indicator">
                           <div className="progress-bar-container">
@@ -3685,7 +3687,7 @@ const done = category.completed === true;
             </div>
           </div>
 
-          {sessionId && (
+          {sessionId && hasConversationMessages && (
             <div className="chatgpt-footer">
               <div className="progress-indicator">
                 <div className="progress-bar-container">

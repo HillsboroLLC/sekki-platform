@@ -35,6 +35,14 @@ FOLLOW_UP_QUESTIONS = {
     "execution_plan": "What is your implementation timeline and which resources or team roles are required?",
 }
 
+SCENARIO_OUTPUT_FIELDS = {
+    "market_iq_score", "score_category", "component_scores", "financial_impact",
+    "analysis_id", "user_id", "timestamp", "project_description",
+    "key_insights", "top_risks", "recommendations", "project_name",
+    "risks", "compat", "inputs", "id", "label", "thread_id", "scenario_id",
+    "overall_score", "scores", "name", "status", "framework_id",
+}
+
 
 def _iso_now():
     return datetime.utcnow().isoformat()
@@ -113,6 +121,124 @@ def _next_question(readiness):
         if not category.get("completed"):
             return FOLLOW_UP_QUESTIONS.get(category["key"])
     return "Great, I have enough context. You can click Finish & Analyze when ready."
+
+
+def _resolve_user_session(sessions, thread_id):
+    thread_id = str(thread_id)
+    if not isinstance(sessions, dict):
+        return None, None
+    if thread_id in sessions:
+        return thread_id, sessions.get(thread_id)
+    for key, candidate in sessions.items():
+        if str((candidate or {}).get("session_id", "")) == thread_id:
+            return key, candidate
+    return None, None
+
+
+def _session_chat_history(session):
+    if not isinstance(session, dict):
+        return []
+    chat_history = session.get("chat_history")
+    if isinstance(chat_history, list):
+        return chat_history
+    result_blob = session.get("result")
+    if isinstance(result_blob, dict) and isinstance(result_blob.get("chat_history"), list):
+        return result_blob.get("chat_history")
+    return []
+
+
+def _extract_baseline_inputs(baseline):
+    if not isinstance(baseline, dict):
+        return {}
+    inputs = {}
+    for source in (baseline.get("inputs") or {}, baseline.get("compat") or {}, baseline):
+        if not isinstance(source, dict):
+            continue
+        for key, val in source.items():
+            if key in inputs or key in SCENARIO_OUTPUT_FIELDS or str(key).startswith("_"):
+                continue
+            if isinstance(val, (int, float)) and not isinstance(val, bool):
+                inputs[key] = val
+    return inputs
+
+
+def _infer_lever_type(key):
+    k = str(key).lower()
+    if any(p in k for p in ("budget", "invest", "cost", "price", "revenue", "value")):
+        return "currency"
+    if any(p in k for p in ("month", "timeline", "period", "duration")):
+        return "months"
+    if any(p in k for p in ("percent", "rate", "margin", "growth", "penetrat")):
+        return "percentage"
+    return "number"
+
+
+def _build_thread_levers(session):
+    if not isinstance(session, dict):
+        return []
+
+    baseline_inputs = session.get("baseline_inputs")
+    if not isinstance(baseline_inputs, dict) or not baseline_inputs:
+        result_blob = session.get("result")
+        baseline_inputs = _extract_baseline_inputs(result_blob if isinstance(result_blob, dict) else {})
+
+    levers = []
+    for key, val in (baseline_inputs or {}).items():
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            continue
+        levers.append({
+            "key": key,
+            "label": str(key).replace("_", " ").title(),
+            "current": val,
+            "value": val,
+            "type": _infer_lever_type(key),
+            "display_multiplier": 1,
+        })
+    return levers
+
+
+def _normalize_analysis_history(session, thread_id):
+    if not isinstance(session, dict):
+        return []
+
+    history = session.get("analysis_history")
+    if not isinstance(history, list):
+        history = session.get("analyses")
+    if not isinstance(history, list):
+        history = []
+
+    normalized = []
+    for item in history:
+        if not isinstance(item, dict):
+            continue
+        aid = item.get("analysis_id") or item.get("id")
+        if not aid:
+            continue
+        normalized.append({
+            **item,
+            "analysis_id": str(aid),
+            "created_at": item.get("created_at") or item.get("timestamp") or session.get("timestamp") or session.get("created"),
+        })
+
+    if normalized:
+        normalized.sort(key=lambda a: a.get("created_at") or "", reverse=True)
+        return normalized
+
+    result_blob = session.get("result")
+    if isinstance(result_blob, dict) and result_blob:
+        analysis_id = str(
+            result_blob.get("analysis_id")
+            or result_blob.get("id")
+            or session.get("session_id")
+            or thread_id
+        )
+        return [{
+            "analysis_id": analysis_id,
+            "created_at": result_blob.get("timestamp") or session.get("timestamp") or session.get("created"),
+            "result": result_blob,
+        }]
+
+    return []
 
 
 def _find_session_by_thread(thread_id, user_id=None):
@@ -254,3 +380,133 @@ def readiness_audit():
     chat_history = session.get("chat_history", []) if isinstance(session, dict) else []
     readiness = _compute_readiness(chat_history)
     return jsonify(readiness), 200
+
+
+@ai_agent_bp.route("/threads", methods=["GET"])
+@jwt_required()
+def list_threads():
+    user_id = get_jwt_identity()
+    sessions = load_user_sessions(user_id) or {}
+
+    sessions_list = []
+    for key, candidate in (sessions.items() if isinstance(sessions, dict) else []):
+        if not isinstance(candidate, dict):
+            continue
+        thread_id = str(candidate.get("session_id") or key)
+        chat_history = _session_chat_history(candidate)
+        readiness = candidate.get("readiness") if isinstance(candidate.get("readiness"), dict) else _compute_readiness(chat_history)
+
+        sessions_list.append({
+            **candidate,
+            "session_id": thread_id,
+            "name": candidate.get("name") or "Market IQ Intake",
+            "chat_history": chat_history,
+            "readiness": readiness,
+        })
+
+    sessions_list.sort(
+        key=lambda s: s.get("timestamp") or s.get("created") or "",
+        reverse=True,
+    )
+    return jsonify({"success": True, "sessions": sessions_list}), 200
+
+
+@ai_agent_bp.route("/threads/<thread_id>", methods=["GET"])
+@jwt_required()
+def get_thread(thread_id):
+    user_id = get_jwt_identity()
+    sessions = load_user_sessions(user_id) or {}
+    session_key, session = _resolve_user_session(sessions, thread_id)
+    if not isinstance(session, dict):
+        return jsonify({"error": "Thread not found"}), 404
+
+    resolved_thread_id = str(session.get("session_id") or session_key or thread_id)
+    chat_history = _session_chat_history(session)
+    readiness = session.get("readiness") if isinstance(session.get("readiness"), dict) else _compute_readiness(chat_history)
+    analyses = _normalize_analysis_history(session, resolved_thread_id)
+
+    thread_payload = {
+        "id": resolved_thread_id,
+        "session_id": resolved_thread_id,
+        "name": session.get("name") or "Market IQ Intake",
+        "status": session.get("status") or ("completed" if analyses else "in_progress"),
+        "created_at": session.get("created"),
+        "updated_at": session.get("timestamp"),
+        "conversation_history": chat_history,
+        "readiness_snapshot": readiness,
+    }
+
+    session_payload = {
+        **session,
+        "session_id": resolved_thread_id,
+        "chat_history": chat_history,
+        "readiness": readiness,
+    }
+
+    return jsonify({
+        "success": True,
+        "thread": thread_payload,
+        "session": session_payload,
+        "messages": chat_history,
+        "analysis_history": analyses,
+        "analyses": analyses,
+        "adopted_analysis_id": session.get("adopted_analysis_id"),
+    }), 200
+
+
+@ai_agent_bp.route("/threads/<thread_id>", methods=["PATCH"])
+@jwt_required()
+def update_thread(thread_id):
+    data = request.get_json() or {}
+    name = str(data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+
+    user_id = get_jwt_identity()
+    sessions = load_user_sessions(user_id) or {}
+    session_key, session = _resolve_user_session(sessions, thread_id)
+    if not isinstance(session, dict):
+        return jsonify({"error": "Thread not found"}), 404
+
+    resolved_thread_id = str(session.get("session_id") or session_key or thread_id)
+    session["name"] = name
+    session["timestamp"] = _iso_now()
+    sessions[session_key or resolved_thread_id] = session
+    save_user_sessions(user_id, sessions)
+
+    chat_history = _session_chat_history(session)
+    readiness = session.get("readiness") if isinstance(session.get("readiness"), dict) else _compute_readiness(chat_history)
+    session_payload = {
+        **session,
+        "session_id": resolved_thread_id,
+        "chat_history": chat_history,
+        "readiness": readiness,
+    }
+
+    return jsonify({
+        "success": True,
+        "thread": {
+            "id": resolved_thread_id,
+            "name": name,
+            "status": session.get("status") or "in_progress",
+            "updated_at": session.get("timestamp"),
+        },
+        "session": session_payload,
+    }), 200
+
+
+@ai_agent_bp.route("/threads/<thread_id>/levers", methods=["GET"])
+@jwt_required()
+def get_thread_levers(thread_id):
+    user_id = get_jwt_identity()
+    sessions = load_user_sessions(user_id) or {}
+    session_key, session = _resolve_user_session(sessions, thread_id)
+    if not isinstance(session, dict):
+        return jsonify({"error": "Thread not found"}), 404
+
+    resolved_thread_id = str(session.get("session_id") or session_key or thread_id)
+    levers = _build_thread_levers(session)
+    return jsonify({
+        "thread_id": resolved_thread_id,
+        "levers": levers,
+    }), 200

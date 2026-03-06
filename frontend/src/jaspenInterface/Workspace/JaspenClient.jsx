@@ -361,7 +361,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
     const token = getToken();
 
     const res = await fetch(
-      `${apiBase}/api/market-iq/threads/${encodeURIComponent(threadId)}/adopt`,
+      `${apiBase}/api/ai-agent/threads/${encodeURIComponent(threadId)}/adopt`,
       {
         method: 'POST',
         credentials: 'include',

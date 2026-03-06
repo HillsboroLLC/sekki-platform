@@ -3103,35 +3103,37 @@ setView(id === 'chat' ? 'intake' : id);
 
           <div className="miq-workspace-body">
 {activeTab === 'summary' && (
-  <ScoreDashboard
-    analysisResult={activeScorecard}
+  <div className={!sidebarState.settings || !aiDrawerOpen ? 'score-with-rail' : ''}>
+    <ScoreDashboard
+      analysisResult={activeScorecard}
 
-    scoreVariants={scoreVariants}
-    selectedVariantId={selectedVariantId}
-    onSelectVariant={setSelectedVariantId}
+      scoreVariants={scoreVariants}
+      selectedVariantId={selectedVariantId}
+      onSelectVariant={setSelectedVariantId}
 
-    scorecardSnapshots={scorecardSnapshots}
-    selectedScorecardId={selectedScorecardId}
-    onSelectScorecard={setSelectedScorecardId}
-    baselineScorecardId={baselineScorecardId}
-    threadBundleId={sessionId}
-    scoreCommentary={scoreCommentary}
-    onOpenThreadEdit={() => setThreadEditOpen(true)}
+      scorecardSnapshots={scorecardSnapshots}
+      selectedScorecardId={selectedScorecardId}
+      onSelectScorecard={setSelectedScorecardId}
+      baselineScorecardId={baselineScorecardId}
+      threadBundleId={sessionId}
+      scoreCommentary={scoreCommentary}
+      onOpenThreadEdit={() => setThreadEditOpen(true)}
 
-    onBackToMain={handleNewAnalysis}
-    onOpenChat={() => { setActiveTab('chat'); setView('intake'); }}
-    onOpenScenario={() => { setActiveTab('scenario'); setView('scenario'); }}
-    onConvertToProject={() => {
-      storage.saveProject({
-        id: `proj_${Date.now()}`,
-        source_analysis_id: sessionId,
-        createdAt: Date.now(),
-        title: analysisResult?.project_name || 'Market IQ Project',
-        payload: analysisResult,
-      });
-      window.location.href = `https://sekki.io/ops/project-planning?from=miq&analysis=${encodeURIComponent(sessionId)}`;
-    }}
-  />
+      onBackToMain={handleNewAnalysis}
+      onOpenChat={() => { setActiveTab('chat'); setView('intake'); }}
+      onOpenScenario={() => { setActiveTab('scenario'); setView('scenario'); }}
+      onConvertToProject={() => {
+        storage.saveProject({
+          id: `proj_${Date.now()}`,
+          source_analysis_id: sessionId,
+          createdAt: Date.now(),
+          title: analysisResult?.project_name || 'Market IQ Project',
+          payload: analysisResult,
+        });
+        window.location.href = `https://sekki.io/ops/project-planning?from=miq&analysis=${encodeURIComponent(sessionId)}`;
+      }}
+    />
+  </div>
 )}
 
             {activeTab === 'chat' && (

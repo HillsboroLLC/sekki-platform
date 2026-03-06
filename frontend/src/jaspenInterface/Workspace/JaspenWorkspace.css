@@ -2145,6 +2145,10 @@
   min-height: 0;
 }
 
+.score-with-rail .score-dashboard-container {
+  padding-left: 48px;
+}
+
 /* Ensure workspace transitions smoothly */
 .miq-workspace {
   transition: margin-left 0.3s ease;

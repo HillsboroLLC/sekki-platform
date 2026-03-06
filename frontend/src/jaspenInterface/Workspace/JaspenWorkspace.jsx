@@ -2887,11 +2887,15 @@ setView(id === 'chat' ? 'intake' : id);
     style={{ top: `${sideTabSecond}px` }}
     onClick={toggleAIDrawer}
     role="button"
-    aria-label="Assistant"
-    title="Assistant"
+    aria-label="Jaspen"
+    title="Jaspen"
   >
-    <FontAwesomeIcon icon={faRobot} />
-    <span className="miq-tab-label">Assistant</span>
+    <img
+      src={`${process.env.PUBLIC_URL}/Dark_Navy_Icon.png`}
+      alt="Jaspen"
+      style={{ writingMode: 'horizontal-tb', width: '12px', height: '12px', objectFit: 'contain', display: 'block' }}
+    />
+    <span className="miq-tab-label">Jaspen</span>
   </div>
 )}
 

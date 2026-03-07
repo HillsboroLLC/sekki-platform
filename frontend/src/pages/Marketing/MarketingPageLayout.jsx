@@ -21,7 +21,6 @@ export default function MarketingPageLayout({ eyebrow, title, subtitle, children
       <header className="marketing-header">
         <div className="marketing-header-inner">
           <Link to="/" className="marketing-logo">Jaspen</Link>
-          <div className="marketing-page-chip">{eyebrow}</div>
           <div className="marketing-header-actions">
             <Link to="/" className="marketing-home-link">Back to home</Link>
             <Link to="/login" className="marketing-contact-link">Get in touch</Link>

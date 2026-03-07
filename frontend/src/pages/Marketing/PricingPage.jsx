@@ -3,16 +3,24 @@ import MarketingPageLayout from './MarketingPageLayout';
 
 const PLAN_ITEMS = [
   {
+    name: 'Free',
+    price: '$0',
+    detail: 'For individual users starting with core workflows and basic access.',
+  },
+  {
     name: 'Essential',
-    detail: 'For teams starting with structured decision support and action planning.',
+    price: '$20 / month',
+    detail: 'For individuals ready for higher limits, stronger context depth, and daily usage.',
   },
   {
-    name: 'Growth',
-    detail: 'For organizations scaling cross-functional execution and portfolio visibility.',
+    name: 'Team',
+    price: 'Contact sales',
+    detail: 'For cross-functional teams that need shared workspaces, controls, and collaboration.',
   },
   {
-    name: 'Transform',
-    detail: 'For enterprise initiatives that require governance, integration, and advanced orchestration.',
+    name: 'Enterprise',
+    price: 'Custom',
+    detail: 'For organizations requiring governance, SSO, security controls, and implementation support.',
   },
 ];
 
@@ -27,18 +35,17 @@ export default function PricingPage() {
         <h2>Overview</h2>
         <div className="pricing-overview-split">
           <article className="marketing-card pricing-highlight">
-            <h3>Designed for staged adoption</h3>
+            <h3>Designed like modern AI-agent pricing</h3>
             <p>
-              Jaspen pricing is designed around adoption stage, number of active initiatives, and depth of integrations.
-              Start with core workflows and scale into enterprise governance when needed.
+              Start free as an individual, upgrade to Essential at $20/month, then scale to Team or Enterprise as adoption expands.
             </p>
           </article>
           <article className="marketing-card pricing-summary">
             <h3>What pricing includes</h3>
             <ul className="pricing-checks">
-              <li>Decision and execution workflows</li>
-              <li>Role-based collaboration</li>
-              <li>Progress and readiness reporting</li>
+              <li>Individual entry tier with no paid commitment</li>
+              <li>Simple Essential upgrade path at $20</li>
+              <li>Team and Enterprise options for org-wide deployment</li>
             </ul>
           </article>
         </div>
@@ -50,7 +57,7 @@ export default function PricingPage() {
           <h3>Integration and automation</h3>
           <p>
             API access supports custom automation, internal dashboards, and workflow handoffs.
-            Detailed API limits and onboarding options are available during implementation scoping.
+            API limits and support tiers scale by plan and deployment model.
           </p>
         </article>
       </section>
@@ -60,7 +67,10 @@ export default function PricingPage() {
         <div className="plans-grid">
           {PLAN_ITEMS.map((plan) => (
             <article key={plan.name} className="marketing-card pricing-plan-card">
-              <h3>{plan.name}</h3>
+              <div className="pricing-plan-head">
+                <h3>{plan.name}</h3>
+                <span className="plan-price">{plan.price}</span>
+              </div>
               <p>{plan.detail}</p>
             </article>
           ))}

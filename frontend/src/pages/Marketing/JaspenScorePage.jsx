@@ -4,14 +4,17 @@ import MarketingPageLayout from './MarketingPageLayout';
 const SCORE_PILLARS = [
   {
     title: 'Strategic Fit',
+    score: 91,
     detail: 'Measures alignment to business outcomes, risk posture, and operating priorities.',
   },
   {
     title: 'Execution Readiness',
+    score: 84,
     detail: 'Evaluates clarity of owners, milestones, dependencies, and sequencing risk.',
   },
   {
     title: 'Impact Potential',
+    score: 86,
     detail: 'Surfaces expected value, confidence range, and upside/downside assumptions.',
   },
 ];
@@ -25,15 +28,34 @@ export default function JaspenScorePage() {
     >
       <section className="marketing-section">
         <div className="score-intro-layout">
-          <article className="marketing-card score-signal-card">
-            <p className="score-label">Sample Signal</p>
-            <div className="score-value-row">
-              <span className="score-value">87</span>
-              <span className="score-state">Execution Ready</span>
+          <article className="scorecard-shell">
+            <div className="scorecard-head">
+              <p>JASPEN SCORECARD</p>
+              <span>Live evaluation</span>
             </div>
-            <p>Jaspen Score summarizes strategic fit, delivery readiness, and impact potential in one decision view.</p>
+            <div className="scorecard-main">
+              <div className="score-ring-wrap">
+                <div className="score-ring">
+                  <span>87</span>
+                  <small>Total</small>
+                </div>
+                <div className="scorecard-readiness">Execution Ready</div>
+              </div>
+              <div className="scorecard-rows">
+                {SCORE_PILLARS.map((pillar) => (
+                  <div key={`row-${pillar.title}`} className="scorecard-row">
+                    <span>{pillar.title}</span>
+                    <div className="scorecard-bar-track">
+                      <div className="scorecard-bar-fill" style={{ '--score-width': `${pillar.score}%` }}></div>
+                    </div>
+                    <strong>{pillar.score}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="scorecard-footnote">Built from context quality, delivery confidence, and expected impact signals.</p>
           </article>
-          <article className="marketing-card score-guidance-card">
+          <article className="score-guidance-panel">
             <h3>How teams use it</h3>
             <ul className="score-guidance-list">
               <li>Prioritize initiatives with stronger execution odds</li>
@@ -48,8 +70,11 @@ export default function JaspenScorePage() {
         <h2>Scoring Pillars</h2>
         <div className="score-pillars-grid">
           {SCORE_PILLARS.map((pillar) => (
-            <article key={pillar.title} className="marketing-card score-pillar-card">
-              <h3>{pillar.title}</h3>
+            <article key={pillar.title} className="score-pillar-card">
+              <div className="score-pillar-head">
+                <h3>{pillar.title}</h3>
+                <span>{pillar.score}</span>
+              </div>
               <p>{pillar.detail}</p>
             </article>
           ))}

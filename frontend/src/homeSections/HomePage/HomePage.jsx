@@ -94,9 +94,10 @@ const NAV_MENUS = [
       {
         title: 'Plans',
         items: [
-          { label: 'Essential', path: '/pages/pricing#plans' },
-          { label: 'Growth', path: '/pages/pricing#plans' },
-          { label: 'Transform', path: '/pages/pricing#plans' },
+          { label: 'Free', path: '/pages/pricing#plans' },
+          { label: 'Essential ($20)', path: '/pages/pricing#plans' },
+          { label: 'Team', path: '/pages/pricing#plans' },
+          { label: 'Enterprise', path: '/pages/pricing#plans' },
         ],
       },
     ],
@@ -254,10 +255,11 @@ export default function HomePage() {
                                   href={item.path}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="mega-menu-link"
+                                  className="mega-menu-link has-external"
                                   onClick={closeNavMenus}
                                 >
                                   {item.label}
+                                  <i className="fa-solid fa-arrow-up-right-from-square mega-menu-external-icon" aria-hidden="true"></i>
                                 </a>
                               ) : (
                                 <a href={`#${item.sectionId}`} className="mega-menu-link" onClick={(e) => scrollToSection(e, item.sectionId)}>
@@ -304,7 +306,10 @@ export default function HomePage() {
                           {column.items.map((item) => (
                             <li key={`mobile-${menu.label}-${column.title}-${item.label}`}>
                               {item.path ? (
-                                <a href={item.path} target="_blank" rel="noopener noreferrer" onClick={closeNavMenus}>{item.label}</a>
+                                <a href={item.path} target="_blank" rel="noopener noreferrer" onClick={closeNavMenus} className="mobile-link-external">
+                                  {item.label}
+                                  <i className="fa-solid fa-arrow-up-right-from-square mega-menu-external-icon" aria-hidden="true"></i>
+                                </a>
                               ) : (
                                 <a href={`#${item.sectionId}`} onClick={(e) => scrollToSection(e, item.sectionId)}>{item.label}</a>
                               )}

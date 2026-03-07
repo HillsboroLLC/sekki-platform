@@ -61,36 +61,6 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section id="api" className="marketing-section">
-        <h2>API and Integrations</h2>
-        <div className="api-compare-grid">
-          <article className="marketing-card api-surface">
-            <h3>Prebuilt integrations (fast start)</h3>
-            <p>
-              Turn on essential connectors first so Jaspen can read your core business data and write approved updates
-              back to execution tools without heavy implementation work.
-            </p>
-            <ul className="pricing-checks">
-              <li>Execution tools: Jira, Workfront, Smartsheet</li>
-              <li>Data systems: Snowflake, Salesforce, Oracle Fusion</li>
-              <li>Phased rollout: essential set first, expansion second</li>
-            </ul>
-          </article>
-          <article className="marketing-card api-surface api-surface-custom">
-            <h3>API (custom workflows)</h3>
-            <p>
-              Use the API when you need custom automation, internal applications, or unique governance patterns beyond
-              prebuilt connectors.
-            </p>
-            <ul className="pricing-checks">
-              <li>Custom sync jobs and orchestration logic</li>
-              <li>Internal dashboards and workflow triggers</li>
-              <li>Enterprise extension beyond standard integrations</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
       <section className="marketing-section">
         <div className="lydia-story lydia-story-pricing">
           <div className="lydia-visual pricing-architecture">

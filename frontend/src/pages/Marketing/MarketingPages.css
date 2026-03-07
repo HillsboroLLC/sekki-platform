@@ -262,6 +262,13 @@
   border-color: #dfc3d6;
 }
 
+.page-hero-api {
+  background:
+    linear-gradient(176deg, rgba(237, 245, 255, 0.94), rgba(237, 245, 255, 0.94)),
+    repeating-linear-gradient(-28deg, rgba(29, 79, 151, 0.09) 0 10px, transparent 10px 22px);
+  border-color: #c7d8ef;
+}
+
 .pricing-abstract {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -411,13 +418,12 @@
 }
 
 .connectors-abstract {
-  display: grid;
-  align-content: center;
-  gap: 10px;
+  position: relative;
+  min-height: 220px;
 }
 
 .connectors-abstract span {
-  width: fit-content;
+  position: absolute;
   padding: 9px 14px;
   border-radius: 999px;
   border: 1px solid #b8c9e2;
@@ -428,24 +434,39 @@
   animation: float-lift 8.4s ease-in-out infinite;
 }
 
+.connectors-abstract span:nth-child(1) {
+  left: 12px;
+  top: 20px;
+}
+
 .connectors-abstract span:nth-child(2) {
-  margin-left: 24px;
+  left: 132px;
+  top: 58px;
   animation-delay: 0.5s;
 }
 
 .connectors-abstract span:nth-child(3) {
-  margin-left: 8px;
+  left: 32px;
+  top: 104px;
   animation-delay: 0.9s;
 }
 
 .connectors-abstract span:nth-child(4) {
-  margin-left: 28px;
+  right: 12px;
+  top: 30px;
   animation-delay: 1.2s;
 }
 
 .connectors-abstract span:nth-child(5) {
-  margin-left: 10px;
+  right: 56px;
+  top: 104px;
   animation-delay: 1.5s;
+}
+
+.connectors-abstract span:nth-child(6) {
+  right: 8px;
+  top: 164px;
+  animation-delay: 1.8s;
 }
 
 .plugins-abstract {
@@ -936,6 +957,90 @@
   border-color: #e0bfcd;
   color: var(--marketing-magenta);
   min-height: 120px;
+}
+
+.api-abstract {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+}
+
+.api-tag {
+  position: absolute;
+  border: 1px solid #b8c9e2;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1b4b93;
+  font-weight: 700;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  animation: float-lift 8s ease-in-out infinite;
+}
+
+.api-tag:nth-child(1) {
+  left: 28px;
+  top: 36px;
+}
+
+.api-tag:nth-child(2) {
+  right: 26px;
+  top: 76px;
+  animation-delay: 0.5s;
+}
+
+.api-tag:nth-child(3) {
+  left: 114px;
+  bottom: 34px;
+  animation-delay: 0.9s;
+}
+
+.api-terms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.api-term-card {
+  min-height: 170px;
+}
+
+.lydia-story-api .api-flow-canvas {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  background:
+    linear-gradient(156deg, #edf5ff 0 56%, #f3fbf8 56% 100%);
+  border-color: #c7d8ed;
+}
+
+.api-flow-node {
+  width: fit-content;
+  min-width: 180px;
+  border-radius: 12px;
+  border: 1px solid #b8cbe8;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 10px 14px;
+  color: #1d4f97;
+  font-weight: 700;
+  position: relative;
+}
+
+.api-flow-node:nth-child(2) {
+  margin-left: 34px;
+}
+
+.api-flow-node:nth-child(3) {
+  margin-left: 68px;
+}
+
+.api-flow-node:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  bottom: -14px;
+  width: 2px;
+  height: 12px;
+  background: repeating-linear-gradient(to bottom, #9eb8da, #9eb8da 3px, transparent 3px, transparent 6px);
 }
 
 .industry-grid {
@@ -1525,8 +1630,8 @@
 @media (max-width: 960px) {
   .lydia-story,
   .solutions-intro-grid,
-  .api-compare-grid,
   .pricing-overview-split,
+  .api-terms-grid,
   .score-intro-layout,
   .scorecard-main {
     grid-template-columns: 1fr;
@@ -1615,6 +1720,38 @@
     grid-template-columns: 1fr;
   }
 
+  .connectors-abstract {
+    display: grid;
+    gap: 8px;
+    min-height: auto;
+  }
+
+  .connectors-abstract span,
+  .connectors-abstract span:nth-child(1),
+  .connectors-abstract span:nth-child(2),
+  .connectors-abstract span:nth-child(3),
+  .connectors-abstract span:nth-child(4),
+  .connectors-abstract span:nth-child(5),
+  .connectors-abstract span:nth-child(6),
+  .api-tag,
+  .api-tag:nth-child(1),
+  .api-tag:nth-child(2),
+  .api-tag:nth-child(3),
+  .api-flow-node,
+  .api-flow-node:nth-child(2),
+  .api-flow-node:nth-child(3) {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    margin-left: 0;
+  }
+
+  .api-flow-node:not(:last-child)::after {
+    left: 10px;
+  }
+
   .plugin-block:nth-child(3) {
     grid-column: auto;
   }
@@ -1667,6 +1804,8 @@
   .demo-frame,
   .step-dot,
   .connectors-abstract span,
+  .api-tag,
+  .api-flow-node,
   .plugin-block,
   .score-abstract::before {
     animation: none;

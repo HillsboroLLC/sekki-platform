@@ -88,7 +88,7 @@ const NAV_MENUS = [
         title: 'Overview',
         items: [
           { label: 'Overview', path: '/pages/pricing#overview' },
-          { label: 'API', path: '/pages/pricing#api' },
+          { label: 'API', path: '/pages/api' },
         ],
       },
       {

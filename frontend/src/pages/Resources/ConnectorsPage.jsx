@@ -33,6 +33,7 @@ export default function ConnectorsPage() {
         <div className="hero-abstract connectors-abstract">
           <span>Jira</span>
           <span>Workfront</span>
+          <span>Smartsheet</span>
           <span>Snowflake</span>
           <span>Salesforce</span>
           <span>Oracle Fusion</span>
@@ -49,8 +50,8 @@ export default function ConnectorsPage() {
           <article className="lydia-content">
             <h3>How connectors and API work together</h3>
             <p>
-              Connectors are prebuilt integrations for fast setup. The API is for custom enterprise workflows that go
-              beyond those prebuilt connectors.
+              A product integration is the packaged experience users turn on. Connectors are the underlying prebuilt
+              system links, and the API supports custom enterprise workflows beyond those packaged integrations.
             </p>
             <ul className="lydia-bullets">
               <li>Execution connectors support plan updates and status sync</li>

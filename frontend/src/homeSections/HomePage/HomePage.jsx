@@ -42,7 +42,7 @@ const NAV_MENUS = [
         title: 'Products',
         items: [
           { label: 'Jaspen', sectionId: 'product' },
-          { label: 'Jaspen Score', sectionId: 'product' },
+          { label: 'Jaspen Score', path: '/pages/jaspen-score' },
           { label: 'Project Management', sectionId: 'product' },
         ],
       },
@@ -62,20 +62,20 @@ const NAV_MENUS = [
       {
         title: 'Use Cases',
         items: [
-          { label: 'Jaspen Security', sectionId: 'about' },
-          { label: 'Execution', sectionId: 'product' },
+          { label: 'Jaspen Security and Execution', path: '/pages/solutions#use-cases' },
         ],
       },
       {
         title: 'Industries',
         items: [
-          { label: 'Financial Services', sectionId: 'about' },
-          { label: 'Nonprofits', sectionId: 'about' },
-          { label: 'Quick Service Restaurants', sectionId: 'about' },
-          { label: 'Government', sectionId: 'about' },
-          { label: 'Healthcare', sectionId: 'about' },
-          { label: 'Energy', sectionId: 'about' },
-          { label: 'Aviation', sectionId: 'about' },
+          { label: 'Financial Services', path: '/pages/solutions#industries' },
+          { label: 'Nonprofits', path: '/pages/solutions#industries' },
+          { label: 'Quick Service Restaurants', path: '/pages/solutions#industries' },
+          { label: 'Government', path: '/pages/solutions#industries' },
+          { label: 'Healthcare', path: '/pages/solutions#industries' },
+          { label: 'Wellness', path: '/pages/solutions#industries' },
+          { label: 'Energy', path: '/pages/solutions#industries' },
+          { label: 'Aviation', path: '/pages/solutions#industries' },
         ],
       },
     ],
@@ -86,16 +86,16 @@ const NAV_MENUS = [
       {
         title: 'Overview',
         items: [
-          { label: 'Overview', sectionId: 'request-access' },
-          { label: 'API', sectionId: 'request-access' },
+          { label: 'Overview', path: '/pages/pricing#overview' },
+          { label: 'API', path: '/pages/pricing#api' },
         ],
       },
       {
         title: 'Plans',
         items: [
-          { label: 'Essential', sectionId: 'request-access' },
-          { label: 'Growth', sectionId: 'request-access' },
-          { label: 'Transform', sectionId: 'request-access' },
+          { label: 'Essential', path: '/pages/pricing#plans' },
+          { label: 'Growth', path: '/pages/pricing#plans' },
+          { label: 'Transform', path: '/pages/pricing#plans' },
         ],
       },
     ],
@@ -123,7 +123,6 @@ const NAV_MENUS = [
 
 export default function HomePage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [visibleElements, setVisibleElements] = useState(new Set());
   const [activeStep, setActiveStep] = useState(0);
   const [activeDesktopMenu, setActiveDesktopMenu] = useState(null);
   const stepRefs = useRef([]);
@@ -200,6 +199,15 @@ export default function HomePage() {
     }
   };
 
+  const closeNavMenus = () => {
+    setMobileNavOpen(false);
+    setActiveDesktopMenu(null);
+    if (closeMenuTimer.current) {
+      clearTimeout(closeMenuTimer.current);
+      closeMenuTimer.current = null;
+    }
+  };
+
   return (
     <div className="homepage">
       {/* ========== NAV ========== */}
@@ -227,7 +235,7 @@ export default function HomePage() {
                 </button>
 
                 <div
-                  className={`jaspen-mega-menu ${menu.label === 'Solutions' ? 'is-solutions' : ''}`}
+                  className={`jaspen-mega-menu ${menu.label === "I'm Jaspen" ? 'is-im-jaspen' : ''} ${menu.label === 'Solutions' ? 'is-solutions' : ''}`}
                   style={{ '--menu-columns': menu.columns.length }}
                 >
                   <div className="jaspen-mega-menu-grid">
@@ -240,9 +248,15 @@ export default function HomePage() {
                         <ul>
                           {column.items.map((item) => (
                             <li key={`${menu.label}-${column.title}-${item.label}`}>
-                              <a href={`#${item.sectionId}`} className="mega-menu-link" onClick={(e) => scrollToSection(e, item.sectionId)}>
-                                {item.label}
-                              </a>
+                              {item.path ? (
+                                <Link to={item.path} className="mega-menu-link" onClick={closeNavMenus}>
+                                  {item.label}
+                                </Link>
+                              ) : (
+                                <a href={`#${item.sectionId}`} className="mega-menu-link" onClick={(e) => scrollToSection(e, item.sectionId)}>
+                                  {item.label}
+                                </a>
+                              )}
                             </li>
                           ))}
                         </ul>
@@ -282,9 +296,11 @@ export default function HomePage() {
                         <ul>
                           {column.items.map((item) => (
                             <li key={`mobile-${menu.label}-${column.title}-${item.label}`}>
-                              <a href={`#${item.sectionId}`} onClick={(e) => scrollToSection(e, item.sectionId)}>
-                                {item.label}
-                              </a>
+                              {item.path ? (
+                                <Link to={item.path} onClick={closeNavMenus}>{item.label}</Link>
+                              ) : (
+                                <a href={`#${item.sectionId}`} onClick={(e) => scrollToSection(e, item.sectionId)}>{item.label}</a>
+                              )}
                             </li>
                           ))}
                         </ul>

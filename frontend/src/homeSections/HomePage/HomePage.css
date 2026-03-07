@@ -171,6 +171,11 @@
   min-width: 760px;
 }
 
+.jaspen-mega-menu.is-im-jaspen {
+  width: min(760px, 78vw);
+  min-width: 560px;
+}
+
 .jaspen-nav-item.is-open .jaspen-mega-menu {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
@@ -185,6 +190,10 @@
 
 .jaspen-mega-menu.is-solutions .jaspen-mega-menu-grid {
   grid-template-columns: minmax(220px, 0.9fr) minmax(520px, 1.7fr);
+}
+
+.jaspen-mega-menu.is-im-jaspen .jaspen-mega-menu-grid {
+  grid-template-columns: minmax(210px, 1fr) minmax(300px, 1.3fr);
 }
 
 .mega-menu-column {
@@ -228,6 +237,7 @@
   display: block;
   padding: 8px 10px;
   border-radius: 10px;
+  white-space: nowrap;
 }
 
 .mega-menu-link:hover {

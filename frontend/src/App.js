@@ -16,6 +16,9 @@ import Privacy       from './pages/Privacy/privacy';
 import Terms         from './pages/Terms/terms';
 import Support       from './pages/Support/Support';
 import AuthCallback  from './shared/components/AuthCallback';
+import JaspenScorePage from './pages/Marketing/JaspenScorePage';
+import SolutionsPage from './pages/Marketing/SolutionsPage';
+import PricingPage from './pages/Marketing/PricingPage';
 
 // Jaspen
 import PricingResult from './jaspenInterface/PricingResult/PricingResult';
@@ -65,6 +68,9 @@ export default function App() {
         <Route path="/pages/privacy"  element={withShell(<Privacy />)} />
         <Route path="/pages/terms"    element={withShell(<Terms />)} />
         <Route path="/pages/support"  element={withShell(<Support />)} />
+        <Route path="/pages/jaspen-score" element={withShell(<JaspenScorePage />, { showHeader: false, fullBleed: true, noPadding: true })} />
+        <Route path="/pages/solutions" element={withShell(<SolutionsPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
+        <Route path="/pages/pricing" element={withShell(<PricingPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/auth/callback"  element={withShell(<AuthCallback />, { showHeader: false, fullBleed: true, noPadding: true })} />
 
         {/* Protected (Market) */}

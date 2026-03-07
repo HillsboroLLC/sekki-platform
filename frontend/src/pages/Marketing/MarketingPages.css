@@ -1,0 +1,214 @@
+.marketing-page {
+  --marketing-navy: #0f172a;
+  --marketing-navy-deep: #020617;
+  --marketing-magenta: #a0036c;
+  --marketing-white: #ffffff;
+  --marketing-gray-50: #f8fafc;
+  --marketing-gray-100: #f1f5f9;
+  --marketing-gray-300: #cbd5e1;
+  --marketing-gray-500: #64748b;
+  --marketing-gray-700: #334155;
+  --marketing-shadow: 0 12px 30px -14px rgba(15, 23, 42, 0.2);
+  --marketing-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  font-family: var(--marketing-font);
+  color: var(--marketing-navy);
+  background: var(--marketing-white);
+  min-height: 100vh;
+}
+
+.marketing-container {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.marketing-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.marketing-header-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.marketing-logo {
+  text-decoration: none;
+  color: var(--marketing-navy-deep);
+  font-size: 1.8rem;
+  letter-spacing: -0.03em;
+}
+
+.marketing-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.marketing-nav-link {
+  text-decoration: none;
+  color: var(--marketing-gray-700);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 9px 12px;
+  border-radius: 10px;
+}
+
+.marketing-nav-link.is-active,
+.marketing-nav-link:hover {
+  color: var(--marketing-navy-deep);
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.marketing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.marketing-contact-link {
+  text-decoration: none;
+  color: var(--marketing-gray-700);
+  font-weight: 600;
+}
+
+.marketing-request-btn {
+  text-decoration: none;
+  background: var(--marketing-navy-deep);
+  color: var(--marketing-white);
+  border-radius: 12px;
+  font-weight: 700;
+  padding: 11px 18px;
+}
+
+.marketing-request-btn:hover {
+  background: var(--marketing-magenta);
+}
+
+.marketing-main {
+  padding-top: 96px;
+}
+
+.marketing-hero {
+  padding: 72px 0 22px;
+  background: radial-gradient(circle at 95% 8%, #eef2ff 0%, #ffffff 68%);
+}
+
+.marketing-eyebrow {
+  display: inline-block;
+  color: var(--marketing-magenta);
+  background: rgba(160, 3, 108, 0.1);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.marketing-hero h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+  color: var(--marketing-navy-deep);
+}
+
+.marketing-subtitle {
+  max-width: 760px;
+  color: var(--marketing-gray-500);
+  font-size: 1.06rem;
+  margin: 0;
+}
+
+.marketing-content {
+  padding-bottom: 72px;
+}
+
+.marketing-section {
+  padding-top: 34px;
+  scroll-margin-top: 120px;
+}
+
+.marketing-section h2 {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  color: var(--marketing-navy-deep);
+}
+
+.marketing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.marketing-card {
+  border: 1px solid var(--marketing-gray-100);
+  background: var(--marketing-white);
+  border-radius: 16px;
+  box-shadow: var(--marketing-shadow);
+  padding: 20px;
+}
+
+.marketing-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.12rem;
+  color: var(--marketing-navy-deep);
+}
+
+.marketing-card p {
+  margin: 0;
+  color: var(--marketing-gray-500);
+}
+
+.industry-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 28px;
+}
+
+.industry-grid li {
+  color: var(--marketing-gray-700);
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .marketing-nav {
+    display: none;
+  }
+
+  .marketing-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .marketing-main {
+    padding-top: 86px;
+  }
+
+  .marketing-header-actions {
+    display: none;
+  }
+
+  .marketing-grid,
+  .industry-grid {
+    grid-template-columns: 1fr;
+  }
+}

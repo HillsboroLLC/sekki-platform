@@ -159,31 +159,31 @@ function formatValue(value, type) {
 // ============================================================================
 function BaselineColumn({ levers, result }) {
   return (
-    <div className="miq-scenario-col">
-      <div className="miq-scenario-header">
+    <div className="jas-scenario-col">
+      <div className="jas-scenario-header">
         Baseline
-        <span className="miq-scenario-badge">Current</span>
+        <span className="jas-scenario-badge">Current</span>
       </div>
-      <div className="miq-scenario-body">
-        <div className="miq-scenario-field">
-          <span style={{ color: 'var(--miq-navy)' }}>NPV</span>
-          <span style={{ color: 'var(--miq-gray-500)', fontWeight: 500 }}>
+      <div className="jas-scenario-body">
+        <div className="jas-scenario-field">
+          <span style={{ color: 'var(--jas-navy)' }}>NPV</span>
+          <span style={{ color: 'var(--jas-gray-500)', fontWeight: 500 }}>
             {result?.financial_impact?.npv
               ? formatValue(result.financial_impact.npv, 'currency')
               : result?.financial_impact?.roi_opportunity || '—'}
           </span>
         </div>
-        <div className="miq-scenario-field">
-          <span style={{ color: 'var(--miq-navy)' }}>IRR</span>
-          <span style={{ color: 'var(--miq-gray-500)', fontWeight: 500 }}>
+        <div className="jas-scenario-field">
+          <span style={{ color: 'var(--jas-navy)' }}>IRR</span>
+          <span style={{ color: 'var(--jas-gray-500)', fontWeight: 500 }}>
             {result?.financial_impact?.irr
               ? formatValue(result.financial_impact.irr, 'percentage')
               : '—'}
           </span>
         </div>
-        <div className="miq-scenario-field">
-          <span style={{ color: 'var(--miq-navy)' }}>Payback</span>
-          <span style={{ color: 'var(--miq-gray-500)', fontWeight: 500 }}>
+        <div className="jas-scenario-field">
+          <span style={{ color: 'var(--jas-navy)' }}>Payback</span>
+          <span style={{ color: 'var(--jas-gray-500)', fontWeight: 500 }}>
             {result?.financial_impact?.payback_months
               ? formatValue(result.financial_impact.payback_months, 'months')
               : result?.financial_impact?.payback_period || '—'}
@@ -193,17 +193,17 @@ function BaselineColumn({ levers, result }) {
           style={{
             textAlign: 'center',
             paddingTop: '16px',
-            borderTop: '1px solid var(--miq-border)',
+            borderTop: '1px solid var(--jas-border)',
             marginTop: '8px',
           }}
         >
-          <div style={{ fontSize: 'var(--miq-text-sm)', color: 'var(--miq-gray-500)' }}>
+          <div style={{ fontSize: 'var(--jas-text-sm)', color: 'var(--jas-gray-500)' }}>
             AI Agent Score
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--miq-navy)' }}>
+          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--jas-navy)' }}>
             {result?.market_iq_score ?? '—'}
           </div>
-          <div style={{ fontSize: 'var(--miq-text-sm)', color: 'var(--miq-gray-500)' }}>
+          <div style={{ fontSize: 'var(--jas-text-sm)', color: 'var(--jas-gray-500)' }}>
             Current Score
           </div>
         </div>
@@ -242,10 +242,10 @@ function ScenarioColumn({
   };
 
   return (
-    <div className="miq-scenario-col">
-      <div className="miq-scenario-header">{title}</div>
+    <div className="jas-scenario-col">
+      <div className="jas-scenario-header">{title}</div>
 
-      <div className="miq-scenario-body" style={{ minHeight: '180px' }}>
+      <div className="jas-scenario-body" style={{ minHeight: '180px' }}>
         {levers.map(lever => {
           const currentValue = values[lever.key] ?? lever.value;
           const delta = calculateDelta(currentValue, lever.value, lever.type);
@@ -330,7 +330,7 @@ function ScenarioColumn({
         )}
       </div>
 
-      <div className="miq-scenario-actions">
+      <div className="jas-scenario-actions">
         <Button variant="outline" size="sm" onClick={onRun} disabled={disabled || running}>
           {running ? (
             <>
@@ -682,10 +682,10 @@ if (label === 'Scenario B') onResultB?.(snapshot);
     <div>
       <div
         style={{
-          background: 'var(--miq-navy)',
+          background: 'var(--jas-navy)',
           color: 'rgba(255,255,255,0.8)',
           padding: '16px 20px',
-          fontSize: 'var(--miq-text-base)',
+          fontSize: 'var(--jas-text-base)',
           lineHeight: 1.5,
           marginBottom: '24px',
         }}
@@ -694,7 +694,7 @@ if (label === 'Scenario B') onResultB?.(snapshot);
         see projected impact on your AI Agent score.
       </div>
 
-      <div className="miq-scenario-cols" style={{ marginBottom: '24px' }}>
+      <div className="jas-scenario-cols" style={{ marginBottom: '24px' }}>
         <BaselineColumn levers={levers} result={baseAnalysis} />
 
         <ScenarioColumn
@@ -740,10 +740,10 @@ if (label === 'Scenario B') onResultB?.(snapshot);
 
       <div
         style={{
-          background: 'var(--miq-navy)',
+          background: 'var(--jas-navy)',
           color: 'rgba(255,255,255,0.7)',
           padding: '14px 20px',
-          fontSize: 'var(--miq-text-sm)',
+          fontSize: 'var(--jas-text-sm)',
           lineHeight: 1.5,
         }}
       >

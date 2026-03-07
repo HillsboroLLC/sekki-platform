@@ -16,14 +16,14 @@ function ScoreCircleSmall({ score }) {
         width: 44,
         height: 44,
         borderRadius: '50%',
-        border: '3px solid var(--miq-navy)',
+        border: '3px solid var(--jas-navy)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
       }}
     >
-      <span style={{ fontSize: 'var(--miq-text-base)', fontWeight: 700, color: 'var(--miq-navy)' }}>
+      <span style={{ fontSize: 'var(--jas-text-base)', fontWeight: 700, color: 'var(--jas-navy)' }}>
         {score}
       </span>
     </div>
@@ -50,7 +50,7 @@ const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false
     <div style={containerStyle}>
       {onClose && (
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 16px 8px' }}>
-          <h3 style={{ margin: 0, fontSize: 'var(--miq-text-md)', color: 'var(--miq-navy)' }}>
+          <h3 style={{ margin: 0, fontSize: 'var(--jas-text-md)', color: 'var(--jas-navy)' }}>
             Analysis History
           </h3>
           <button
@@ -58,9 +58,9 @@ const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false
             style={{
               border: 'none',
               background: 'none',
-              color: 'var(--miq-gray-500)',
+              color: 'var(--jas-gray-500)',
               cursor: 'pointer',
-              fontSize: 'var(--miq-text-base)',
+              fontSize: 'var(--jas-text-base)',
             }}
             type="button"
           >
@@ -74,8 +74,8 @@ const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false
           style={{
             padding: '40px 16px',
             textAlign: 'center',
-            color: 'var(--miq-gray-500)',
-            fontSize: 'var(--miq-text-base)',
+            color: 'var(--jas-gray-500)',
+            fontSize: 'var(--jas-text-base)',
           }}
         >
           <i
@@ -96,19 +96,19 @@ const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false
             gap: '12px',
             padding: '12px 16px',
             cursor: 'pointer',
-            borderBottom: '1px solid var(--miq-border)',
-            transition: 'background var(--miq-transition)',
+            borderBottom: '1px solid var(--jas-border)',
+            transition: 'background var(--jas-transition)',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--miq-gray-50)')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--jas-gray-50)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
           <ScoreCircleSmall score={item.score} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontSize: 'var(--miq-text-base)',
+                fontSize: 'var(--jas-text-base)',
                 fontWeight: 600,
-                color: 'var(--miq-navy)',
+                color: 'var(--jas-navy)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -116,10 +116,10 @@ const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false
             >
               {item.name}
             </div>
-            <div style={{ fontSize: 'var(--miq-text-sm)', color: 'var(--miq-gray-500)' }}>
+            <div style={{ fontSize: 'var(--jas-text-sm)', color: 'var(--jas-gray-500)' }}>
               {item.date}
               {item.version && (
-                <span style={{ marginLeft: '8px', color: 'var(--miq-gray-400)' }}>
+                <span style={{ marginLeft: '8px', color: 'var(--jas-gray-400)' }}>
                   {item.version}
                 </span>
               )}
@@ -134,9 +134,9 @@ const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--miq-gray-400)',
+                color: 'var(--jas-gray-400)',
                 cursor: 'pointer',
-                fontSize: 'var(--miq-text-base)',
+                fontSize: 'var(--jas-text-base)',
                 padding: '4px',
                 flexShrink: 0,
               }}

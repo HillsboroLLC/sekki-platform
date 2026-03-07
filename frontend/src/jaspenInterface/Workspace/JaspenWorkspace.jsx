@@ -503,21 +503,21 @@ const refreshBundle = async (tid) => {
   const renderNameModal = () => {
     if (!nameModalOpen) return null;
     return (
-      <div className="miq-name-modal-backdrop" role="presentation">
-        <div className="miq-name-modal" role="dialog" aria-modal="true" aria-label="Choose your name">
+      <div className="jas-name-modal-backdrop" role="presentation">
+        <div className="jas-name-modal" role="dialog" aria-modal="true" aria-label="Choose your name">
           <h3>What should I call you?</h3>
           <p>We can use this across Jaspen. You can change it anytime in Settings.</p>
           <input
-            className="miq-name-input"
+            className="jas-name-input"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
             placeholder="Your name"
             autoFocus
           />
-          <div className="miq-name-actions">
+          <div className="jas-name-actions">
             <button
               type="button"
-              className="miq-name-save"
+              className="jas-name-save"
               onClick={() => {
                 const trimmed = nameInput.trim();
                 if (!trimmed) return;
@@ -536,14 +536,14 @@ const refreshBundle = async (tid) => {
 
   const renderUserMenuContent = (onClose) => (
     <>
-      <div className="miq-ud-header">
-        <div className="miq-ud-header-avatar">{userInitials}</div>
-        <div className="miq-ud-header-info">
-          <div className="miq-ud-header-name-row">
-            <div className="miq-ud-header-name">{userName}</div>
+      <div className="jas-ud-header">
+        <div className="jas-ud-header-avatar">{userInitials}</div>
+        <div className="jas-ud-header-info">
+          <div className="jas-ud-header-name-row">
+            <div className="jas-ud-header-name">{userName}</div>
             <button
               type="button"
-              className="miq-ud-edit-btn"
+              className="jas-ud-edit-btn"
               onClick={() => {
                 setNameInput(userName);
                 setEditingName(true);
@@ -554,18 +554,18 @@ const refreshBundle = async (tid) => {
               <FontAwesomeIcon icon={faPen} />
             </button>
           </div>
-          <div className="miq-ud-header-email">{userEmail}</div>
+          <div className="jas-ud-header-email">{userEmail}</div>
           {editingName && (
-            <div className="miq-ud-name-edit">
+            <div className="jas-ud-name-edit">
               <input
-                className="miq-ud-name-input"
+                className="jas-ud-name-input"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 placeholder="What should I call you?"
               />
               <button
                 type="button"
-                className="miq-ud-name-save"
+                className="jas-ud-name-save"
                 onClick={() => {
                   const trimmed = nameInput.trim();
                   if (!trimmed) return;
@@ -580,7 +580,7 @@ const refreshBundle = async (tid) => {
               </button>
               <button
                 type="button"
-                className="miq-ud-name-cancel"
+                className="jas-ud-name-cancel"
                 onClick={() => {
                   setNameInput(userName);
                   setEditingName(false);
@@ -595,65 +595,65 @@ const refreshBundle = async (tid) => {
         </div>
       </div>
 
-      <div className="miq-ud-section">
-        <div className="miq-ud-section-label">Navigate</div>
-        <button className="miq-ud-item" onClick={() => { onClose?.(); window.location.reload(); }}>
+      <div className="jas-ud-section">
+        <div className="jas-ud-section-label">Navigate</div>
+        <button className="jas-ud-item" onClick={() => { onClose?.(); window.location.reload(); }}>
           <FontAwesomeIcon icon={faWandMagicSparkles} />
-          <span className="miq-ud-item-label">Jaspen</span>
+          <span className="jas-ud-item-label">Jaspen</span>
         </button>
-        <button className="miq-ud-item" onClick={() => { onClose?.(); enterScorecardPreview(); }}>
+        <button className="jas-ud-item" onClick={() => { onClose?.(); enterScorecardPreview(); }}>
           <FontAwesomeIcon icon={faChartLine} />
-          <span className="miq-ud-item-label">Scorecard</span>
+          <span className="jas-ud-item-label">Scorecard</span>
         </button>
-        <button className="miq-ud-item" onClick={() => { onClose?.(); navigate('/ops/pm'); }}>
+        <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/ops/pm'); }}>
           <FontAwesomeIcon icon={faListCheck} />
-          <span className="miq-ud-item-label">PM Dashboard</span>
+          <span className="jas-ud-item-label">PM Dashboard</span>
         </button>
-        <button className="miq-ud-item" onClick={() => { onClose?.(); navigate('/ops/activities'); }}>
+        <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/ops/activities'); }}>
           <FontAwesomeIcon icon={faLayerGroup} />
-          <span className="miq-ud-item-label">In Queue</span>
-          <span className="miq-ud-item-badge">3</span>
+          <span className="jas-ud-item-label">In Queue</span>
+          <span className="jas-ud-item-badge">3</span>
         </button>
       </div>
 
-      <div className="miq-ud-section">
-        <div className="miq-ud-section-label">Account</div>
-        <button className="miq-ud-item">
+      <div className="jas-ud-section">
+        <div className="jas-ud-section-label">Account</div>
+        <button className="jas-ud-item">
           <FontAwesomeIcon icon={faBolt} />
-          <span className="miq-ud-item-label">Credits</span>
-          <span className="miq-ud-item-badge">0</span>
+          <span className="jas-ud-item-label">Credits</span>
+          <span className="jas-ud-item-badge">0</span>
         </button>
-        <button className="miq-ud-item">
+        <button className="jas-ud-item">
           <FontAwesomeIcon icon={faBrain} />
-          <span className="miq-ud-item-label">Knowledge</span>
+          <span className="jas-ud-item-label">Knowledge</span>
         </button>
-        <button className="miq-ud-item">
+        <button className="jas-ud-item">
           <FontAwesomeIcon icon={faUser} />
-          <span className="miq-ud-item-label">Account</span>
+          <span className="jas-ud-item-label">Account</span>
         </button>
-        <button className="miq-ud-item">
+        <button className="jas-ud-item">
           <FontAwesomeIcon icon={faGear} />
-          <span className="miq-ud-item-label">Settings</span>
+          <span className="jas-ud-item-label">Settings</span>
         </button>
       </div>
 
-      <div className="miq-ud-section">
-        <button className="miq-ud-item" onClick={() => { onClose?.(); navigate('/'); }}>
+      <div className="jas-ud-section">
+        <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/'); }}>
           <FontAwesomeIcon icon={faHome} />
-          <span className="miq-ud-item-label">Homepage</span>
-          <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+          <span className="jas-ud-item-label">Homepage</span>
+          <span className="jas-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
         </button>
-        <button className="miq-ud-item" onClick={() => { onClose?.(); setHelpOpen(true); }}>
+        <button className="jas-ud-item" onClick={() => { onClose?.(); setHelpOpen(true); }}>
           <FontAwesomeIcon icon={faQuestionCircle} />
-          <span className="miq-ud-item-label">Get help</span>
-          <span className="miq-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+          <span className="jas-ud-item-label">Get help</span>
+          <span className="jas-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
         </button>
       </div>
 
-      <div className="miq-ud-section">
-        <button className="miq-ud-item signout" onClick={() => { onClose?.(); handleLogout(); }}>
+      <div className="jas-ud-section">
+        <button className="jas-ud-item signout" onClick={() => { onClose?.(); handleLogout(); }}>
           <FontAwesomeIcon icon={faArrowRightFromBracket} />
-          <span className="miq-ud-item-label">Sign out</span>
+          <span className="jas-ud-item-label">Sign out</span>
         </button>
       </div>
     </>
@@ -718,10 +718,10 @@ const refreshBundle = async (tid) => {
   }, [isRecording]);
 
   // === Persist/Restore current session across refresh ===
-  const LS_MIQ_LAST_SESSION = 'miq_last_session_id';
+  const LS_JAS_LAST_SESSION = 'jas_last_session_id';
 
   const setLastSessionId = (sid) => {
-    try { localStorage.setItem(LS_MIQ_LAST_SESSION, String(sid || '')); } catch {}
+    try { localStorage.setItem(LS_JAS_LAST_SESSION, String(sid || '')); } catch {}
     // Optional: also store in URL so refresh/share works
     try {
       const u = new URL(window.location.href);
@@ -731,7 +731,7 @@ const refreshBundle = async (tid) => {
   };
 
   const clearLastSessionId = () => {
-    try { localStorage.removeItem(LS_MIQ_LAST_SESSION); } catch {}
+    try { localStorage.removeItem(LS_JAS_LAST_SESSION); } catch {}
     try {
       const u = new URL(window.location.href);
       u.searchParams.delete('sid');
@@ -1982,34 +1982,34 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
     const risks = Array.isArray(result.risks) ? result.risks : [];
 
     return (
-      <div className="miq-mini-scorecard">
-        <div className="miq-mini-scorecard-head">
-          <div className="miq-mini-project">{result.project_name || 'Market IQ Project'}</div>
-          <div className="miq-mini-scoreline">
-            <span className="miq-mini-score">{clamp(result.market_iq_score)}</span>
-            <span className="miq-mini-outof">/100</span>
-            <span className="miq-mini-cat">{result.score_category ? `• ${result.score_category}` : ''}</span>
+      <div className="jas-mini-scorecard">
+        <div className="jas-mini-scorecard-head">
+          <div className="jas-mini-project">{result.project_name || 'Market IQ Project'}</div>
+          <div className="jas-mini-scoreline">
+            <span className="jas-mini-score">{clamp(result.market_iq_score)}</span>
+            <span className="jas-mini-outof">/100</span>
+            <span className="jas-mini-cat">{result.score_category ? `• ${result.score_category}` : ''}</span>
           </div>
         </div>
 
-        <div className="miq-mini-components">
+        <div className="jas-mini-components">
           {items.map((it) => (
-            <div key={it.key} className="miq-mini-row">
-              <div className="miq-mini-row-top">
-                <span className="miq-mini-label">{it.label}</span>
-                <span className="miq-mini-val">{clamp(it.val)}</span>
+            <div key={it.key} className="jas-mini-row">
+              <div className="jas-mini-row-top">
+                <span className="jas-mini-label">{it.label}</span>
+                <span className="jas-mini-val">{clamp(it.val)}</span>
               </div>
-              <div className="miq-mini-bar">
-                <div className="miq-mini-bar-fill" style={{ width: `${clamp(it.val)}%` }} />
+              <div className="jas-mini-bar">
+                <div className="jas-mini-bar-fill" style={{ width: `${clamp(it.val)}%` }} />
               </div>
             </div>
           ))}
         </div>
 
         {risks.length > 0 && (
-          <div className="miq-mini-risks">
-            <div className="miq-mini-section-title">Top Risks</div>
-            <ul className="miq-mini-risklist">
+          <div className="jas-mini-risks">
+            <div className="jas-mini-section-title">Top Risks</div>
+            <ul className="jas-mini-risklist">
               {risks.slice(0, 3).map((r, i) => (
                 <li key={i}>{String(r)}</li>
               ))}
@@ -2667,7 +2667,7 @@ const handleSaveScenario = async (scenario) => {
 
   // Debug readiness state
   useEffect(() => {
-    console.log('[MIQ readiness debug]', {
+    console.log('[JAS readiness debug]', {
       sessionId,
       uiReadiness,
       audit_percent: readinessAudit?.overall?.percent,
@@ -2720,7 +2720,7 @@ const handleSaveScenario = async (scenario) => {
     const sideTabSecond = sideTabBase + sideTabGap;
     const TabButton = ({ id, label }) => (
       <button
-        className={`miq-top-tab ${activeTab === id ? 'active' : ''}`}
+        className={`jas-top-tab ${activeTab === id ? 'active' : ''}`}
         role="tab"
         aria-selected={activeTab === id}
 onClick={async () => {
@@ -2759,27 +2759,27 @@ setView(id === 'chat' ? 'intake' : id);
     }
 
     return (
-      <div className={`miq miq-shell ${shellOpen ? 'drawer-open' : ''}`}>
-        <main className="miq-main">
+      <div className={`jas jas-shell ${shellOpen ? 'drawer-open' : ''}`}>
+        <main className="jas-main">
           <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
 {activeTab === 'chat' && (
   <>
     {/* LEFT SIDEBAR - Readiness (only on Refine & Rescore tab) */}
-    <div className={`miq-left-sidebar miq-readiness-sidebar ${sidebarState.readiness ? 'sidebar-open' : ''}`}>
-      <div className="miq-sidebar-header">
+    <div className={`jas-left-sidebar jas-readiness-sidebar ${sidebarState.readiness ? 'sidebar-open' : ''}`}>
+      <div className="jas-sidebar-header">
         <h3>Analysis Readiness</h3>
-        <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_READINESS' })}>
+        <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_READINESS' })}>
           <FontAwesomeIcon icon={faTimes} />
         </button>
       </div>
-      <div className="miq-sidebar-content">
-        <div className="miq-readiness-display">
-          <div className="miq-readiness-circle">
-            <svg className="miq-progress-ring" width="120" height="120">
-              <circle className="miq-progress-ring-bg" stroke="#e2e8f0" strokeWidth="8" fill="transparent" r="52" cx="60" cy="60" />
+      <div className="jas-sidebar-content">
+        <div className="jas-readiness-display">
+          <div className="jas-readiness-circle">
+            <svg className="jas-progress-ring" width="120" height="120">
+              <circle className="jas-progress-ring-bg" stroke="#e2e8f0" strokeWidth="8" fill="transparent" r="52" cx="60" cy="60" />
               <circle
-                className="miq-progress-ring-fill"
+                className="jas-progress-ring-fill"
                 stroke="#10b981"
                 strokeWidth="8"
                 fill="transparent"
@@ -2790,16 +2790,16 @@ setView(id === 'chat' ? 'intake' : id);
                 transform="rotate(-90 60 60)"
               />
             </svg>
-            <div className="miq-readiness-percent">{Math.round(uiReadiness)}%</div>
+            <div className="jas-readiness-percent">{Math.round(uiReadiness)}%</div>
           </div>
-          <div className="miq-readiness-status">
+          <div className="jas-readiness-status">
             {uiReadiness < 60 ? 'Gathering information...' : uiReadiness < 90 ? 'Almost ready!' : 'Ready to analyze!'}
           </div>
         </div>
 
-        <div className="miq-collected-section">
+        <div className="jas-collected-section">
           <h4>Information Categories</h4>
-          <div className="miq-checklist">
+          <div className="jas-checklist">
             {(readinessAudit?.categories || []).map((category) => {
               const key = category.key;
               const label = category.label || specMap[key]?.label || key;
@@ -2807,12 +2807,12 @@ setView(id === 'chat' ? 'intake' : id);
               const weightPct = (Number(category.weight || 0) * 100).toFixed(0);
 
               return (
-                <div key={key} className={`miq-check-item ${done ? 'is-done' : ''}`}>
-                  <input type="checkbox" className="miq-check" checked={done} readOnly />
-                  <div className="miq-check-main">
-                    <div className="miq-check-label">{label}</div>
-                    <div className="miq-check-meta">
-                      <span className="miq-check-weight">{weightPct}% weight</span>
+                <div key={key} className={`jas-check-item ${done ? 'is-done' : ''}`}>
+                  <input type="checkbox" className="jas-check" checked={done} readOnly />
+                  <div className="jas-check-main">
+                    <div className="jas-check-label">{label}</div>
+                    <div className="jas-check-meta">
+                      <span className="jas-check-weight">{weightPct}% weight</span>
                     </div>
                   </div>
                 </div>
@@ -2825,33 +2825,33 @@ setView(id === 'chat' ? 'intake' : id);
 
     {sessionId && messages.length > 0 && !sidebarState.readiness && (
       <div
-        className="miq-sidebar-tab miq-tab-readiness"
+        className="jas-sidebar-tab jas-tab-readiness"
         style={{ top: `${sideTabSecond}px` }}
         onClick={() => dispatchSidebar({ type: 'OPEN_READINESS' })}
       >
         <FontAwesomeIcon icon={faChartLine} />
-        <span className="miq-tab-label">Readiness</span>
+        <span className="jas-tab-label">Readiness</span>
       </div>
     )}
   </>
 )}
 
       {/* LEFT SIDEBAR - User Settings */}
-      <div className={`miq-left-sidebar miq-settings-sidebar ${sidebarState.settings ? 'sidebar-open' : ''}`}>
-        <div className="miq-sidebar-header">
+      <div className={`jas-left-sidebar jas-settings-sidebar ${sidebarState.settings ? 'sidebar-open' : ''}`}>
+        <div className="jas-sidebar-header">
           <h3>User Settings</h3>
-          <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_SETTINGS' })}>
+          <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_SETTINGS' })}>
             <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
-        <div className="miq-sidebar-content">
+        <div className="jas-sidebar-content">
           {renderUserMenuContent(() => dispatchSidebar({ type: 'CLOSE_SETTINGS' }))}
         </div>
       </div>
 
       {!sidebarState.settings && (
         <div
-          className="miq-sidebar-tab miq-tab-settings"
+          className="jas-sidebar-tab jas-tab-settings"
           onClick={() => dispatchSidebar({ type: 'TOGGLE_SETTINGS' })}
           role="button"
           aria-label="User settings"
@@ -2859,7 +2859,7 @@ setView(id === 'chat' ? 'intake' : id);
           style={{ top: `${sideTabBase}px` }}
         >
           <FontAwesomeIcon icon={faGear} />
-          <span className="miq-tab-label">Settings</span>
+          <span className="jas-tab-label">Settings</span>
         </div>
       )}
 
@@ -2877,7 +2877,7 @@ setView(id === 'chat' ? 'intake' : id);
 {/* Assistant Vertical Tab (Score + Scenarios only) */}
 {activeTab !== 'chat' && !aiDrawerOpen && (
   <div
-    className="miq-sidebar-tab miq-tab-assistant"
+    className="jas-sidebar-tab jas-tab-assistant"
     style={{ top: `${sideTabSecond}px` }}
     onClick={toggleAIDrawer}
     role="button"
@@ -2889,37 +2889,37 @@ setView(id === 'chat' ? 'intake' : id);
       alt="Jaspen"
       style={{ writingMode: 'horizontal-tb', width: '12px', height: '12px', objectFit: 'contain', display: 'block' }}
     />
-    <span className="miq-tab-label">Jaspen</span>
+    <span className="jas-tab-label">Jaspen</span>
   </div>
 )}
 
 {/* Assistant Drawer (Score + Scenarios only) */}
 {activeTab !== 'chat' && (
-  <div className={`miq-ai-drawer ${aiDrawerOpen ? 'miq-drawer-open' : ''}`}>
-    <div className="miq-ai-header">
-      <div className="miq-ai-title">
+  <div className={`jas-ai-drawer ${aiDrawerOpen ? 'jas-drawer-open' : ''}`}>
+    <div className="jas-ai-header">
+      <div className="jas-ai-title">
         <span>{isScenarioTab && scenarioDrawerView === 'scorecard' ? 'Score Summary' : 'Assistant'}</span>
-        <span className="miq-ai-badge">
+        <span className="jas-ai-badge">
           <FontAwesomeIcon icon={isScenarioTab && scenarioDrawerView === 'scorecard' ? faChartLine : faRobot} />
         </span>
       </div>
-      <button className="miq-close-btn" onClick={toggleAIDrawer}>
+      <button className="jas-close-btn" onClick={toggleAIDrawer}>
         <FontAwesomeIcon icon={faTimes} />
       </button>
     </div>
 
     {isScenarioTab && (
-      <div className="miq-ai-toggle">
+      <div className="jas-ai-toggle">
         <button
           type="button"
-          className={`miq-ai-toggle-btn ${scenarioDrawerView === 'assistant' ? 'active' : ''}`}
+          className={`jas-ai-toggle-btn ${scenarioDrawerView === 'assistant' ? 'active' : ''}`}
           onClick={() => setScenarioDrawerView('assistant')}
         >
           Assistant
         </button>
         <button
           type="button"
-          className={`miq-ai-toggle-btn ${scenarioDrawerView === 'scorecard' ? 'active' : ''}`}
+          className={`jas-ai-toggle-btn ${scenarioDrawerView === 'scorecard' ? 'active' : ''}`}
           onClick={() => setScenarioDrawerView('scorecard')}
         >
           Score Summary
@@ -2929,20 +2929,20 @@ setView(id === 'chat' ? 'intake' : id);
 
     {(!isScenarioTab || scenarioDrawerView === 'assistant') ? (
       <>
-        <div className="miq-ai-messages">
+        <div className="jas-ai-messages">
           {messages.map((m, idx) => (
             <div
               key={idx}
-              className={`miq-ai-message ${m.role === 'user' ? 'user' : 'assistant'}`}
+              className={`jas-ai-message ${m.role === 'user' ? 'user' : 'assistant'}`}
             >
-              <div className="miq-message-content">{m.text || ''}</div>
+              <div className="jas-message-content">{m.text || ''}</div>
             </div>
           ))}
         </div>
 
-        <div className="miq-ai-input-area">
+        <div className="jas-ai-input-area">
           <textarea
-            className="miq-ai-input"
+            className="jas-ai-input"
             placeholder="Ask about tasks, timeline, resources..."
             rows="3"
             value={aiInput}
@@ -2954,13 +2954,13 @@ setView(id === 'chat' ? 'intake' : id);
               }
             }}
           />
-          <button className="miq-ai-send-btn" onClick={sendAIMessage}>
+          <button className="jas-ai-send-btn" onClick={sendAIMessage}>
             <FontAwesomeIcon icon={faPaperPlane} />
           </button>
         </div>
       </>
     ) : (
-      <div className="miq-ai-messages">
+      <div className="jas-ai-messages">
         {renderMiniScorecard(activeScorecard)}
       </div>
     )}
@@ -2985,25 +2985,25 @@ setView(id === 'chat' ? 'intake' : id);
         }}
       />
 
-        <div className={`miq-workspace ${aiDrawerOpen ? 'miq-ai-open' : ''} ${isReadinessOpen ? 'miq-readiness-open' : ''} ${isSettingsOpen ? 'miq-settings-open' : ''}`}>
-          <div className="miq-workspace-header">
-            <div className="miq-workspace-title">
-              <span className="miq-brand-small">SEKKI • Market IQ</span>
-              <h2 className="miq-project-title">
+        <div className={`jas-workspace ${aiDrawerOpen ? 'jas-ai-open' : ''} ${isReadinessOpen ? 'jas-readiness-open' : ''} ${isSettingsOpen ? 'jas-settings-open' : ''}`}>
+          <div className="jas-workspace-header">
+            <div className="jas-workspace-title">
+              <span className="jas-brand-small">SEKKI • Market IQ</span>
+              <h2 className="jas-project-title">
                 {activeScorecard?.project_name || analysisResult?.project_name || 'Market IQ Project'}
               </h2>
             </div>
 
-            <nav className="miq-top-tabs" role="tablist" aria-label="Market IQ views">
+            <nav className="jas-top-tabs" role="tablist" aria-label="Market IQ views">
               <TabButton id="summary"  label="Score" />
               <TabButton id="scenario" label="Scenarios" />
               <TabButton id="chat"     label="Refine & Rescore" />
 
               {/* Only show dropdowns and Begin Project on Score tab */}
               {activeTab === 'summary' && (
-                <div className="miq-right-rail">
+                <div className="jas-right-rail">
                   <select
-                    className="miq-variant-select"
+                    className="jas-variant-select"
                     aria-label="Score View"
                     value={selectedVariantId}
                     onChange={(e) => setSelectedVariantId(e.target.value)}
@@ -3014,7 +3014,7 @@ setView(id === 'chat' ? 'intake' : id);
                   </select>
 
                   <select
-                    className="miq-scores-select"
+                    className="jas-scores-select"
                     aria-label="Completed Scores"
                     onChange={(e) => {
                       const sel = analysisHistory.find(s => s.id === e.target.value);
@@ -3081,13 +3081,13 @@ setView(id === 'chat' ? 'intake' : id);
               borderRadius: "50%",
               background: "#8b5cf6",
               display: "inline-block",
-              animation: `miq-dot 1s ease-in-out ${i * 0.12}s infinite`,
+              animation: `jas-dot 1s ease-in-out ${i * 0.12}s infinite`,
             }}
           />
         ))}
       </div>
       <style>{`
-        @keyframes miq-dot {
+        @keyframes jas-dot {
           0%, 80%, 100% { transform: translateY(0); opacity: .6; }
           40% { transform: translateY(-6px); opacity: 1; }
         }
@@ -3099,7 +3099,7 @@ setView(id === 'chat' ? 'intake' : id);
             </nav>
           </div>
 
-          <div className="miq-workspace-body">
+          <div className="jas-workspace-body">
 {activeTab === 'summary' && (
   <div className={!sidebarState.settings || !aiDrawerOpen ? 'score-with-rail' : ''}>
     <ScoreDashboard
@@ -3128,14 +3128,14 @@ setView(id === 'chat' ? 'intake' : id);
           title: analysisResult?.project_name || 'Market IQ Project',
           payload: analysisResult,
         });
-        window.location.href = `https://sekki.io/ops/project-planning?from=miq&analysis=${encodeURIComponent(sessionId)}`;
+        window.location.href = `https://sekki.io/ops/project-planning?from=jas&analysis=${encodeURIComponent(sessionId)}`;
       }}
     />
   </div>
 )}
 
             {activeTab === 'chat' && (
-              <div className="miq-chat-tab">
+              <div className="jas-chat-tab">
                 <div className="chatgpt-content">
                   <div className="chatgpt-messages">
                     {error && (
@@ -3209,7 +3209,7 @@ setView(id === 'chat' ? 'intake' : id);
 
                       <input
                         ref={fileInputRef}
-                        id="miq-file-input"
+                        id="jas-file-input"
                         type="file"
                         multiple
                         accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
@@ -3218,13 +3218,13 @@ setView(id === 'chat' ? 'intake' : id);
                       />
 
                       {pendingFiles?.length > 0 && (
-                        <div className="miq-file-chips">
+                        <div className="jas-file-chips">
                           {pendingFiles.map((f, i) => (
-                            <span key={i} className="miq-file-chip">
+                            <span key={i} className="jas-file-chip">
                               {f.name}
                               <button
                                 type="button"
-                                className="miq-file-chip-remove"
+                                className="jas-file-chip-remove"
                                 title="Remove"
                                 onClick={() =>
                                   setPendingFiles(prev => prev.filter((_, idx) => idx !== i))
@@ -3328,7 +3328,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       title: analysisResult?.project_name || 'Market IQ Project',
       payload: analysisResult,
     });
-    window.location.href = `https://sekki.io/ops/project-planning?from=miq&analysis=${encodeURIComponent(sessionId)}`;
+    window.location.href = `https://sekki.io/ops/project-planning?from=jas&analysis=${encodeURIComponent(sessionId)}`;
   }}
 />
                 )}
@@ -3362,8 +3362,8 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
     return `${80 + idx * 130}px`;
   };
   return (
-    <div className={`miq miq-shell ${intakeShellOpen ? 'drawer-open' : ''}`}>
-      <main className="miq-main">
+    <div className={`jas jas-shell ${intakeShellOpen ? 'drawer-open' : ''}`}>
+      <main className="jas-main">
         <div className="chatgpt-interface">
       {busy && (
         <div className="thinking-overlay">
@@ -3377,7 +3377,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       {/* Drawer Tabs on Left Edge */}
       {!sidebarState.settings && (
         <div
-          className="miq-drawer-tab miq-drawer-tab-settings"
+          className="jas-drawer-tab jas-drawer-tab-settings"
           style={{ top: intakeTabTop('settings') }}
           onClick={() => dispatchSidebar({ type: 'TOGGLE_SETTINGS' })}
         >
@@ -3387,7 +3387,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       )}
       {hasHistory && !sidebarState.history && (
         <div
-          className="miq-drawer-tab miq-drawer-tab-history"
+          className="jas-drawer-tab jas-drawer-tab-history"
           style={{ top: intakeTabTop('history') }}
           onClick={() => dispatchSidebar({ type: 'TOGGLE_HISTORY' })}
         >
@@ -3397,7 +3397,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       )}
       {intakeHasReadinessTab && (
         <div
-          className={`miq-drawer-tab miq-drawer-tab-readiness ${sessionId && messages.length > 0 ? 'active' : ''}`}
+          className={`jas-drawer-tab jas-drawer-tab-readiness ${sessionId && messages.length > 0 ? 'active' : ''}`}
           style={{ top: intakeTabTop('readiness') }}
           onClick={() => dispatchSidebar({ type: 'OPEN_READINESS' })}
         >
@@ -3409,20 +3409,20 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       {/* Drawer Overlay - non-blocking, just visual dimming */}
 
       {/* LEFT SIDEBAR - Readiness */}
-      <div className={`miq-left-sidebar miq-readiness-sidebar ${sidebarState.readiness ? 'sidebar-open' : ''}`}>
-        <div className="miq-sidebar-header">
+      <div className={`jas-left-sidebar jas-readiness-sidebar ${sidebarState.readiness ? 'sidebar-open' : ''}`}>
+        <div className="jas-sidebar-header">
           <h3>Analysis Readiness</h3>
-          <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_READINESS' })}>
+          <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_READINESS' })}>
             <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
-        <div className="miq-sidebar-content">
-          <div className="miq-readiness-display">
-            <div className="miq-readiness-circle">
-              <svg className="miq-progress-ring" width="120" height="120">
-                <circle className="miq-progress-ring-bg" stroke="#e2e8f0" strokeWidth="8" fill="transparent" r="52" cx="60" cy="60" />
+        <div className="jas-sidebar-content">
+          <div className="jas-readiness-display">
+            <div className="jas-readiness-circle">
+              <svg className="jas-progress-ring" width="120" height="120">
+                <circle className="jas-progress-ring-bg" stroke="#e2e8f0" strokeWidth="8" fill="transparent" r="52" cx="60" cy="60" />
                 <circle
-                  className="miq-progress-ring-fill"
+                  className="jas-progress-ring-fill"
                   stroke="#10b981"
                   strokeWidth="8"
                   fill="transparent"
@@ -3433,16 +3433,16 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
                   transform="rotate(-90 60 60)"
                 />
               </svg>
-              <div className="miq-readiness-percent">{Math.round(uiReadiness)}%</div>
+              <div className="jas-readiness-percent">{Math.round(uiReadiness)}%</div>
             </div>
-<div className="miq-readiness-status">
+<div className="jas-readiness-status">
   {uiReadiness < 60 ? 'Gathering information...' : uiReadiness < 90 ? 'Almost ready!' : 'Ready to analyze!'}
 </div>
 
 {(readinessSource || readinessVersion) && (
-  <div className="miq-readiness-meta" style={{ marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
+  <div className="jas-readiness-meta" style={{ marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
     {readinessSource && (
-      <span className="miq-chip" style={{
+      <span className="jas-chip" style={{
         display: 'inline-block', padding: '2px 6px', borderRadius: '8px',
         border: '1px solid #cbd5e1', marginRight: '6px'
       }}>
@@ -3450,7 +3450,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       </span>
     )}
     {readinessVersion && (
-      <span className="miq-chip" style={{
+      <span className="jas-chip" style={{
         display: 'inline-block', padding: '2px 6px', borderRadius: '8px',
         border: '1px solid #cbd5e1'
       }}>
@@ -3461,10 +3461,10 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
 )}
           </div>
 
-<div className="miq-collected-section">
+<div className="jas-collected-section">
   <h4>Information Categories</h4>
 
-  <div className="miq-checklist">
+  <div className="jas-checklist">
     {(readinessAudit?.categories || []).map((category) => {
       // backend drives these; stay literal
       const key       = category.key;
@@ -3475,20 +3475,20 @@ const done = category.completed === true;
       const weightPct = (Number(category.weight || 0) * 100).toFixed(0); // e.g. "25"
 
       return (
-        <div key={key} className={`miq-check-item ${done ? 'is-done' : ''}`}>
+        <div key={key} className={`jas-check-item ${done ? 'is-done' : ''}`}>
           <input
             type="checkbox"
-            className="miq-check"
+            className="jas-check"
             checked={done}
             readOnly
             aria-label={label}
             title={done ? 'Complete' : 'Not complete'}
           />
-          <div className="miq-check-main">
-            <div className="miq-check-label">{label}</div>
-            <div className="miq-check-meta">
+          <div className="jas-check-main">
+            <div className="jas-check-label">{label}</div>
+            <div className="jas-check-meta">
               {/* show what the backend said, but keep it subtle */}
-              <span className="miq-check-weight">{weightPct}% weight</span>
+              <span className="jas-check-weight">{weightPct}% weight</span>
             </div>
           </div>
         </div>
@@ -3501,16 +3501,16 @@ const done = category.completed === true;
 
       {/* LEFT SIDEBAR - History */}
       {hasHistory && (
-        <div className={`miq-left-sidebar miq-history-sidebar ${sidebarState.history ? 'sidebar-open' : ''}`}>
-          <div className="miq-sidebar-header">
+        <div className={`jas-left-sidebar jas-history-sidebar ${sidebarState.history ? 'sidebar-open' : ''}`}>
+          <div className="jas-sidebar-header">
             <h3>Analysis History</h3>
-            <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_HISTORY' })}>
+            <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_HISTORY' })}>
               <FontAwesomeIcon icon={faTimes} />
             </button>
           </div>
-          <div className="miq-sidebar-content">
+          <div className="jas-sidebar-content">
             {analysisHistory.map((item, index) => (
-              <div key={index} className="miq-history-item" onClick={() => handleSelectAnalysis(item.result)}>
+              <div key={index} className="jas-history-item" onClick={() => handleSelectAnalysis(item.result)}>
                 <div className="hi-text">
                   <div className="hi-title">
                     {item.result?.project_name || `Analysis ${item.id?.slice(-8) || index + 1}`}
@@ -3537,31 +3537,31 @@ const done = category.completed === true;
       )}
 
       {/* LEFT SIDEBAR - User Settings */}
-      <div className={`miq-left-sidebar miq-settings-sidebar ${sidebarState.settings ? 'sidebar-open' : ''}`}>
-        <div className="miq-sidebar-header">
+      <div className={`jas-left-sidebar jas-settings-sidebar ${sidebarState.settings ? 'sidebar-open' : ''}`}>
+        <div className="jas-sidebar-header">
           <h3>User Settings</h3>
-          <button className="miq-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_SETTINGS' })}>
+          <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_SETTINGS' })}>
             <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
-        <div className="miq-sidebar-content">
+        <div className="jas-sidebar-content">
           {renderUserMenuContent(() => dispatchSidebar({ type: 'CLOSE_SETTINGS' }))}
         </div>
       </div>
 
       {/* Header - Manus Style Top Bar */}
-      <div className="miq-chat-topbar">
-        <div className="miq-topbar-left">
+      <div className="jas-chat-topbar">
+        <div className="jas-topbar-left">
           <button
             type="button"
-            className="miq-topbar-title miq-topbar-link"
+            className="jas-topbar-title jas-topbar-link"
             onClick={() => window.location.reload()}
             title="Refresh"
           >
             Jaspen
           </button>
           <button
-            className="miq-topbar-new"
+            className="jas-topbar-new"
             onClick={() => handleNewAnalysis(true)}
             title="New Session"
             aria-label="New Session"
@@ -3570,18 +3570,18 @@ const done = category.completed === true;
           </button>
         </div>
 
-        <div className="miq-topbar-right" />
+        <div className="jas-topbar-right" />
       </div>
 
       {renderNameModal()}
 
       {/* Content */}
-      <div className="miq-chat-content">
+      <div className="jas-chat-content">
         {messages.length === 0 ? (
-          <div className="miq-chat-welcome">
-            <h2 className="miq-chat-welcome-title">
+          <div className="jas-chat-welcome">
+            <h2 className="jas-chat-welcome-title">
               <img
-                className="miq-chat-welcome-unicorn"
+                className="jas-chat-welcome-unicorn"
                 src="/android-chrome-192x192.png"
                 alt="Jaspen unicorn"
               />
@@ -3590,7 +3590,7 @@ const done = category.completed === true;
             <p>Describe your project or business idea and I'll help you build a complete strategy scorecard through a natural conversation.</p>
           </div>
         ) : (
-          <div className="miq-messages">
+          <div className="jas-messages">
             {error && (
               <div className="chatgpt-error">
                 <FontAwesomeIcon icon={faExclamationTriangle} />
@@ -3599,8 +3599,8 @@ const done = category.completed === true;
             )}
 
             {messages.map((m, idx) => (
-              <div key={idx} className={`miq-message ${m.role === 'ai' ? 'ai' : 'user'}`}>
-                <div className="miq-message-bubble">{m.text}</div>
+              <div key={idx} className={`jas-message ${m.role === 'ai' ? 'ai' : 'user'}`}>
+                <div className="jas-message-bubble">{m.text}</div>
               </div>
             ))}
 
@@ -3609,10 +3609,10 @@ const done = category.completed === true;
         )}
 
         {/* Input Area - Manus Style */}
-        <div className="miq-chat-input-area">
+        <div className="jas-chat-input-area">
           <input
             ref={fileInputRef}
-            id="miq-file-input"
+            id="jas-file-input"
             type="file"
             multiple
             accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
@@ -3621,7 +3621,7 @@ const done = category.completed === true;
           />
 
           {pendingFiles?.length > 0 && (
-            <div className="miq-file-chips" style={{ maxWidth: '800px', margin: '0 auto 8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            <div className="jas-file-chips" style={{ maxWidth: '800px', margin: '0 auto 8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
               {pendingFiles.map((f, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', background: '#f1f3f5', borderRadius: '4px', fontSize: '0.75rem' }}>
                   {f.name}
@@ -3638,7 +3638,7 @@ const done = category.completed === true;
             </div>
           )}
 
-          <div className="miq-chat-input-box">
+          <div className="jas-chat-input-box">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -3647,10 +3647,10 @@ const done = category.completed === true;
               rows={1}
               disabled={busy}
             />
-            <div className="miq-chat-input-icons">
+            <div className="jas-chat-input-icons">
               <button
                 type="button"
-                className="miq-ci-btn"
+                className="jas-ci-btn"
                 aria-label="Attach files"
                 title="Attach"
                 disabled={busy}
@@ -3660,7 +3660,7 @@ const done = category.completed === true;
               </button>
               <button
                 type="button"
-                className={`miq-ci-btn ${isRecording ? 'recording' : ''}`}
+                className={`jas-ci-btn ${isRecording ? 'recording' : ''}`}
                 aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                 title="Voice"
                 disabled={busy}
@@ -3669,7 +3669,7 @@ const done = category.completed === true;
                 <FontAwesomeIcon icon={faMicrophone} />
               </button>
               <button
-                className="miq-ci-btn send"
+                className="jas-ci-btn send"
                 onClick={onSubmit}
                 disabled={busy || (!input.trim() && pendingFiles.length === 0)}
                 title="Send"
@@ -3703,18 +3703,18 @@ const done = category.completed === true;
 
       {/* Help Modal */}
       {helpOpen && (
-        <div className="miq-help-modal">
-          <div className="miq-help-content">
-            <div className="miq-help-header">
+        <div className="jas-help-modal">
+          <div className="jas-help-content">
+            <div className="jas-help-header">
               <h3>Help & Support</h3>
-              <button className="miq-help-close" onClick={() => setHelpOpen(false)}>
+              <button className="jas-help-close" onClick={() => setHelpOpen(false)}>
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
 
-            <div className="miq-help-messages">
+            <div className="jas-help-messages">
               {helpMessages.length === 0 ? (
-                <div className="miq-help-welcome">
+                <div className="jas-help-welcome">
                   <p>Hi! I'm here to help you with:</p>
                   <ul>
                     <li>Understanding Market IQ features</li>
@@ -3726,8 +3726,8 @@ const done = category.completed === true;
                 </div>
               ) : (
                 helpMessages.map((msg, idx) => (
-                  <div key={idx} className={`miq-help-message ${msg.role}`}>
-                    <div className="miq-help-bubble">
+                  <div key={idx} className={`jas-help-message ${msg.role}`}>
+                    <div className="jas-help-bubble">
                       {msg.role === 'user' ? (
                         msg.content
                       ) : (
@@ -3749,13 +3749,13 @@ const done = category.completed === true;
                 ))
               )}
               {helpLoading && (
-                <div className="miq-help-loading">
+                <div className="jas-help-loading">
                   <span>Thinking...</span>
                 </div>
               )}
             </div>
 
-            <div className="miq-help-input">
+            <div className="jas-help-input">
               <textarea
                 value={helpInput}
                 onChange={(e) => setHelpInput(e.target.value)}

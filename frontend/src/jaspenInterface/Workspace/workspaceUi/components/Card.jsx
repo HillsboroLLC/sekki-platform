@@ -12,22 +12,22 @@ import React from 'react';
 
 const styles = {
   default: {
-    background: 'var(--miq-white)',
-    border: '1px solid var(--miq-border)',
-    borderRadius: 'var(--miq-radius-md)',
-    padding: 'var(--miq-space-6)',
-    transition: 'box-shadow var(--miq-transition)',
+    background: 'var(--jas-white)',
+    border: '1px solid var(--jas-border)',
+    borderRadius: 'var(--jas-radius-md)',
+    padding: 'var(--jas-space-6)',
+    transition: 'box-shadow var(--jas-transition)',
   },
   flat: {
-    background: 'var(--miq-gray-50)',
+    background: 'var(--jas-gray-50)',
     border: 'none',
-    borderRadius: 'var(--miq-radius-md)',
-    padding: 'var(--miq-space-6)',
+    borderRadius: 'var(--jas-radius-md)',
+    padding: 'var(--jas-space-6)',
   },
   kpi: {
-    background: 'var(--miq-white)',
-    border: '1px solid var(--miq-border)',
-    borderRadius: 'var(--miq-radius-md)',
+    background: 'var(--jas-white)',
+    border: '1px solid var(--jas-border)',
+    borderRadius: 'var(--jas-radius-md)',
     padding: '20px 24px',
   },
 };
@@ -47,23 +47,23 @@ export default function Card({
 
   if (variant === 'kpi') {
     return (
-      <div className={`miq-kpi ${className}`} style={cardStyle} {...props}>
+      <div className={`jas-kpi ${className}`} style={cardStyle} {...props}>
         {icon && (
           <div style={{ marginBottom: '8px' }}>
             <i
               className={icon}
-              style={{ fontSize: 'var(--miq-text-lg)', color: 'var(--miq-magenta)' }}
+              style={{ fontSize: 'var(--jas-text-lg)', color: 'var(--jas-magenta)' }}
             />
           </div>
         )}
         {label && (
           <div
             style={{
-              fontSize: 'var(--miq-text-sm)',
+              fontSize: 'var(--jas-text-sm)',
               fontWeight: 500,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              color: 'var(--miq-text-muted)',
+              color: 'var(--jas-text-muted)',
               marginBottom: '4px',
             }}
           >
@@ -73,9 +73,9 @@ export default function Card({
         {value && (
           <div
             style={{
-              fontSize: 'var(--miq-text-3xl)',
+              fontSize: 'var(--jas-text-3xl)',
               fontWeight: 700,
-              color: 'var(--miq-navy)',
+              color: 'var(--jas-navy)',
             }}
           >
             {value}
@@ -84,8 +84,8 @@ export default function Card({
         {sub && (
           <div
             style={{
-              fontSize: 'var(--miq-text-sm)',
-              color: 'var(--miq-text-muted)',
+              fontSize: 'var(--jas-text-sm)',
+              color: 'var(--jas-text-muted)',
               marginTop: '2px',
             }}
           >
@@ -98,7 +98,7 @@ export default function Card({
   }
 
   return (
-    <div className={`miq-card ${className}`} style={cardStyle} {...props}>
+    <div className={`jas-card ${className}`} style={cardStyle} {...props}>
       {children}
     </div>
   );

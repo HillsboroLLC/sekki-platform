@@ -71,7 +71,7 @@ async function httpJson(path, { method = 'GET', body } = {}) {
   return data;
 }
 
-export const miqApi = {
+export const jasApi = {
   // Bundle = source of truth
   getThreadBundle(threadId, { msgLimit = 50, scnLimit = 50 } = {}) {
     return httpJson(

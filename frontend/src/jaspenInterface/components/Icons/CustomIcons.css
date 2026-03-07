@@ -5,17 +5,17 @@
 /* Easy knobs */
 :root {
   /* Header icon size (PM/LSS) */
-  --miq-header-icon-size: 32px;
+  --jas-header-icon-size: 32px;
 
   /* New session + size (smaller than PM/LSS) */
-  --miq-plus-size: 16px;
+  --jas-plus-size: 16px;
 
   /* Colors */
-  --miq-icon-color: #161f3b;
-  --miq-focus-color: #0ea5e9;
+  --jas-icon-color: #161f3b;
+  --jas-focus-color: #0ea5e9;
 
   /* Spacing between right-side header buttons */
-  --miq-header-gap: 16px;
+  --jas-header-gap: 16px;
 }
 
 /* Base button reset */
@@ -35,15 +35,15 @@
 }
 
 /* Icon base (applies to our custom SVGs via className and to FA via currentColor) */
-.miq-icon {
+.jas-icon {
   display: inline-block;
   vertical-align: middle;
-  color: var(--miq-icon-color);
+  color: var(--jas-icon-color);
   transition: transform 0.2s ease, opacity 0.2s ease, color 0.2s ease;
 }
 
 /* Hover affordance */
-.header-icon-btn:hover .miq-icon,
+.header-icon-btn:hover .jas-icon,
 .header-icon-btn:hover svg {
   transform: scale(1.07);
   opacity: 0.85;
@@ -51,32 +51,32 @@
 
 /* Keyboard focus ring */
 .header-icon-btn:focus-visible {
-  outline: 2px solid var(--miq-focus-color);
+  outline: 2px solid var(--jas-focus-color);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* Gap between right-side header buttons */
 .header-right .header-icon-btn {
-  margin-left: var(--miq-header-gap);
+  margin-left: var(--jas-header-gap);
 }
 
 /* ---------- Sizing (define once) ---------- */
 
 /* Default header icon size (PM/LSS & any other header icon) */
 .header-icon-btn svg {
-  width: var(--miq-header-icon-size) !important;
-  height: var(--miq-header-icon-size) !important;
+  width: var(--jas-header-icon-size) !important;
+  height: var(--jas-header-icon-size) !important;
 }
 
 /* Smaller + (new session) — higher specificity than the rule above */
-.header-icon-btn.miq-new-session-btn svg {
-  width: var(--miq-plus-size) !important;
-  height: var(--miq-plus-size) !important;
+.header-icon-btn.jas-new-session-btn svg {
+  width: var(--jas-plus-size) !important;
+  height: var(--jas-plus-size) !important;
 }
 
 /* Ensure FA icons follow the same color as our custom ones */
 .header-icon-btn .fa-icon,
 .header-icon-btn svg {
-  color: var(--miq-icon-color);
+  color: var(--jas-icon-color);
 }

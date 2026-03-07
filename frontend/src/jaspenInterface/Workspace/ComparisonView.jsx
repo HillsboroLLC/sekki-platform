@@ -62,9 +62,9 @@ export default function ComparisonView({
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--miq-magenta)',
+                color: 'var(--jas-magenta)',
                 cursor: 'pointer',
-                fontSize: 'var(--miq-text-base)',
+                fontSize: 'var(--jas-text-base)',
                 fontWeight: 600,
               }}
               type="button"
@@ -78,9 +78,9 @@ export default function ComparisonView({
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--miq-gray-500)',
+                color: 'var(--jas-gray-500)',
                 cursor: 'pointer',
-                fontSize: 'var(--miq-text-base)',
+                fontSize: 'var(--jas-text-base)',
                 fontWeight: 600,
               }}
               type="button"
@@ -94,9 +94,9 @@ export default function ComparisonView({
       {/* Project name */}
       <div
         style={{
-          fontSize: 'var(--miq-text-md)',
+          fontSize: 'var(--jas-text-md)',
           fontWeight: 600,
-          color: 'var(--miq-navy)',
+          color: 'var(--jas-navy)',
           marginBottom: '4px',
         }}
       >
@@ -109,16 +109,16 @@ export default function ComparisonView({
           style={{
             fontSize: '2rem',
             fontWeight: 700,
-            color: 'var(--miq-navy)',
+            color: 'var(--jas-navy)',
           }}
         >
           {overallScore}
         </span>
         <span
           style={{
-            fontSize: 'var(--miq-text-md)',
+            fontSize: 'var(--jas-text-md)',
             fontWeight: 500,
-            color: 'var(--miq-gray-500)',
+            color: 'var(--jas-gray-500)',
             marginLeft: '4px',
           }}
         >
@@ -126,9 +126,9 @@ export default function ComparisonView({
         </span>
         <span
           style={{
-            fontSize: 'var(--miq-text-md)',
+            fontSize: 'var(--jas-text-md)',
             fontWeight: 500,
-            color: 'var(--miq-gray-500)',
+            color: 'var(--jas-gray-500)',
             marginLeft: '8px',
           }}
         >
@@ -143,15 +143,15 @@ export default function ComparisonView({
             style={{
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 'var(--miq-text-base)',
+              fontSize: 'var(--jas-text-base)',
               marginBottom: '4px',
             }}
           >
-            <span style={{ color: 'var(--miq-navy)' }}>{cat.name}</span>
-            <span style={{ fontWeight: 600, color: 'var(--miq-navy)' }}>{cat.value}</span>
+            <span style={{ color: 'var(--jas-navy)' }}>{cat.name}</span>
+            <span style={{ fontWeight: 600, color: 'var(--jas-navy)' }}>{cat.value}</span>
           </div>
-          <div className="miq-progress" style={{ height: '8px' }}>
-            <div className="miq-progress-fill magenta" style={{ width: `${cat.value}%` }} />
+          <div className="jas-progress" style={{ height: '8px' }}>
+            <div className="jas-progress-fill magenta" style={{ width: `${cat.value}%` }} />
           </div>
         </div>
       ))}

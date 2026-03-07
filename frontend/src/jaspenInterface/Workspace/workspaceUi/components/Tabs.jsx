@@ -18,27 +18,27 @@ import React from 'react';
 const barStyle = {
   display: 'flex',
   gap: 0,
-  borderBottom: '1px solid var(--miq-border)',
-  padding: '0 var(--miq-space-8) 0 var(--miq-space-12)',
+  borderBottom: '1px solid var(--jas-border)',
+  padding: '0 var(--jas-space-8) 0 var(--jas-space-12)',
   flexShrink: 0,
 };
 
 const tabBase = {
   padding: '10px 20px',
-  fontSize: 'var(--miq-text-base)',
+  fontSize: 'var(--jas-text-base)',
   fontWeight: 500,
-  color: 'var(--miq-gray-600)',
+  color: 'var(--jas-gray-600)',
   border: 'none',
   background: 'none',
   cursor: 'pointer',
-  fontFamily: 'var(--miq-font)',
+  fontFamily: 'var(--jas-font)',
   borderBottom: '2px solid transparent',
-  transition: 'all var(--miq-transition)',
+  transition: 'all var(--jas-transition)',
 };
 
 const tabActive = {
-  color: 'var(--miq-navy)',
-  borderBottomColor: 'var(--miq-magenta)',
+  color: 'var(--jas-navy)',
+  borderBottomColor: 'var(--jas-magenta)',
   fontWeight: 600,
 };
 
@@ -51,13 +51,13 @@ export default function Tabs({
   ...props
 }) {
   return (
-    <div className={`miq-tab-bar ${className}`} style={{ ...barStyle, ...customStyle }} {...props}>
+    <div className={`jas-tab-bar ${className}`} style={{ ...barStyle, ...customStyle }} {...props}>
       {tabs.map((tab) => {
         const isActive = tab.id === activeId;
         return (
           <button
             key={tab.id}
-            className={`miq-tab ${isActive ? 'active' : ''}`}
+            className={`jas-tab ${isActive ? 'active' : ''}`}
             style={{ ...tabBase, ...(isActive ? tabActive : {}) }}
             onClick={() => onTabChange?.(tab.id)}
           >

@@ -43,7 +43,7 @@ export const endpoints = {
   deleteAnalysis:   (analysisId) => `${API_BASE}/api/market-iq/analyses/${encodeURIComponent(analysisId)}`,
 };
 // ---- Session ID for memory that survives Safari ITP ----
-const SID_KEY = 'miq_sid';
+const SID_KEY = 'jas_sid';
 function getSid() {
   try {
     let sid = localStorage.getItem(SID_KEY);
@@ -210,7 +210,7 @@ async convoStart({description, project_id}) {
     });
 
     // Default project_id for testing - replace with real project selection later
-    const pid = project_id || 'default-miq-project';
+    const pid = project_id || 'default-jas-project';
 
     const data = await postJSON(
       endpoints.convoStart,
@@ -417,8 +417,8 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
 };
 
 // Minimal local persistence
-const LS_HISTORY = 'miq_history';
-const LS_PROJECTS = 'miq_projects';
+const LS_HISTORY = 'jas_history';
+const LS_PROJECTS = 'jas_projects';
 
 export const storage = {
   pushHistory(entry) {

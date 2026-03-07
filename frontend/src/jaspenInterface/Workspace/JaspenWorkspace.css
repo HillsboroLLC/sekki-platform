@@ -4,9 +4,9 @@
    ============================================================================ */
 
 /* === Reset & Variables === */
-.miq-shell, .miq-shell *, .miq-shell *::before, .miq-shell *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.jas-shell, .jas-shell *, .jas-shell *::before, .jas-shell *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.miq-shell {
+.jas-shell {
   --navy: #161f3b;
   --magenta: #a0036c;
   --light-bg: #f0f3f2;
@@ -27,8 +27,8 @@
 }
 
 /* === Base Layout === */
-.miq-workspace-shell,
-.miq-shell {
+.jas-workspace-shell,
+.jas-shell {
   display: flex;
   height: 100vh;
   width: 100%;
@@ -38,17 +38,17 @@
   font-family: var(--font);
 }
 
-.miq-workspace-shell h1,
-.miq-workspace-shell h2,
-.miq-workspace-shell h3,
-.miq-workspace-shell h4 {
+.jas-workspace-shell h1,
+.jas-workspace-shell h2,
+.jas-workspace-shell h3,
+.jas-workspace-shell h4 {
   font-weight: 600;
   line-height: 1.25;
   color: var(--navy);
   margin: 0;
 }
 
-.miq-workspace-shell p {
+.jas-workspace-shell p {
   color: var(--gray-700);
   line-height: 1.7;
   margin: 0;
@@ -57,7 +57,7 @@
 /* ============================================================================
    DRAWER TABS (Left Edge - Vertical Text)
    ============================================================================ */
-.miq-drawer-tab {
+.jas-drawer-tab {
   position: fixed;
   left: 0;
   writing-mode: vertical-rl;
@@ -79,32 +79,32 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   transition: background var(--transition);
 }
-.miq-drawer-tab:hover {
+.jas-drawer-tab:hover {
   background: var(--gray-200);
 }
-.miq-drawer-tab svg {
+.jas-drawer-tab svg {
   writing-mode: horizontal-tb;
   font-size: 0.75rem;
   width: 12px;
   height: 12px;
 }
 
-.miq-drawer-tab-readiness {
+.jas-drawer-tab-readiness {
   top: 80px;
   display: none;
 }
-.miq-drawer-tab-readiness.active {
+.jas-drawer-tab-readiness.active {
   display: flex;
 }
 
-.miq-drawer-tab-history {
+.jas-drawer-tab-history {
   top: 80px;
 }
 
 /* ============================================================================
    DRAWER PANELS (Slide from Left)
    ============================================================================ */
-.miq-drawer {
+.jas-drawer {
   position: fixed;
   top: 0;
   left: 0;
@@ -119,18 +119,18 @@
   transition: transform 0.3s ease;
   box-shadow: 4px 0 12px rgba(22, 31, 59, 0.08);
 }
-.miq-drawer.open {
+.jas-drawer.open {
   transform: translateX(0);
 }
 
-.miq-drawer-header {
+.jas-drawer-header {
   padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
 }
-.miq-drawer-header h3 {
+.jas-drawer-header h3 {
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--navy);
@@ -138,13 +138,13 @@
   align-items: center;
   gap: 8px;
 }
-.miq-drawer-header h3 svg {
+.jas-drawer-header h3 svg {
   color: var(--magenta);
   width: 14px;
   height: 14px;
 }
 
-.miq-drawer-close {
+.jas-drawer-close {
   background: none;
   border: none;
   color: var(--gray-600);
@@ -156,11 +156,11 @@
   align-items: center;
   justify-content: center;
 }
-.miq-drawer-close:hover {
+.jas-drawer-close:hover {
   color: var(--navy);
 }
 
-.miq-drawer-body {
+.jas-drawer-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
@@ -169,49 +169,49 @@
 /* ============================================================================
    READINESS DRAWER CONTENT
    ============================================================================ */
-.miq-readiness-overview {
+.jas-readiness-overview {
   margin-bottom: 20px;
 }
 
-.miq-readiness-pct-row {
+.jas-readiness-pct-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
 
-.miq-readiness-pct {
+.jas-readiness-pct {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--navy);
 }
 
-.miq-readiness-status-text {
+.jas-readiness-status-text {
   font-size: 0.75rem;
   color: var(--gray-600);
 }
 
-.miq-readiness-bar {
+.jas-readiness-bar {
   height: 6px;
   background: var(--gray-300);
   border-radius: 100px;
   overflow: hidden;
   margin-bottom: 4px;
 }
-.miq-readiness-bar .fill {
+.jas-readiness-bar .fill {
   height: 100%;
   background: var(--magenta);
   border-radius: 100px;
   transition: width 0.3s ease;
 }
 
-.miq-readiness-version {
+.jas-readiness-version {
   font-size: 0.625rem;
   color: var(--gray-500);
   text-align: right;
 }
 
-.miq-readiness-section-label {
+.jas-readiness-section-label {
   font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -221,7 +221,7 @@
   margin-top: 8px;
 }
 
-.miq-readiness-item {
+.jas-readiness-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -230,38 +230,38 @@
   font-size: 0.8125rem;
   color: var(--navy);
 }
-.miq-readiness-item:last-child {
+.jas-readiness-item:last-child {
   border-bottom: none;
 }
 
-.miq-readiness-item .ri-icon {
+.jas-readiness-item .ri-icon {
   width: 20px;
   text-align: center;
   color: var(--gray-400);
   font-size: 0.75rem;
   flex-shrink: 0;
 }
-.miq-readiness-item .ri-icon.captured {
+.jas-readiness-item .ri-icon.captured {
   color: var(--magenta);
 }
 
-.miq-readiness-item .ri-label {
+.jas-readiness-item .ri-label {
   flex: 1;
 }
 
-.miq-readiness-item .ri-status {
+.jas-readiness-item .ri-status {
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--gray-500);
 }
-.miq-readiness-item .ri-status.done {
+.jas-readiness-item .ri-status.done {
   color: var(--magenta);
 }
 
 /* ============================================================================
    HISTORY DRAWER CONTENT
    ============================================================================ */
-.miq-history-item {
+.jas-history-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -270,21 +270,21 @@
   cursor: pointer;
   transition: background var(--transition);
 }
-.miq-history-item:last-child {
+.jas-history-item:last-child {
   border-bottom: none;
 }
-.miq-history-item:hover {
+.jas-history-item:hover {
   background: rgba(0, 0, 0, 0.02);
   margin: 0 -20px;
   padding: 10px 20px;
 }
 
-.miq-history-item .hi-text {
+.jas-history-item .hi-text {
   flex: 1;
   min-width: 0;
 }
 
-.miq-history-item .hi-title {
+.jas-history-item .hi-title {
   font-size: 0.8125rem;
   color: var(--navy);
   white-space: nowrap;
@@ -292,7 +292,7 @@
   text-overflow: ellipsis;
 }
 
-.miq-history-item .hi-meta {
+.jas-history-item .hi-meta {
   font-size: 0.6875rem;
   color: var(--gray-600);
   margin-top: 2px;
@@ -300,12 +300,12 @@
   gap: 8px;
 }
 
-.miq-history-item .hi-score {
+.jas-history-item .hi-score {
   font-weight: 600;
   color: var(--magenta);
 }
 
-.miq-history-item .hi-delete {
+.jas-history-item .hi-delete {
   background: none;
   border: none;
   color: var(--gray-400);
@@ -316,14 +316,14 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
-.miq-history-item .hi-delete:hover {
+.jas-history-item .hi-delete:hover {
   color: var(--navy);
 }
 
 /* ============================================================================
    MAIN CHAT AREA
    ============================================================================ */
-.miq-chat-main {
+.jas-chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -332,7 +332,7 @@
 }
 
 /* === Top Bar === */
-.miq-chat-topbar {
+.jas-chat-topbar {
   height: 52px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -343,30 +343,30 @@
   background: var(--white);
 }
 
-.miq-topbar-left {
+.jas-topbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.miq-topbar-title {
+.jas-topbar-title {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--navy);
 }
 
-.miq-topbar-link {
+.jas-topbar-link {
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
   font: inherit;
 }
-.miq-topbar-link:hover {
+.jas-topbar-link:hover {
   text-decoration: underline;
 }
 
-.miq-topbar-new {
+.jas-topbar-new {
   background: none;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -380,23 +380,23 @@
   font-size: 0.75rem;
   transition: all var(--transition);
 }
-.miq-topbar-new:hover {
+.jas-topbar-new:hover {
   border-color: var(--navy);
   color: var(--navy);
 }
 
-.miq-topbar-right {
+.jas-topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 /* === User Avatar & Dropdown === */
-.miq-user-menu-wrapper {
+.jas-user-menu-wrapper {
   position: relative;
 }
 
-.miq-user-avatar {
+.jas-user-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -413,11 +413,11 @@
   font-family: var(--font);
   letter-spacing: 0.02em;
 }
-.miq-user-avatar:hover {
+.jas-user-avatar:hover {
   opacity: 0.85;
 }
 
-.miq-user-dropdown {
+.jas-user-dropdown {
   display: none;
   position: absolute;
   top: calc(100% + 8px);
@@ -430,11 +430,11 @@
   z-index: 500;
   overflow: hidden;
 }
-.miq-user-dropdown.open {
+.jas-user-dropdown.open {
   display: block;
 }
 
-.miq-ud-header {
+.jas-ud-header {
   padding: 16px 18px;
   display: flex;
   align-items: center;
@@ -442,7 +442,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-.miq-ud-header-avatar {
+.jas-ud-header-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -456,11 +456,11 @@
   flex-shrink: 0;
 }
 
-.miq-ud-header-info {
+.jas-ud-header-info {
   min-width: 0;
 }
 
-.miq-ud-header-name {
+.jas-ud-header-name {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--navy);
@@ -469,7 +469,7 @@
   text-overflow: ellipsis;
 }
 
-.miq-ud-header-email {
+.jas-ud-header-email {
   font-size: 0.6875rem;
   color: var(--gray-600);
   white-space: nowrap;
@@ -477,20 +477,20 @@
   text-overflow: ellipsis;
 }
 
-.miq-ud-section {
+.jas-ud-section {
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
 }
-.miq-ud-section:last-child {
+.jas-ud-section:last-child {
   border-bottom: none;
 }
 
-.miq-ud-header-name-row {
+.jas-ud-header-name-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.miq-ud-edit-btn {
+.jas-ud-edit-btn {
   border: 1px solid var(--gray-300);
   background: var(--white);
   color: var(--gray-600);
@@ -503,17 +503,17 @@
   cursor: pointer;
   transition: all var(--transition);
 }
-.miq-ud-edit-btn:hover {
+.jas-ud-edit-btn:hover {
   border-color: var(--navy);
   color: var(--navy);
 }
-.miq-ud-name-edit {
+.jas-ud-name-edit {
   margin-top: 8px;
   display: flex;
   gap: 6px;
   align-items: center;
 }
-.miq-ud-name-input {
+.jas-ud-name-input {
   flex: 1;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
@@ -522,12 +522,12 @@
   font-family: var(--font);
   color: var(--navy);
 }
-.miq-ud-name-input:focus {
+.jas-ud-name-input:focus {
   outline: none;
   border-color: var(--navy);
 }
-.miq-ud-name-save,
-.miq-ud-name-cancel {
+.jas-ud-name-save,
+.jas-ud-name-cancel {
   border: 1px solid var(--gray-300);
   background: var(--white);
   color: var(--gray-600);
@@ -540,20 +540,20 @@
   cursor: pointer;
   transition: all var(--transition);
 }
-.miq-ud-name-save:disabled {
+.jas-ud-name-save:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.miq-ud-name-save:hover {
+.jas-ud-name-save:hover {
   border-color: var(--navy);
   color: var(--navy);
 }
-.miq-ud-name-cancel:hover {
+.jas-ud-name-cancel:hover {
   border-color: var(--magenta);
   color: var(--magenta);
 }
 
-.miq-ud-section-label {
+.jas-ud-section-label {
   padding: 6px 18px 4px;
   font-size: 0.5625rem;
   font-weight: 600;
@@ -562,7 +562,7 @@
   color: var(--gray-500);
 }
 
-.miq-ud-item {
+.jas-ud-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -577,52 +577,52 @@
   text-align: left;
   font-family: var(--font);
 }
-.miq-ud-item:hover {
+.jas-ud-item:hover {
   background: var(--gray-50);
   color: var(--navy);
 }
 
-.miq-ud-item svg {
+.jas-ud-item svg {
   width: 16px;
   height: 16px;
   color: var(--gray-500);
   flex-shrink: 0;
 }
-.miq-ud-item:hover svg {
+.jas-ud-item:hover svg {
   color: var(--navy);
 }
 
-.miq-ud-item-label {
+.jas-ud-item-label {
   flex: 1;
 }
 
-.miq-ud-item-badge {
+.jas-ud-item-badge {
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--gray-500);
 }
 
-.miq-ud-item-ext {
+.jas-ud-item-ext {
   font-size: 0.625rem;
   color: var(--gray-400);
 }
-.miq-ud-item-ext svg {
+.jas-ud-item-ext svg {
   width: 10px;
   height: 10px;
 }
 
-.miq-ud-item.signout {
+.jas-ud-item.signout {
   color: var(--magenta);
 }
-.miq-ud-item.signout svg {
+.jas-ud-item.signout svg {
   color: var(--magenta);
 }
-.miq-ud-item.signout:hover {
+.jas-ud-item.signout:hover {
   background: #fdf0f7;
 }
 
 /* === Help Button === */
-.miq-help-btn {
+.jas-help-btn {
   width: 34px;
   height: 34px;
   display: flex;
@@ -636,12 +636,12 @@
   font-size: 1rem;
   transition: all var(--transition);
 }
-.miq-help-btn:hover {
+.jas-help-btn:hover {
   opacity: 0.85;
 }
 
 /* Name capture modal */
-.miq-name-modal-backdrop {
+.jas-name-modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(10, 12, 24, 0.4);
@@ -651,7 +651,7 @@
   z-index: 1200;
 }
 
-.miq-name-modal {
+.jas-name-modal {
   width: min(420px, 90vw);
   background: var(--white);
   border: 1px solid var(--border);
@@ -661,18 +661,18 @@
   color: var(--navy);
 }
 
-.miq-name-modal h3 {
+.jas-name-modal h3 {
   font-size: 1rem;
   margin-bottom: 6px;
 }
 
-.miq-name-modal p {
+.jas-name-modal p {
   font-size: 0.8125rem;
   color: var(--gray-600);
   margin-bottom: 14px;
 }
 
-.miq-name-input {
+.jas-name-input {
   width: 100%;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
@@ -682,17 +682,17 @@
   color: var(--navy);
   margin-bottom: 14px;
 }
-.miq-name-input:focus {
+.jas-name-input:focus {
   outline: none;
   border-color: var(--navy);
 }
 
-.miq-name-actions {
+.jas-name-actions {
   display: flex;
   justify-content: flex-end;
 }
 
-.miq-name-save {
+.jas-name-save {
   border: none;
   background: var(--magenta);
   color: var(--white);
@@ -701,7 +701,7 @@
   font-size: 0.8125rem;
   cursor: pointer;
 }
-.miq-name-save:disabled {
+.jas-name-save:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -709,7 +709,7 @@
 /* ============================================================================
    CHAT CONTENT (Welcome + Messages)
    ============================================================================ */
-.miq-chat-content {
+.jas-chat-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -720,43 +720,43 @@
   width: 100%;
 }
 
-.miq-chat-welcome {
+.jas-chat-welcome {
   text-align: center;
   max-width: 720px;
   margin: 40px auto 32px;
 }
 
-.miq-chat-welcome .cw-icon {
+.jas-chat-welcome .cw-icon {
   color: var(--navy);
   font-size: 2.5rem;
   margin: 0 auto 20px;
 }
-.miq-chat-welcome .cw-icon svg {
+.jas-chat-welcome .cw-icon svg {
   width: 48px;
   height: 48px;
 }
 
-.miq-chat-welcome h2 {
+.jas-chat-welcome h2 {
   font-size: 2rem;
   margin-bottom: 12px;
   color: var(--navy);
 }
 
-.miq-chat-welcome-title {
+.jas-chat-welcome-title {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
 }
 
-.miq-chat-welcome-unicorn {
+.jas-chat-welcome-unicorn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.miq-chat-welcome p {
+.jas-chat-welcome p {
   font-size: 1rem;
   color: var(--gray-600);
   margin-bottom: 32px;
@@ -764,7 +764,7 @@
 }
 
 /* === Prompt Suggestions === */
-.miq-prompt-suggestions {
+.jas-prompt-suggestions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -774,7 +774,7 @@
   margin: 0 auto;
 }
 
-.miq-prompt-suggestion {
+.jas-prompt-suggestion {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -789,13 +789,13 @@
   font-size: 0.8125rem;
   color: var(--gray-700);
 }
-.miq-prompt-suggestion:hover {
+.jas-prompt-suggestion:hover {
   border-color: var(--navy);
   background: var(--gray-50);
   transform: translateY(-1px);
 }
 
-.miq-prompt-suggestion svg {
+.jas-prompt-suggestion svg {
   color: var(--gray-600);
   font-size: 0.75rem;
   flex-shrink: 0;
@@ -804,7 +804,7 @@
 }
 
 /* === Messages Area === */
-.miq-messages {
+.jas-messages {
   flex: 1;
   overflow-y: auto;
   padding: 24px 0;
@@ -812,15 +812,15 @@
   width: 100%;
 }
 
-.miq-message {
+.jas-message {
   margin-bottom: 24px;
 }
 
-.miq-message.user {
+.jas-message.user {
   text-align: right;
 }
 
-.miq-message-bubble {
+.jas-message-bubble {
   display: inline-block;
   max-width: 80%;
   padding: 12px 16px;
@@ -829,13 +829,13 @@
   line-height: 1.6;
 }
 
-.miq-message.user .miq-message-bubble {
+.jas-message.user .jas-message-bubble {
   background: var(--navy);
   color: var(--white);
   text-align: left;
 }
 
-.miq-message.ai .miq-message-bubble {
+.jas-message.ai .jas-message-bubble {
   background: var(--gray-50);
   color: var(--navy);
   text-align: left;
@@ -844,13 +844,13 @@
 /* ============================================================================
    CHAT INPUT AREA
    ============================================================================ */
-.miq-chat-input-area {
+.jas-chat-input-area {
   padding: 20px 24px 28px;
   flex-shrink: 0;
   width: 100%;
 }
 
-.miq-chat-input-box {
+.jas-chat-input-box {
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -864,12 +864,12 @@
   max-width: 920px;
   margin: 0 auto;
 }
-.miq-chat-input-box:focus-within {
+.jas-chat-input-box:focus-within {
   border-color: var(--navy);
   box-shadow: 0 10px 28px rgba(22, 31, 59, 0.12);
 }
 
-.miq-chat-input-box textarea {
+.jas-chat-input-box textarea {
   flex: 1;
   border: none;
   outline: none;
@@ -882,25 +882,25 @@
   line-height: 1.5;
   background: transparent;
 }
-.miq-chat-input-box textarea::placeholder {
+.jas-chat-input-box textarea::placeholder {
   color: var(--gray-400);
 }
 
 /* === Claude-like Layout Enhancements (Scoped) === */
-.miq-shell {
+.jas-shell {
   background: radial-gradient(1200px 600px at 50% -220px, var(--white) 0%, var(--gray-50) 45%, var(--light-bg) 100%);
 }
 
-.miq-chat-content > .miq-chat-welcome,
-.miq-chat-content > .miq-messages,
-.miq-chat-content > .miq-chat-input-area {
+.jas-chat-content > .jas-chat-welcome,
+.jas-chat-content > .jas-messages,
+.jas-chat-content > .jas-chat-input-area {
   width: 100%;
   max-width: 920px;
   margin-left: auto;
   margin-right: auto;
 }
 
-.miq-chat-welcome .cw-icon {
+.jas-chat-welcome .cw-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -912,29 +912,29 @@
   margin-bottom: 18px;
 }
 
-.miq-shell .miq-chat-topbar {
+.jas-shell .jas-chat-topbar {
   background: transparent;
   border-bottom: none;
   padding: 18px 24px 0;
 }
 
-.miq-shell .miq-chat-topbar .miq-topbar-left,
-.miq-shell .miq-chat-topbar .miq-topbar-right {
+.jas-shell .jas-chat-topbar .jas-topbar-left,
+.jas-shell .jas-chat-topbar .jas-topbar-right {
   padding: 0 12px;
 }
 
-.miq-shell :focus-visible {
+.jas-shell :focus-visible {
   outline: 2px solid var(--magenta);
   outline-offset: 2px;
 }
 
-.miq-chat-input-icons {
+.jas-chat-input-icons {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
 }
 
-.miq-ci-btn {
+.jas-ci-btn {
   width: 32px;
   height: 32px;
   display: flex;
@@ -948,24 +948,24 @@
   font-size: 0.8125rem;
   transition: all var(--transition);
 }
-.miq-ci-btn:hover {
+.jas-ci-btn:hover {
   color: var(--navy);
   background: var(--gray-100);
 }
-.miq-ci-btn.send {
+.jas-ci-btn.send {
   background: var(--navy);
   color: var(--white);
 }
-.miq-ci-btn.send:hover {
+.jas-ci-btn.send:hover {
   background: #1e2a4f;
 }
-.miq-ci-btn:disabled {
+.jas-ci-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Recording state for mic button */
-.miq-ci-btn.recording {
+.jas-ci-btn.recording {
   background: var(--magenta);
   color: var(--white);
   animation: pulse-recording 1.5s infinite;
@@ -1020,7 +1020,7 @@
 /* ============================================================================
    THINKING/LOADING OVERLAY
    ============================================================================ */
-.miq-thinking-overlay {
+.jas-thinking-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
@@ -1030,7 +1030,7 @@
   z-index: 1000;
 }
 
-.miq-thinking-content {
+.jas-thinking-content {
   background: var(--white);
   padding: 24px 32px;
   border-radius: var(--radius-md);
@@ -1045,7 +1045,7 @@
 /* ============================================================================
    FINISH & ANALYZE BUTTON
    ============================================================================ */
-.miq-finish-analyze-btn {
+.jas-finish-analyze-btn {
   background: var(--magenta);
   color: var(--white);
   border: none;
@@ -1060,10 +1060,10 @@
   gap: 8px;
   font-family: var(--font);
 }
-.miq-finish-analyze-btn:hover {
+.jas-finish-analyze-btn:hover {
   background: #8a025d;
 }
-.miq-finish-analyze-btn:disabled {
+.jas-finish-analyze-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1071,7 +1071,7 @@
 /* ============================================================================
    WORKSPACE TABS (Post-Analysis View)
    ============================================================================ */
-.miq-workspace-header {
+.jas-workspace-header {
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -1079,13 +1079,13 @@
   gap: 16px;
 }
 
-.miq-workspace-title {
+.jas-workspace-title {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.miq-brand-small {
+.jas-brand-small {
   font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -1093,20 +1093,20 @@
   color: var(--gray-500);
 }
 
-.miq-project-title {
+.jas-project-title {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--navy);
 }
 
-.miq-top-tabs {
+.jas-top-tabs {
   display: flex;
   align-items: center;
   gap: 4px;
   flex: 1;
 }
 
-.miq-top-tab {
+.jas-top-tab {
   padding: 8px 16px;
   background: none;
   border: 1px solid transparent;
@@ -1118,26 +1118,26 @@
   transition: all var(--transition);
   font-family: var(--font);
 }
-.miq-top-tab:hover {
+.jas-top-tab:hover {
   background: var(--gray-50);
   color: var(--navy);
 }
-.miq-top-tab.active {
+.jas-top-tab.active {
   background: var(--navy);
   color: var(--white);
   border-color: var(--navy);
 }
 
 /* Right rail container for Score tab controls */
-.miq-right-rail {
+.jas-right-rail {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-left: auto;
 }
 
-.miq-scores-select,
-.miq-variant-select {
+.jas-scores-select,
+.jas-variant-select {
   padding: 8px 32px 8px 12px;
   font-size: 0.8125rem;
   font-family: var(--font);
@@ -1154,15 +1154,15 @@
   min-width: 160px;
 }
 
-.miq-scores-select:focus,
-.miq-variant-select:focus {
+.jas-scores-select:focus,
+.jas-variant-select:focus {
   border-color: var(--navy);
 }
 
 /* ============================================================================
    TAB CONTENT AREA
    ============================================================================ */
-.miq-tab-content {
+.jas-tab-content {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
@@ -1171,7 +1171,7 @@
 /* ============================================================================
    DRAWER TAB (Left Edge - Vertical)
    ============================================================================ */
-.miq-sidebar-tab {
+.jas-sidebar-tab {
   position: fixed;
   left: 0;
   top: 80px;
@@ -1195,24 +1195,24 @@
   transition: background var(--transition);
 }
 
-.miq-sidebar-tab:hover {
+.jas-sidebar-tab:hover {
   background: var(--gray-200);
 }
 
-.miq-sidebar-tab svg {
+.jas-sidebar-tab svg {
   writing-mode: horizontal-tb;
   font-size: 0.75rem;
   width: 12px;
   height: 12px;
 }
 
-.miq-tab-label {
+.jas-tab-label {
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }
 
 /* Close button in drawer header */
-.miq-close-btn {
+.jas-close-btn {
   background: none;
   border: none;
   color: var(--gray-600);
@@ -1225,14 +1225,14 @@
   transition: color var(--transition);
 }
 
-.miq-close-btn:hover {
+.jas-close-btn:hover {
   color: var(--navy);
 }
 
 /* ============================================================================
    AI ASSISTANT DRAWER (Left Sidebar)
    ============================================================================ */
-.miq-ai-drawer {
+.jas-ai-drawer {
   position: fixed;
   top: 0;
   left: 0;
@@ -1248,11 +1248,11 @@
   box-shadow: 4px 0 12px rgba(22, 31, 59, 0.08);
 }
 
-.miq-ai-drawer.miq-drawer-open {
+.jas-ai-drawer.jas-drawer-open {
   transform: translateX(0);
 }
 
-.miq-ai-header {
+.jas-ai-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -1261,7 +1261,7 @@
   flex-shrink: 0;
 }
 
-.miq-ai-title {
+.jas-ai-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1270,7 +1270,7 @@
   color: var(--navy);
 }
 
-.miq-ai-badge {
+.jas-ai-badge {
   background: var(--magenta);
   color: var(--white);
   font-size: 0.625rem;
@@ -1281,12 +1281,12 @@
   letter-spacing: 0.05em;
 }
 
-.miq-ai-toggle {
+.jas-ai-toggle {
   display: flex;
   gap: 4px;
 }
 
-.miq-ai-toggle-btn {
+.jas-ai-toggle-btn {
   padding: 6px 12px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -1299,32 +1299,32 @@
   font-family: var(--font);
 }
 
-.miq-ai-toggle-btn:hover {
+.jas-ai-toggle-btn:hover {
   background: var(--gray-50);
   color: var(--navy);
 }
 
-.miq-ai-toggle-btn.active {
+.jas-ai-toggle-btn.active {
   background: var(--navy);
   color: var(--white);
   border-color: var(--navy);
 }
 
-.miq-ai-messages {
+.jas-ai-messages {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
 }
 
-.miq-ai-message {
+.jas-ai-message {
   margin-bottom: 16px;
 }
 
-.miq-ai-message.user {
+.jas-ai-message.user {
   text-align: right;
 }
 
-.miq-ai-message .miq-message-content {
+.jas-ai-message .jas-message-content {
   display: inline-block;
   max-width: 85%;
   padding: 10px 14px;
@@ -1334,17 +1334,17 @@
   text-align: left;
 }
 
-.miq-ai-message.user .miq-message-content {
+.jas-ai-message.user .jas-message-content {
   background: var(--navy);
   color: var(--white);
 }
 
-.miq-ai-message.assistant .miq-message-content {
+.jas-ai-message.assistant .jas-message-content {
   background: var(--gray-50);
   color: var(--navy);
 }
 
-.miq-ai-input-area {
+.jas-ai-input-area {
   padding: 16px 20px;
   border-top: 1px solid var(--border);
   display: flex;
@@ -1352,7 +1352,7 @@
   flex-shrink: 0;
 }
 
-.miq-ai-input {
+.jas-ai-input {
   flex: 1;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
@@ -1364,15 +1364,15 @@
   outline: none;
 }
 
-.miq-ai-input:focus {
+.jas-ai-input:focus {
   border-color: var(--navy);
 }
 
-.miq-ai-input::placeholder {
+.jas-ai-input::placeholder {
   color: var(--gray-400);
 }
 
-.miq-ai-send-btn {
+.jas-ai-send-btn {
   width: 36px;
   height: 36px;
   display: flex;
@@ -1386,12 +1386,12 @@
   transition: all var(--transition);
 }
 
-.miq-ai-send-btn:hover {
+.jas-ai-send-btn:hover {
   background: #1e2a4f;
 }
 
 /* Drawer backdrop overlay */
-.miq-drawer-backdrop {
+.jas-drawer-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
@@ -1400,28 +1400,28 @@
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
 }
-.miq-drawer-backdrop.visible {
+.jas-drawer-backdrop.visible {
   opacity: 1;
   visibility: visible;
 }
 
 /* Workspace adjustment when AI drawer is open - content shrinks to fit */
-.miq-workspace.miq-ai-open {
+.jas-workspace.jas-ai-open {
   margin-left: 380px;
   transition: margin-left 0.3s ease;
 }
 
-.miq-workspace.miq-readiness-open {
+.jas-workspace.jas-readiness-open {
   margin-left: 380px;
   transition: margin-left 0.3s ease;
 }
-.miq-workspace.miq-settings-open {
+.jas-workspace.jas-settings-open {
   margin-left: 380px;
   transition: margin-left 0.3s ease;
 }
 
 /* Floating button to reopen AI drawer */
-.miq-ai-float-btn {
+.jas-ai-float-btn {
   position: fixed;
   bottom: 24px;
   left: 24px;
@@ -1441,19 +1441,19 @@
   z-index: 100;
 }
 
-.miq-ai-float-btn:hover {
+.jas-ai-float-btn:hover {
   background: #1e2a4f;
   transform: scale(1.05);
 }
 
 /* Drawer subtabs (Assistant / Score Summary toggle) */
-.miq-ai-subtabs {
+.jas-ai-subtabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.miq-ai-subtab {
+.jas-ai-subtab {
   flex: 1;
   padding: 10px 12px;
   font-size: 0.75rem;
@@ -1468,19 +1468,19 @@
   transition: all var(--transition);
 }
 
-.miq-ai-subtab.active {
+.jas-ai-subtab.active {
   color: var(--navy);
   border-bottom-color: var(--magenta);
 }
 
-.miq-ai-subtab:hover {
+.jas-ai-subtab:hover {
   color: var(--navy);
 }
 
 /* ============================================================================
    SCENARIOS TAB
    ============================================================================ */
-.miq-scenario-info {
+.jas-scenario-info {
   background: var(--navy);
   color: rgba(255, 255, 255, 0.8);
   padding: 16px 20px;
@@ -1490,13 +1490,13 @@
   border-radius: var(--radius-sm);
 }
 
-.miq-scenario-cols {
+.jas-scenario-cols {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.miq-scenario-col {
+.jas-scenario-col {
   flex: 1;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1504,7 +1504,7 @@
   background: var(--white);
 }
 
-.miq-scenario-header {
+.jas-scenario-header {
   background: var(--navy);
   color: var(--white);
   padding: 12px 16px;
@@ -1515,7 +1515,7 @@
   justify-content: space-between;
 }
 
-.miq-scenario-badge {
+.jas-scenario-badge {
   background: rgba(255, 255, 255, 0.2);
   padding: 2px 10px;
   border-radius: 100px;
@@ -1524,11 +1524,11 @@
   text-transform: uppercase;
 }
 
-.miq-scenario-body {
+.jas-scenario-body {
   padding: 16px;
 }
 
-.miq-scenario-field {
+.jas-scenario-field {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1537,50 +1537,50 @@
   font-size: 0.8125rem;
 }
 
-.miq-scenario-field:last-of-type {
+.jas-scenario-field:last-of-type {
   border-bottom: none;
 }
 
-.miq-scenario-field-label {
+.jas-scenario-field-label {
   color: var(--navy);
 }
 
-.miq-scenario-field-value {
+.jas-scenario-field-value {
   color: var(--gray-500);
   font-weight: 500;
 }
 
-.miq-scenario-score-box {
+.jas-scenario-score-box {
   text-align: center;
   padding: 16px 0 8px;
   border-top: 1px solid var(--border);
   margin-top: 8px;
 }
 
-.miq-scenario-score-label {
+.jas-scenario-score-label {
   font-size: 0.6875rem;
   color: var(--gray-500);
 }
 
-.miq-scenario-score-num {
+.jas-scenario-score-num {
   font-size: 2rem;
   font-weight: 700;
   color: var(--navy);
 }
 
-.miq-scenario-score-sub {
+.jas-scenario-score-sub {
   font-size: 0.6875rem;
   color: var(--gray-500);
 }
 
-.miq-scenario-actions {
+.jas-scenario-actions {
   display: flex;
   gap: 8px;
   justify-content: center;
   padding: 20px 16px;
 }
 
-.miq-scenario-btn {
+.jas-scenario-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1595,26 +1595,26 @@
   transition: all var(--transition);
 }
 
-.miq-scenario-btn:hover {
+.jas-scenario-btn:hover {
   border-color: var(--navy);
   color: var(--navy);
 }
 
-.miq-scenario-btn i,
-.miq-scenario-btn svg {
+.jas-scenario-btn i,
+.jas-scenario-btn svg {
   font-size: 0.75rem;
   width: 12px;
   height: 12px;
 }
 
-.miq-scenario-bottom-actions {
+.jas-scenario-bottom-actions {
   display: flex;
   gap: 12px;
   justify-content: center;
   margin-bottom: 20px;
 }
 
-.miq-scenario-hint {
+.jas-scenario-hint {
   background: var(--navy);
   color: rgba(255, 255, 255, 0.7);
   padding: 14px 20px;
@@ -1627,47 +1627,47 @@
    RESPONSIVE ADJUSTMENTS
    ============================================================================ */
 @media (max-width: 768px) {
-  .miq-chat-topbar {
+  .jas-chat-topbar {
     padding: 0 16px;
   }
 
-  .miq-drawer {
+  .jas-drawer {
     width: 100%;
   }
 
-  .miq-drawer-tab {
+  .jas-drawer-tab {
     display: none;
   }
 
-  .miq-chat-content {
+  .jas-chat-content {
     padding: 24px 16px;
   }
 
-  .miq-chat-input-area {
+  .jas-chat-input-area {
     padding: 12px 16px;
   }
 
-  .miq-workspace-header {
+  .jas-workspace-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .miq-top-tabs {
+  .jas-top-tabs {
     flex-wrap: wrap;
   }
 
   /* AI drawer responsive */
-  .miq-ai-drawer {
+  .jas-ai-drawer {
     width: 100%;
   }
 
-  .miq-workspace.miq-ai-open,
-  .miq-workspace.miq-readiness-open,
-  .miq-workspace.miq-settings-open {
+  .jas-workspace.jas-ai-open,
+  .jas-workspace.jas-readiness-open,
+  .jas-workspace.jas-settings-open {
     margin-left: 0;
   }
 
-  .miq-shell.drawer-open .chatgpt-interface {
+  .jas-shell.drawer-open .chatgpt-interface {
     margin-left: 0;
   }
 }
@@ -1675,13 +1675,13 @@
 /* ============================================================================
    LEGACY COMPATIBILITY (keep existing functionality working)
    ============================================================================ */
-.miq { font-family: var(--font); }
-.miq-shell { display: flex; height: 100vh; width: 100%; overflow: hidden; position: relative; background: var(--white); }
-.miq-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
-.miq-shell.drawer-open .chatgpt-interface { margin-left: 380px; transition: margin-left 0.3s ease; }
+.jas { font-family: var(--font); }
+.jas-shell { display: flex; height: 100vh; width: 100%; overflow: hidden; position: relative; background: var(--white); }
+.jas-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
+.jas-shell.drawer-open .chatgpt-interface { margin-left: 380px; transition: margin-left 0.3s ease; }
 
 /* Sidebar legacy classes */
-.miq-left-sidebar {
+.jas-left-sidebar {
   position: fixed;
   left: -380px;
   top: 0;
@@ -1695,24 +1695,24 @@
   transition: left 0.3s ease;
   box-shadow: 4px 0 12px rgba(22, 31, 59, 0.08);
 }
-.miq-left-sidebar.sidebar-open {
+.jas-left-sidebar.sidebar-open {
   left: 0;
 }
 
-.miq-sidebar-header {
+.jas-sidebar-header {
   padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
 }
-.miq-sidebar-header h3 {
+.jas-sidebar-header h3 {
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--navy);
   margin: 0;
 }
-.miq-sidebar-close {
+.jas-sidebar-close {
   background: none;
   border: none;
   color: var(--gray-600);
@@ -1722,10 +1722,10 @@
   align-items: center;
   justify-content: center;
 }
-.miq-sidebar-close:hover {
+.jas-sidebar-close:hover {
   color: var(--navy);
 }
-.miq-sidebar-content {
+.jas-sidebar-content {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
@@ -1734,7 +1734,7 @@
 /* ============================================================================
    REFINE & RESCORE TAB (Chat Tab)
    ============================================================================ */
-.miq-chat-tab {
+.jas-chat-tab {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -1743,7 +1743,7 @@
   overflow: hidden;
 }
 
-.miq-chat-tab .chatgpt-content {
+.jas-chat-tab .chatgpt-content {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -1754,7 +1754,7 @@
   align-items: center;
 }
 
-.miq-chat-tab .chatgpt-messages {
+.jas-chat-tab .chatgpt-messages {
   flex: 1;
   overflow-y: auto;
   padding: 32px 32px 16px;
@@ -1763,21 +1763,21 @@
   max-width: 920px;
 }
 
-.miq-chat-tab .chatgpt-conversation {
+.jas-chat-tab .chatgpt-conversation {
   width: 100%;
   max-width: 100%;
 }
 
-.miq-chat-tab .chatgpt-message {
+.jas-chat-tab .chatgpt-message {
   margin-bottom: 16px;
   width: 100%;
 }
 
-.miq-chat-tab .chatgpt-message.user {
+.jas-chat-tab .chatgpt-message.user {
   text-align: right;
 }
 
-.miq-chat-tab .chatgpt-message .message-content {
+.jas-chat-tab .chatgpt-message .message-content {
   display: inline-block;
   max-width: 80%;
   padding: 14px 18px;
@@ -1787,20 +1787,20 @@
   text-align: left;
 }
 
-.miq-chat-tab .chatgpt-message.user .message-content {
+.jas-chat-tab .chatgpt-message.user .message-content {
   background: var(--magenta);
   color: var(--white);
   border-bottom-right-radius: 2px;
 }
 
-.miq-chat-tab .chatgpt-message.ai .message-content {
+.jas-chat-tab .chatgpt-message.ai .message-content {
   background: var(--gray-50);
   color: var(--navy);
   border: 1px solid var(--border);
   border-bottom-left-radius: 2px;
 }
 
-.miq-chat-tab .chatgpt-input-area {
+.jas-chat-tab .chatgpt-input-area {
   padding: 16px 32px 28px;
   flex-shrink: 0;
   width: 100%;
@@ -1809,7 +1809,7 @@
   max-width: 920px;
 }
 
-.miq-chat-tab .chatgpt-input-container {
+.jas-chat-tab .chatgpt-input-container {
   max-width: 100%;
   width: 100%;
   display: flex;
@@ -2001,7 +2001,7 @@
 }
 
 /* No history message */
-.miq-no-history {
+.jas-no-history {
   text-align: center;
   color: var(--gray-500);
   font-size: 0.875rem;
@@ -2009,29 +2009,29 @@
 }
 
 /* Readiness display */
-.miq-readiness-display {
+.jas-readiness-display {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 1rem 0 2rem;
 }
 
-.miq-readiness-circle {
+.jas-readiness-circle {
   position: relative;
   width: 120px;
   height: 120px;
   margin-bottom: 1rem;
 }
 
-.miq-progress-ring {
+.jas-progress-ring {
   transform: rotate(-90deg);
 }
 
-.miq-progress-ring-fill {
+.jas-progress-ring-fill {
   transition: stroke-dasharray 0.3s ease;
 }
 
-.miq-readiness-percent {
+.jas-readiness-percent {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -2041,18 +2041,18 @@
   color: var(--navy);
 }
 
-.miq-readiness-status {
+.jas-readiness-status {
   font-size: 0.875rem;
   color: var(--gray-600);
   text-align: center;
 }
 
 /* Collected section */
-.miq-collected-section {
+.jas-collected-section {
   margin-top: 1.5rem;
 }
 
-.miq-collected-section h4 {
+.jas-collected-section h4 {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--navy);
@@ -2060,39 +2060,39 @@
 }
 
 /* Checklist */
-.miq-checklist {
+.jas-checklist {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.miq-check-item {
+.jas-check-item {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
-.miq-check-item:last-child {
+.jas-check-item:last-child {
   border-bottom: none;
 }
 
-.miq-check {
+.jas-check {
   width: 18px;
   height: 18px;
   accent-color: var(--magenta);
 }
 
-.miq-check-main {
+.jas-check-main {
   flex: 1;
 }
 
-.miq-check-label {
+.jas-check-label {
   font-size: 0.8125rem;
   color: var(--navy);
 }
 
-.miq-check-meta {
+.jas-check-meta {
   font-size: 0.6875rem;
   color: var(--gray-500);
   margin-top: 2px;
@@ -2120,7 +2120,7 @@
 }
 
 /* Workspace content */
-.miq-workspace {
+.jas-workspace {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -2130,14 +2130,14 @@
   transition: margin-left 0.3s ease;
 }
 
-.miq-workspace-content {
+.jas-workspace-content {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
 }
 
 /* Workspace body - container for tab content */
-.miq-workspace-body {
+.jas-workspace-body {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -2151,6 +2151,6 @@
 }
 
 /* Ensure workspace transitions smoothly */
-.miq-workspace {
+.jas-workspace {
   transition: margin-left 0.3s ease;
 }

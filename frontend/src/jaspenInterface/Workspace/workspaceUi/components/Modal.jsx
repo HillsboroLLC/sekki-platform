@@ -28,11 +28,11 @@ const overlayStyle = {
 };
 
 const modalStyle = {
-  background: 'var(--miq-white)',
-  borderRadius: 'var(--miq-radius-md)',
+  background: 'var(--jas-white)',
+  borderRadius: 'var(--jas-radius-md)',
   width: '520px',
   maxWidth: '90vw',
-  boxShadow: 'var(--miq-shadow-xl)',
+  boxShadow: 'var(--jas-shadow-xl)',
 };
 
 const headerStyle = {
@@ -43,21 +43,21 @@ const headerStyle = {
 };
 
 const titleStyle = {
-  fontSize: 'var(--miq-text-xl)',
+  fontSize: 'var(--jas-text-xl)',
   fontWeight: 700,
-  color: 'var(--miq-navy)',
+  color: 'var(--jas-navy)',
 };
 
 const subtitleStyle = {
-  fontSize: 'var(--miq-text-sm)',
-  color: 'var(--miq-gray-500)',
+  fontSize: 'var(--jas-text-sm)',
+  color: 'var(--jas-gray-500)',
   marginTop: '2px',
 };
 
 const closeStyle = {
   background: 'none',
   border: 'none',
-  color: 'var(--miq-gray-500)',
+  color: 'var(--jas-gray-500)',
   cursor: 'pointer',
   fontSize: '1rem',
   padding: '4px',
@@ -72,7 +72,7 @@ const footerStyle = {
   display: 'flex',
   gap: '10px',
   justifyContent: 'flex-end',
-  borderTop: '1px solid var(--miq-border)',
+  borderTop: '1px solid var(--jas-border)',
 };
 
 export default function Modal({
@@ -89,14 +89,14 @@ export default function Modal({
 
   return (
     <div
-      className={`miq-modal-overlay ${className}`}
+      className={`jas-modal-overlay ${className}`}
       style={overlayStyle}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose?.();
       }}
       {...props}
     >
-      <div className="miq-modal" style={modalStyle}>
+      <div className="jas-modal" style={modalStyle}>
         {/* Header */}
         <div style={headerStyle}>
           <div>

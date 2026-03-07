@@ -9,7 +9,7 @@ const base = ({ size = 32, strokeWidth = 1.4, title, className, ...rest }) => ({
   xmlns: "http://www.w3.org/2000/svg",
   role: "img",
   "aria-label": title,
-  className: ["miq-icon", className].filter(Boolean).join(" "),
+  className: ["jas-icon", className].filter(Boolean).join(" "),
   fill: "none",                // default: no fills for stroked shapes
   stroke: "currentColor",
   strokeWidth,

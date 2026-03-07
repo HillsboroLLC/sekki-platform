@@ -11,13 +11,13 @@
 import React from 'react';
 
 const variantStyles = {
-  navy:    { background: 'var(--miq-navy)',    color: 'var(--miq-white)' },
-  magenta: { background: 'var(--miq-magenta)', color: 'var(--miq-white)' },
+  navy:    { background: 'var(--jas-navy)',    color: 'var(--jas-white)' },
+  magenta: { background: 'var(--jas-magenta)', color: 'var(--jas-white)' },
   success: { background: '#e6f9ee',            color: '#0d7a3e' },
   warning: { background: '#fff8e1',            color: '#b8860b' },
   danger:  { background: '#fde8e8',            color: '#c0392b' },
   info:    { background: '#e8f4fd',            color: '#1a73e8' },
-  outline: { background: 'transparent',        color: 'var(--miq-navy)', border: '1px solid var(--miq-gray-300)' },
+  outline: { background: 'transparent',        color: 'var(--jas-navy)', border: '1px solid var(--jas-gray-300)' },
 };
 
 const baseStyle = {
@@ -25,9 +25,9 @@ const baseStyle = {
   alignItems: 'center',
   gap: '4px',
   padding: '3px 10px',
-  fontSize: 'var(--miq-text-sm)',
+  fontSize: 'var(--jas-text-sm)',
   fontWeight: 600,
-  borderRadius: 'var(--miq-radius-full)',
+  borderRadius: 'var(--jas-radius-full)',
   textTransform: 'uppercase',
   letterSpacing: '0.03em',
   lineHeight: 1.4,
@@ -49,7 +49,7 @@ export default function Badge({
   };
 
   return (
-    <span className={`miq-badge ${className}`} style={merged} {...props}>
+    <span className={`jas-badge ${className}`} style={merged} {...props}>
       {icon && <i className={icon} style={{ fontSize: '0.6rem' }} />}
       {children}
     </span>

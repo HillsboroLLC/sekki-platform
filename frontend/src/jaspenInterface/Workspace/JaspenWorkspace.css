@@ -1298,6 +1298,12 @@
   color: var(--gray-400);
 }
 
+.jas-chat-input-box textarea:focus,
+.jas-chat-input-box textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* === Claude-like Layout Enhancements (Scoped) === */
 .jas-shell {
   background: radial-gradient(1200px 600px at 50% -220px, var(--white) 0%, var(--gray-50) 45%, var(--light-bg) 100%);
@@ -1365,11 +1371,13 @@
   background: var(--gray-100);
 }
 .jas-ci-btn.send {
-  background: var(--navy);
-  color: var(--white);
+  background: transparent;
+  color: var(--gray-600);
+  border: none;
 }
 .jas-ci-btn.send:hover {
-  background: #1e2a4f;
+  background: transparent;
+  color: var(--navy);
 }
 .jas-ci-btn:disabled {
   opacity: 0.5;
@@ -2351,14 +2359,15 @@
   align-items: center;
   justify-content: center;
   border: none;
-  background: var(--navy);
-  color: var(--white);
+  background: transparent;
+  color: var(--gray-600);
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: all var(--transition);
 }
 .chatgpt-send:hover {
-  background: #1e2a4f;
+  background: transparent;
+  color: var(--navy);
 }
 .chatgpt-send:disabled {
   opacity: 0.5;

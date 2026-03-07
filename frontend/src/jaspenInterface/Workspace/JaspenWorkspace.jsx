@@ -508,7 +508,19 @@ const refreshBundle = async (tid) => {
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   }, [welcomeNow]);
-  const welcomeHeading = `${greetingPrefix}, ${preferredFirstName}. What would you like to work on?`;
+  const dynamicPrompt = useMemo(() => {
+    const prompts = [
+      'Ready to build momentum?',
+      "Let's make progress.",
+      "Let's move this forward.",
+      'Ready to get something done?',
+      "Let's turn ideas into action."
+    ];
+    const seed = `${preferredFirstName}-${welcomeNow.getFullYear()}-${welcomeNow.getMonth()}-${welcomeNow.getDate()}`;
+    const hash = [...seed].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return prompts[hash % prompts.length];
+  }, [preferredFirstName, welcomeNow]);
+  const welcomeHeading = `${greetingPrefix}, ${preferredFirstName}. ${dynamicPrompt}`;
 
   useEffect(() => {
     if (!user) return;

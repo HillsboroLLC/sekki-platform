@@ -1286,6 +1286,65 @@
   color: var(--marketing-gray-700);
 }
 
+.pricing-inline-status {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  color: #385378;
+}
+
+.pricing-plan-card.is-featured {
+  border-color: rgba(160, 3, 108, 0.45);
+  box-shadow: 0 16px 36px rgba(160, 3, 108, 0.13);
+}
+
+.pricing-cta-button,
+.pricing-cta-link,
+.pricing-portal-button {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 28, 58, 0.12);
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  background: #0d1230;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.pricing-cta-button:hover,
+.pricing-cta-link:hover,
+.pricing-portal-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(13, 18, 48, 0.23);
+}
+
+.pricing-cta-button:disabled,
+.pricing-portal-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.pricing-pack-copy {
+  margin: 0 0 14px;
+  color: var(--marketing-gray-700);
+}
+
+.pricing-pack-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pricing-pack-card .plan-price {
+  color: #304f87;
+}
+
 .score-intro-layout {
   display: grid;
   grid-template-columns: 1.16fr 0.84fr;

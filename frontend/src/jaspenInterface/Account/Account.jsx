@@ -1,609 +1,324 @@
-// src/pages/Account/Account.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../config/apiBase';
 import './Account.css';
 
-const Account = () => {
+function getToken() {
+  return localStorage.getItem('access_token') || localStorage.getItem('token');
+}
+
+const PLAN_ORDER = ['free', 'essential', 'team', 'enterprise'];
+const PACK_ORDER = ['pack_1000', 'pack_5000', 'pack_20000'];
+
+export default function Account() {
   const navigate = useNavigate();
-  
-  // State management
-  const [userInfo, setUserInfo] = useState({
-    plan: 'Essential',
-    extraSeats: 0,
-    totalSeats: 1,
-    paymentMethod: null,
-    planHistory: []
-  });
-  
-  const [showManageModal, setShowManageModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('plan');
-  const [selectedPlan, setSelectedPlan] = useState('essential');
-  const [extraSeats, setExtraSeats] = useState(0);
-  const [selectedCredits, setSelectedCredits] = useState(0);
-  const [paymentOption, setPaymentOption] = useState('onfile');
-  const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [status, setStatus] = useState(null);
+  const [catalog, setCatalog] = useState({ plans: {}, overage_packs: {} });
+  const [loading, setLoading] = useState(true);
+  const [pendingAction, setPendingAction] = useState('');
+  const [message, setMessage] = useState('');
 
-  // Load user data on component mount
   useEffect(() => {
-    loadUserData();
-  }, []);
+    let mounted = true;
 
-  const loadUserData = async () => {
-    try {
-      // Try to load from API
-      const response = await fetch(`${API_BASE}/api/user/profile`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUserInfo(data);
-        setSelectedPlan(data.plan.toLowerCase());
-        setExtraSeats(data.extraSeats || 0);
-      } else {
-        // Fallback to mock data
-        setUserInfo({
-          plan: 'Essential',
-          extraSeats: 0,
-          totalSeats: 1,
-          paymentMethod: {
-            last4: '4242',
-            expMonth: '12',
-            expYear: '2025'
-          },
-          planHistory: [
-            {
-              date: '2024-01-15T10:30:00Z',
-              plan: 'Essential',
-              amount: '$39.99'
-            }
-          ]
-        });
+    const load = async () => {
+      const token = getToken();
+      if (!token) {
+        navigate('/?auth=1', { replace: true });
+        return;
       }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    }
+
+      try {
+        const [statusRes, catalogRes] = await Promise.all([
+          fetch(`${API_BASE}/api/billing/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE}/api/billing/catalog`),
+        ]);
+
+        const statusData = await statusRes.json();
+        const catalogData = await catalogRes.json();
+
+        if (!statusRes.ok) throw new Error(statusData?.msg || 'Unable to load billing status.');
+        if (mounted) {
+          setStatus(statusData);
+          setCatalog(catalogData || { plans: {}, overage_packs: {} });
+        }
+      } catch (error) {
+        if (mounted) setMessage(error.message || 'Unable to load account details.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [navigate]);
+
+  const refreshStatus = async () => {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${API_BASE}/api/billing/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (res.ok) setStatus(data);
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.'
-    );
-    
-    if (!confirmed) return;
-
-    try {
-      setLoading(true);
-      
-      const response = await fetch(`${API_BASE}/api/user/delete`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (response.ok) {
-        // Clear local storage and redirect
-        localStorage.clear();
-        navigate('/?account=deleted');
-      } else {
-        setStatusMessage('Failed to delete account. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      setStatusMessage('Failed to delete account. Please try again.');
-    } finally {
-      setLoading(false);
+  const startPlanChange = async (planKey) => {
+    const token = getToken();
+    if (!token) {
+      navigate('/?auth=1');
+      return;
     }
-  };
 
-  const handleManageSubscription = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setStatusMessage('');
+    setPendingAction(planKey);
+    setMessage('');
 
     try {
-      const formData = {
-        plan: selectedPlan,
-        extraSeats: extraSeats,
-        credits: selectedCredits,
-        paymentOption: paymentOption
-      };
-
-      const response = await fetch(`${API_BASE}/api/user/subscription`, {
-        method: 'PUT',
+      const response = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ plan_key: planKey }),
       });
+      const data = await response.json();
 
-      if (response.ok) {
-        setStatusMessage('Subscription updated successfully!');
-        loadUserData(); // Reload user data
-        setTimeout(() => {
-          setShowManageModal(false);
-          setStatusMessage('');
-        }, 2000);
-      } else {
-        setStatusMessage('Failed to update subscription. Please try again.');
+      if (!response.ok) {
+        throw new Error(data?.msg || 'Unable to start plan change.');
       }
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      setMessage('Plan updated successfully.');
+      await refreshStatus();
     } catch (error) {
-      console.error('Error updating subscription:', error);
-      setStatusMessage('Failed to update subscription. Please try again.');
+      setMessage(error.message || 'Unable to start plan change.');
     } finally {
-      setLoading(false);
+      setPendingAction('');
     }
   };
 
-  const handleUpdatePayment = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setStatusMessage('');
+  const openBillingPortal = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setPendingAction('portal');
+    setMessage('');
 
     try {
-      // This would integrate with Stripe in a real implementation
-      setStatusMessage('Payment method updated successfully!');
-      loadUserData();
-      setTimeout(() => {
-        setShowPaymentModal(false);
-        setStatusMessage('');
-      }, 2000);
+      const response = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ return_url: `${window.location.origin}/account` }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.msg || 'No billing portal is available yet for this account.');
+      }
+      window.location.href = data.url;
     } catch (error) {
-      console.error('Error updating payment method:', error);
-      setStatusMessage('Failed to update payment method. Please try again.');
+      setMessage(error.message || 'Unable to open billing portal.');
     } finally {
-      setLoading(false);
+      setPendingAction('');
     }
   };
 
-  const calculatePlanTotal = () => {
-    let total = 0;
-    
-    switch(selectedPlan) {
-      case 'essential':
-        total = 39.99;
-        break;
-      case 'growth':
-        total = 99.99 + (extraSeats * 29.99);
-        break;
-      case 'transform':
-        total = 4999 + (extraSeats * 799.99);
-        break;
-      case 'founder':
-        total = 2999;
-        break;
+  const cancelAtPeriodEnd = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setPendingAction('cancel');
+    setMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE}/api/billing/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.msg || 'Unable to cancel subscription.');
+      }
+      setMessage('Subscription will cancel at period end.');
+      await refreshStatus();
+    } catch (error) {
+      setMessage(error.message || 'Unable to cancel subscription.');
+    } finally {
+      setPendingAction('');
     }
-    
-    return total;
   };
 
-  const getCreditPrice = () => {
-    const prices = {
-      10: 19.99,
-      20: 39.98,
-      30: 59.97,
-      50: 99.95,
-      100: 199.90
-    };
-    return prices[selectedCredits] || 0;
+  const buyPack = async (packKey) => {
+    const token = getToken();
+    if (!token) return;
+
+    setPendingAction(packKey);
+    setMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE}/api/billing/create-overage-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pack_key: packKey }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.msg || 'Unable to start overage checkout.');
+      }
+      window.location.href = data.url;
+    } catch (error) {
+      setMessage(error.message || 'Unable to start overage checkout.');
+    } finally {
+      setPendingAction('');
+    }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  if (loading) {
+    return (
+      <div className="account-page">
+        <div className="account-panel">Loading account details...</div>
+      </div>
+    );
+  }
+
+  const currentPlan = status?.plan_key || 'free';
+  const plans = catalog?.plans || {};
+  const packs = catalog?.overage_packs || {};
 
   return (
     <div className="account-page">
-      {/* Header */}
-      <div className="account-header">
-        <button 
-          onClick={() => navigate('/dashboard')} 
-          className="back-link"
-        >
-          ← Back to Workspace
-        </button>
-        <h1>My Account</h1>
-        <p className="subtitle">Manage your SEKKI subscription and account settings</p>
-      </div>
-
-      {/* Main Grid */}
-      <div className="account-grid">
-        {/* Subscription Card */}
-        <div className="account-card">
-          <div className="card-header">
-            <div className="card-icon">
-              <i className="fas fa-crown"></i>
-            </div>
-            <h2 className="card-title">Subscription</h2>
-          </div>
-          
-          <div className="plan-badge">
-            {userInfo.plan}
-            {userInfo.plan.toLowerCase() === 'founder' && (
-              <span className="founder-badge">Lifetime</span>
-            )}
-          </div>
-          
-          <div className="plan-details">
-            <div className="detail-item">
-              <span className="detail-value">{userInfo.totalSeats}</span>
-              <span className="detail-label">Total Seats</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-value">{userInfo.extraSeats}</span>
-              <span className="detail-label">Extra Seats</span>
-            </div>
-          </div>
-
-          {userInfo.plan.toLowerCase() !== 'founder' && (
-            <button 
-              onClick={() => setShowManageModal(true)}
-              className="btn btn-primary"
-            >
-              <i className="fas fa-cog"></i>
-              Manage Subscription
-            </button>
-          )}
+      <div className="account-panel">
+        <div className="account-header-row">
+          <h1>Billing & Usage</h1>
+          <button type="button" onClick={() => navigate('/dashboard')} className="account-secondary-btn">
+            Back to dashboard
+          </button>
         </div>
 
-        {/* Payment Method Card */}
-        <div className="account-card">
-          <div className="card-header">
-            <div className="card-icon">
-              <i className="fas fa-credit-card"></i>
-            </div>
-            <h2 className="card-title">Payment Method</h2>
-          </div>
-          
-          {userInfo.paymentMethod ? (
-            <>
-              <div className="payment-info">
-                <div className="card-visual">
-                  CARD
-                </div>
-                <div className="payment-details">
-                  <h4>•••• •••• •••• {userInfo.paymentMethod.last4}</h4>
-                  <p>Expires {userInfo.paymentMethod.expMonth}/{userInfo.paymentMethod.expYear.slice(-2)}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowPaymentModal(true)}
-                className="btn btn-primary"
-              >
-                <i className="fas fa-edit"></i>
-                Update Card
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="empty-state">
-                <i className="fas fa-credit-card"></i>
-                <p>No payment method on file</p>
-              </div>
-              <button 
-                onClick={() => setShowPaymentModal(true)}
-                className="btn btn-primary"
-              >
-                <i className="fas fa-plus"></i>
-                Add Payment Method
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+        <p className="account-subtext">
+          Current plan: <strong>{(plans[currentPlan]?.label || currentPlan).toString()}</strong>
+        </p>
 
-      {/* Plan History Card (Full Width) */}
-      <div className="account-grid">
-        <div className="account-card account-grid-full">
-          <div className="card-header">
-            <div className="card-icon">
-              <i className="fas fa-history"></i>
-            </div>
-            <h2 className="card-title">Plan Change History</h2>
-          </div>
-          
-          {userInfo.planHistory && userInfo.planHistory.length > 0 ? (
-            <div className="history-timeline">
-              {userInfo.planHistory.map((entry, index) => (
-                <div key={index} className="history-item">
-                  <div className="history-date">
-                    {formatDate(entry.date)}
-                  </div>
-                  <div className="history-action">
-                    Switched to <strong>{entry.plan}</strong> plan
-                    {entry.amount && (
-                      <span className="history-amount">{entry.amount}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <i className="fas fa-clock"></i>
-              <p>No plan changes recorded yet</p>
-            </div>
-          )}
-          
-          {/* Delete Account Section */}
-          <div className="delete-account-section">
-            <button 
-              onClick={handleDeleteAccount}
-              className="delete-account-link"
-              disabled={loading}
-            >
-              {loading ? 'Deleting...' : 'Delete my account'}
-            </button>
-          </div>
+        <div className="account-usage-grid">
+          <article className="account-usage-card">
+            <h3>Credits remaining</h3>
+            <p className="account-big-value">
+              {status?.credits_remaining == null ? 'Contracted' : Number(status?.credits_remaining || 0).toLocaleString()}
+            </p>
+          </article>
+          <article className="account-usage-card">
+            <h3>Monthly limit</h3>
+            <p className="account-big-value">
+              {status?.monthly_credit_limit == null ? 'Contracted' : Number(status?.monthly_credit_limit || 0).toLocaleString()}
+            </p>
+          </article>
         </div>
-      </div>
 
-      {/* Manage Subscription Modal */}
-      {showManageModal && (
-        <div className="modal-overlay" onClick={() => setShowManageModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button 
-              onClick={() => setShowManageModal(false)}
-              className="modal-close"
-            >
-              ×
-            </button>
-            <h2>Manage Subscription</h2>
-            
-            <div className="tab-buttons">
-              <button 
-                className={`tab-button ${activeTab === 'plan' ? 'active' : ''}`}
-                onClick={() => setActiveTab('plan')}
-              >
-                Plan & Seats
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'credits' ? 'active' : ''}`}
-                onClick={() => setActiveTab('credits')}
-              >
-                Add Credits
-              </button>
-            </div>
-            
-            <form onSubmit={handleManageSubscription}>
-              {activeTab === 'plan' && (
-                <div className="plan-section">
-                  <div className="form-group">
-                    <label>Select Plan:</label>
-                    
-                    <div className={`plan-option ${selectedPlan === 'essential' ? 'selected' : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="plan" 
-                        value="essential"
-                        checked={selectedPlan === 'essential'}
-                        onChange={(e) => setSelectedPlan(e.target.value)}
-                      />
-                      <div className="plan-details">
-                        <h4>Essential</h4>
-                        <p>3 documents/month, 1 seat (no additional seats)</p>
-                      </div>
-                      <div className="plan-price">$39.99/month</div>
-                    </div>
-                    
-                    <div className={`plan-option ${selectedPlan === 'growth' ? 'selected' : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="plan" 
-                        value="growth"
-                        checked={selectedPlan === 'growth'}
-                        onChange={(e) => setSelectedPlan(e.target.value)}
-                      />
-                      <div className="plan-details">
-                        <h4>Growth</h4>
-                        <p>10 documents/month, 1 seat (+$29.99 per extra seat)</p>
-                      </div>
-                      <div className="plan-price">$99.99/month</div>
-                    </div>
-                    
-                    <div className={`plan-option ${selectedPlan === 'founder' ? 'selected' : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="plan" 
-                        value="founder"
-                        checked={selectedPlan === 'founder'}
-                        onChange={(e) => setSelectedPlan(e.target.value)}
-                      />
-                      <div className="plan-details">
-                        <h4>Founder <span className="founder-badge">LIFETIME</span></h4>
-                        <p>Unlimited documents, unlimited seats</p>
-                      </div>
-                      <div className="plan-price">$2999 (one-time)</div>
-                    </div>
-                  </div>
-                  
-                  {(selectedPlan === 'growth' || selectedPlan === 'transform') && (
-                    <div className="form-group">
-                      <label htmlFor="extraSeats">Additional Seats:</label>
-                      <input 
-                        type="number" 
-                        id="extraSeats"
-                        min="0" 
-                        max="50" 
-                        value={extraSeats}
-                        onChange={(e) => setExtraSeats(parseInt(e.target.value) || 0)}
-                      />
-                      <small>$29.99 per additional seat</small>
-                    </div>
-                  )}
-                  
-                  <div className="pricing-summary">
-                    <strong>Total: ${calculatePlanTotal().toFixed(2)}</strong>
-                    <div>{selectedPlan === 'founder' ? 'One-time payment' : 'Monthly billing'}</div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'credits' && (
-                <div className="credits-section">
-                  <div className="form-group">
-                    <label htmlFor="creditAmount">Select Credit Package:</label>
-                    <select 
-                      id="creditAmount"
-                      value={selectedCredits}
-                      onChange={(e) => setSelectedCredits(parseInt(e.target.value))}
+        {message && <p className="account-message">{message}</p>}
+
+        <section className="account-section">
+          <h2>Plans</h2>
+          <div className="account-plan-grid">
+            {PLAN_ORDER.map((key) => {
+              const plan = plans[key];
+              if (!plan) return null;
+              const isCurrent = currentPlan === key;
+              const isSalesOnly = !!plan.sales_only;
+              const isPending = pendingAction === key;
+              const hasPrice = Number.isFinite(plan.monthly_price_usd);
+
+              return (
+                <article className={`account-plan-card ${isCurrent ? 'is-current' : ''}`} key={key}>
+                  <h3>{plan.label}</h3>
+                  <p className="account-plan-price">
+                    {hasPrice ? (plan.monthly_price_usd === 0 ? '$0' : `$${plan.monthly_price_usd}/mo`) : 'Contact sales'}
+                  </p>
+                  <p>
+                    {plan.monthly_credits == null
+                      ? 'Contracted pooled usage'
+                      : `${Number(plan.monthly_credits).toLocaleString()} credits/month`}
+                  </p>
+
+                  {isCurrent ? (
+                    <span className="account-pill">Current</span>
+                  ) : isSalesOnly ? (
+                    <a href="/login" className="account-primary-btn">Talk to sales</a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="account-primary-btn"
+                      onClick={() => startPlanChange(key)}
+                      disabled={isPending}
                     >
-                      <option value={0}>None</option>
-                      <option value={10}>10 Credits - $19.99</option>
-                      <option value={20}>20 Credits - $39.98</option>
-                      <option value={30}>30 Credits - $59.97</option>
-                      <option value={50}>50 Credits - $99.95</option>
-                      <option value={100}>100 Credits - $199.90</option>
-                    </select>
-                  </div>
-                  
-                  <div className="pricing-summary">
-                    <strong>${getCreditPrice().toFixed(2)}</strong>
-                    <div>One-time purchase</div>
-                  </div>
-                </div>
-              )}
-              
-              <div className="form-group">
-                <label>Payment Method:</label>
-                <div className="payment-options">
-                  {userInfo.paymentMethod && (
-                    <label>
-                      <input 
-                        type="radio" 
-                        name="payment_option" 
-                        value="onfile"
-                        checked={paymentOption === 'onfile'}
-                        onChange={(e) => setPaymentOption(e.target.value)}
-                      />
-                      Use card on file (****{userInfo.paymentMethod.last4})
-                    </label>
+                      {isPending ? 'Redirecting...' : key === 'essential' ? 'Upgrade' : 'Switch'}
+                    </button>
                   )}
-                  <label>
-                    <input 
-                      type="radio" 
-                      name="payment_option" 
-                      value="new"
-                      checked={paymentOption === 'new'}
-                      onChange={(e) => setPaymentOption(e.target.value)}
-                    />
-                    Use a different card
-                  </label>
-                </div>
-              </div>
-              
-              {paymentOption === 'new' && (
-                <div className="form-group">
-                  <label>New Card Information:</label>
-                  <div className="stripe-element">
-                    {/* Stripe card element would go here */}
-                    <p>Card input field (Stripe integration)</p>
-                  </div>
-                </div>
-              )}
-              
-              {statusMessage && (
-                <div className={`status-message ${statusMessage.includes('success') ? 'success' : 'error'}`}>
-                  {statusMessage}
-                </div>
-              )}
-              
-              <button type="submit" className="submit-btn" disabled={loading}>
-                {loading ? 'Processing...' : 'Submit Changes'}
-              </button>
-            </form>
+                </article>
+              );
+            })}
           </div>
-        </div>
-      )}
+        </section>
 
-      {/* Update Payment Modal */}
-      {showPaymentModal && (
-        <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button 
-              onClick={() => setShowPaymentModal(false)}
-              className="modal-close"
-            >
-              ×
-            </button>
-            <h2>Update Payment Method</h2>
-            
-            <form onSubmit={handleUpdatePayment}>
-              {userInfo.paymentMethod && (
-                <div className="form-group">
-                  <div className="payment-options">
-                    <label>
-                      <input 
-                        type="radio" 
-                        name="payment_option" 
-                        value="saved"
-                        checked={paymentOption === 'saved'}
-                        onChange={(e) => setPaymentOption(e.target.value)}
-                      />
-                      Use card on file (****{userInfo.paymentMethod.last4}, exp {userInfo.paymentMethod.expMonth}/{userInfo.paymentMethod.expYear.slice(-2)})
-                    </label>
-                    <label>
-                      <input 
-                        type="radio" 
-                        name="payment_option" 
-                        value="new"
-                        checked={paymentOption === 'new'}
-                        onChange={(e) => setPaymentOption(e.target.value)}
-                      />
-                      Use a different card
-                    </label>
-                  </div>
-                </div>
-              )}
-              
-              {(paymentOption === 'new' || !userInfo.paymentMethod) && (
-                <div className="new-card-fields">
-                  <div className="form-group">
-                    <label htmlFor="cardholderName">Name on Card:</label>
-                    <input type="text" id="cardholderName" name="cardholderName" />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="billingZip">ZIP/Postal Code:</label>
-                    <input type="text" id="billingZip" name="billingZip" />
-                  </div>
-                  <div className="form-group">
-                    <label>Card Information:</label>
-                    <div className="stripe-element">
-                      {/* Stripe card element would go here */}
-                      <p>Card input field (Stripe integration)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {statusMessage && (
-                <div className={`status-message ${statusMessage.includes('success') ? 'success' : 'error'}`}>
-                  {statusMessage}
-                </div>
-              )}
-              
-              <button type="submit" className="submit-btn" disabled={loading}>
-                {loading ? 'Processing...' : 'Save Payment Method'}
-              </button>
-            </form>
+        <section className="account-section">
+          <h2>Overage credit packs</h2>
+          <div className="account-pack-grid">
+            {PACK_ORDER.map((key) => {
+              const pack = packs[key];
+              if (!pack) return null;
+              const isPending = pendingAction === key;
+              return (
+                <article className="account-pack-card" key={key}>
+                  <h3>{pack.label}</h3>
+                  <p>{Number(pack.credits || 0).toLocaleString()} one-time credits</p>
+                  <button
+                    type="button"
+                    className="account-primary-btn"
+                    onClick={() => buyPack(key)}
+                    disabled={isPending}
+                  >
+                    {isPending ? 'Redirecting...' : `Buy for $${pack.price_usd}`}
+                  </button>
+                </article>
+              );
+            })}
           </div>
-        </div>
-      )}
+        </section>
+
+        <section className="account-section account-actions-row">
+          <button
+            type="button"
+            className="account-secondary-btn"
+            onClick={openBillingPortal}
+            disabled={pendingAction === 'portal'}
+          >
+            {pendingAction === 'portal' ? 'Opening...' : 'Open Stripe billing portal'}
+          </button>
+          <button
+            type="button"
+            className="account-danger-btn"
+            onClick={cancelAtPeriodEnd}
+            disabled={pendingAction === 'cancel' || !status?.stripe_subscription_id}
+          >
+            {pendingAction === 'cancel' ? 'Canceling...' : 'Cancel at period end'}
+          </button>
+        </section>
+      </div>
     </div>
   );
-};
-
-export default Account;
+}

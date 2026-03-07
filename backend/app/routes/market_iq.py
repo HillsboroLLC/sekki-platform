@@ -7,6 +7,9 @@ import re
 import time
 from datetime import datetime
 import uuid
+from app import db
+from app.models import User
+from app.billing_config import bootstrap_legacy_credits, consume_credits, get_monthly_credit_limit, to_public_plan
 
 market_iq_bp = Blueprint('market_iq', __name__)
 
@@ -190,6 +193,11 @@ def analyze_project():
     try:
         data = request.get_json() or {}
         current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        if bootstrap_legacy_credits(user, current_app.config):
+            db.session.commit()
 
         thread_id = data.get('thread_id')
         project_name = data.get('name') or data.get('project_name') or 'Market IQ Project'
@@ -224,6 +232,17 @@ def analyze_project():
 
         effective_description = "\n\n".join(analysis_input_parts)
 
+        analysis_credit_cost = int(current_app.config.get('MARKET_IQ_ANALYSIS_CREDIT_COST', 25))
+        if user.credits_remaining is not None and user.credits_remaining < analysis_credit_cost:
+            return jsonify({
+                'error': 'Insufficient credits',
+                'required_credits': analysis_credit_cost,
+                'credits_remaining': user.credits_remaining,
+                'plan_key': to_public_plan(user.subscription_plan),
+                'monthly_credit_limit': get_monthly_credit_limit(user.subscription_plan, current_app.config),
+                'suggestion': 'Purchase an overage pack or upgrade your plan.',
+            }), 402
+
         client = get_openai_client()
         analysis_result = _generate_market_iq_scorecard(client, effective_description)
 
@@ -250,6 +269,18 @@ def analyze_project():
                 'generated_at': generated_at,
             }
         }
+
+        charged, remaining = consume_credits(user, analysis_credit_cost)
+        if not charged:
+            return jsonify({
+                'error': 'Insufficient credits',
+                'required_credits': analysis_credit_cost,
+                'credits_remaining': user.credits_remaining,
+            }), 402
+
+        db.session.commit()
+        analysis['meta']['credits_charged'] = analysis_credit_cost
+        analysis['meta']['credits_remaining'] = remaining
 
         return jsonify({'analysis': analysis}), 200
         

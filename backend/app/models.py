@@ -27,7 +27,7 @@ class User(db.Model):
     subscription_plan = db.Column(
         db.String(50),
         nullable=False,
-        default='essential'
+        default='free'
     )
     seat_limit = db.Column(
         db.Integer,
@@ -54,7 +54,7 @@ class User(db.Model):
     credits_remaining = db.Column(
         db.Integer,
         nullable=True,
-        default=0
+        default=300
     )
 
     # Referrals & feedback

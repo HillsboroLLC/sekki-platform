@@ -23,6 +23,7 @@ def create_app():
 
         # Stripe
         STRIPE_SECRET_KEY              = os.getenv('STRIPE_SECRET_KEY'),
+        STRIPE_WEBHOOK_SECRET          = os.getenv('STRIPE_WEBHOOK_SECRET'),
 
         # OpenAI / Claude
         OPENAI_API_KEY                 = os.getenv('OPENAI_API_KEY'),
@@ -49,11 +50,16 @@ def create_app():
 
     # —— Map plan_keys to Stripe Price IDs —— #
     app.config['STRIPE_PRICE_IDS'] = {
+        'free':            None,
         'essential':       os.getenv('PRICE_ID_ESSENTIAL'),
-        'growth':          os.getenv('PRICE_ID_GROWTH'),
-        'transform_basic': os.getenv('PRICE_ID_TRANSFORM_BASIC'),
-        'founder':         os.getenv('PRICE_ID_FOUNDER'),
-        'enterprise':      os.getenv('PRICE_ID_ENTERPRISE'),
+        # Legacy fallback: allow existing env values to keep working.
+        'team':            os.getenv('PRICE_ID_TEAM') or os.getenv('PRICE_ID_GROWTH'),
+        'enterprise':      os.getenv('PRICE_ID_ENTERPRISE') or os.getenv('PRICE_ID_TRANSFORM_BASIC'),
+    }
+    app.config['STRIPE_OVERAGE_PACK_PRICE_IDS'] = {
+        'pack_1000':       os.getenv('PRICE_ID_OVERAGE_1000'),
+        'pack_5000':       os.getenv('PRICE_ID_OVERAGE_5000'),
+        'pack_20000':      os.getenv('PRICE_ID_OVERAGE_20000'),
     }
     # —— Frontend base URL for success/cancel links —— #
     app.config['FRONTEND_BASE_URL'] = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000')

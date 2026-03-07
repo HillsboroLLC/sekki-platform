@@ -499,19 +499,44 @@ export default function HomePage() {
           <div className="jaspen-container">
             <div className="home-pricing-header scroll-reveal">
               <h2>Simple path from individual to enterprise</h2>
-              <p>Start free, upgrade to Essential for $20, and scale with Team or Enterprise when collaboration and governance needs grow.</p>
+              <p>Start free, upgrade to Essential for $20, then scale through sales-led Team and Enterprise rollout as governance needs grow.</p>
             </div>
             <div className="home-plan-grid">
               {[
-                { name: 'Free', price: '$0', summary: 'Individual entry with core workflows.' },
-                { name: 'Essential', price: '$20 / month', summary: 'Higher limits and deeper daily usage.' },
-                { name: 'Team', price: 'Contact sales', summary: 'Shared workspaces and collaboration controls.' },
-                { name: 'Enterprise', price: 'Custom', summary: 'Governance, security, and implementation support.' },
+                {
+                  name: 'Free',
+                  price: '$0',
+                  summary: '300 credits/month for individual entry.',
+                  ctaLabel: 'Start free',
+                  ctaHref: '/?auth=1',
+                },
+                {
+                  name: 'Essential',
+                  price: '$20 / month',
+                  summary: '3,000 credits/month with overage packs.',
+                  ctaLabel: 'Upgrade path',
+                  ctaHref: '/pages/pricing#plans',
+                },
+                {
+                  name: 'Team',
+                  price: 'Contact sales',
+                  summary: 'Sales-led pooled usage for teams.',
+                  ctaLabel: 'Talk to sales',
+                  ctaHref: '/login',
+                },
+                {
+                  name: 'Enterprise',
+                  price: 'Custom',
+                  summary: 'Sales-led deployment with governance.',
+                  ctaLabel: 'Talk to sales',
+                  ctaHref: '/login',
+                },
               ].map((plan, idx) => (
                 <article key={plan.name} className={`home-plan-card scroll-reveal ${idx === 1 ? 'is-emphasized' : ''}`}>
                   <h3>{plan.name}</h3>
                   <p className="home-plan-price">{plan.price}</p>
                   <p>{plan.summary}</p>
+                  <a href={plan.ctaHref} className="home-plan-link">{plan.ctaLabel}</a>
                 </article>
               ))}
             </div>

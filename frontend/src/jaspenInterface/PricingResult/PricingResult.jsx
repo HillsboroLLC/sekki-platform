@@ -26,10 +26,21 @@ export default function PricingResult() {
           <h1>🎉 Subscription Confirmed!</h1>
           {session ? (
             <>
-              <p>Your plan: <strong>{session.metadata.plan_key}</strong></p>
-              <p>Next charge: {new Date(
-                   session.invoice_upcoming_next_payment_attempt * 1000
-                 ).toLocaleDateString()}</p>
+              {session?.metadata?.checkout_type === 'overage_pack' ? (
+                <p>
+                  Credits added: <strong>{Number(session?.metadata?.credits || 0).toLocaleString()}</strong>
+                </p>
+              ) : (
+                <p>
+                  Your plan: <strong>{session?.metadata?.plan_key || 'essential'}</strong>
+                </p>
+              )}
+              {session?.subscription?.current_period_end && (
+                <p>
+                  Next charge:{' '}
+                  {new Date(session.subscription.current_period_end * 1000).toLocaleDateString()}
+                </p>
+              )}
             </>
           ) : (
             <p>Loading your subscription details…</p>
@@ -41,7 +52,7 @@ export default function PricingResult() {
           <h1>Subscription Canceled</h1>
           <p>
             It looks like you canceled.{' '}
-            <Link to="/pricing">Try again →</Link>
+            <Link to="/pages/pricing">Try again →</Link>
           </p>
         </div>
       )}

@@ -11,6 +11,7 @@
   --magenta: #a0036c;
   --light-bg: #f0f3f2;
   --white: #ffffff;
+  --sidebar-width: 360px;
   --gray-50: #f8f9fa;
   --gray-100: #f1f3f5;
   --gray-200: #e9ecef;
@@ -108,7 +109,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 380px;
+  width: var(--sidebar-width);
   height: 100vh;
   background: var(--light-bg);
   border-right: 1px solid var(--border);
@@ -1656,7 +1657,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 380px;
+  width: var(--sidebar-width);
   height: 100vh;
   background: var(--light-bg);
   border-right: 1px solid var(--border);
@@ -1827,16 +1828,16 @@
 
 /* Workspace adjustment when AI drawer is open - content shrinks to fit */
 .jas-workspace.jas-ai-open {
-  margin-left: 380px;
+  margin-left: var(--sidebar-width);
   transition: margin-left 0.3s ease;
 }
 
 .jas-workspace.jas-readiness-open {
-  margin-left: 380px;
+  margin-left: var(--sidebar-width);
   transition: margin-left 0.3s ease;
 }
 .jas-workspace.jas-settings-open {
-  margin-left: 380px;
+  margin-left: var(--sidebar-width);
   transition: margin-left 0.3s ease;
 }
 
@@ -2118,15 +2119,15 @@
 .jas { font-family: var(--font); }
 .jas-shell { display: flex; height: 100vh; width: 100%; overflow: hidden; position: relative; background: var(--white); }
 .jas-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
-.jas-shell.drawer-open .chatgpt-interface { margin-left: 380px; transition: margin-left 0.3s ease; }
+.jas-shell.drawer-open .chatgpt-interface { margin-left: var(--sidebar-width); transition: margin-left 0.3s ease; }
 
 /* Sidebar legacy classes */
 .jas-left-sidebar {
   position: fixed;
-  left: -380px;
+  left: calc(var(--sidebar-width) * -1);
   top: 0;
   bottom: 0;
-  width: 380px;
+  width: var(--sidebar-width);
   background: var(--light-bg);
   border-right: 1px solid var(--border);
   z-index: 200;
@@ -2147,6 +2148,13 @@
 .jas-left-sidebar.jas-settings-sidebar .jas-sidebar-header,
 .jas-left-sidebar.jas-settings-sidebar .jas-sidebar-content,
 .jas-left-sidebar.jas-settings-sidebar .jas-ud-scroll {
+  background: var(--white);
+}
+
+/* Keep history rail on the same canvas color as chat area */
+.jas-left-sidebar.jas-history-sidebar,
+.jas-left-sidebar.jas-history-sidebar .jas-sidebar-header,
+.jas-left-sidebar.jas-history-sidebar .jas-sidebar-content {
   background: var(--white);
 }
 

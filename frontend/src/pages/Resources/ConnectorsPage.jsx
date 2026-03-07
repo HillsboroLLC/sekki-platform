@@ -48,15 +48,15 @@ export default function ConnectorsPage() {
             <div className="connector-node">Insight Engine</div>
           </div>
           <article className="lydia-content">
-            <h3>How connectors and API work together</h3>
+            <h3>What connectors do</h3>
             <p>
-              A product integration is the packaged experience users turn on. Connectors are the underlying prebuilt
-              system links, and the API supports custom enterprise workflows beyond those packaged integrations.
+              Connectors are prebuilt system links that move context and updates between Jaspen and your core tools.
+              They handle system-level synchronization so teams can operate from current, connected information.
             </p>
             <ul className="lydia-bullets">
               <li>Execution connectors support plan updates and status sync</li>
               <li>Data connectors support trend detection and recommendation generation</li>
-              <li>API supports custom logic and system-specific extensions</li>
+              <li>Essential connector set enables fast initial rollout</li>
             </ul>
           </article>
         </div>

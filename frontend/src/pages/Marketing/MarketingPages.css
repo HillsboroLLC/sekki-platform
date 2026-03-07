@@ -269,6 +269,13 @@
   border-color: #c7d8ef;
 }
 
+.page-hero-integrations {
+  background:
+    linear-gradient(176deg, rgba(238, 248, 255, 0.94), rgba(238, 248, 255, 0.94)),
+    repeating-linear-gradient(24deg, rgba(64, 87, 199, 0.08) 0 10px, transparent 10px 22px);
+  border-color: #c8d4f0;
+}
+
 .pricing-abstract {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1043,6 +1050,79 @@
   background: repeating-linear-gradient(to bottom, #9eb8da, #9eb8da 3px, transparent 3px, transparent 6px);
 }
 
+.integration-abstract {
+  position: relative;
+  min-height: 220px;
+}
+
+.integration-chip {
+  position: absolute;
+  border: 1px solid #b7c8e7;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #27457e;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  animation: float-lift 7.8s ease-in-out infinite;
+}
+
+.integration-chip:nth-child(1) {
+  left: 22px;
+  top: 34px;
+}
+
+.integration-chip:nth-child(2) {
+  right: 14px;
+  top: 96px;
+  animation-delay: 0.5s;
+}
+
+.integration-chip:nth-child(3) {
+  left: 96px;
+  bottom: 28px;
+  animation-delay: 0.9s;
+}
+
+.lydia-story-integrations .integrations-canvas {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  background:
+    linear-gradient(154deg, #edf4ff 0 58%, #f0f6ff 58% 100%);
+  border-color: #c8d7ef;
+}
+
+.integration-block {
+  width: fit-content;
+  min-width: 180px;
+  border-radius: 12px;
+  border: 1px solid #b9cce9;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 10px 14px;
+  color: #1d4f97;
+  font-weight: 700;
+  position: relative;
+}
+
+.integration-block:nth-child(2) {
+  margin-left: 30px;
+}
+
+.integration-block:nth-child(3) {
+  margin-left: 62px;
+}
+
+.integration-block:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 20px;
+  bottom: -14px;
+  width: 2px;
+  height: 12px;
+  background: repeating-linear-gradient(to bottom, #9eb8da, #9eb8da 3px, transparent 3px, transparent 6px);
+}
+
 .industry-grid {
   list-style: none;
   margin: 0;
@@ -1737,9 +1817,16 @@
   .api-tag:nth-child(1),
   .api-tag:nth-child(2),
   .api-tag:nth-child(3),
+  .integration-chip,
+  .integration-chip:nth-child(1),
+  .integration-chip:nth-child(2),
+  .integration-chip:nth-child(3),
   .api-flow-node,
   .api-flow-node:nth-child(2),
-  .api-flow-node:nth-child(3) {
+  .api-flow-node:nth-child(3),
+  .integration-block,
+  .integration-block:nth-child(2),
+  .integration-block:nth-child(3) {
     position: relative;
     left: auto;
     right: auto;
@@ -1749,6 +1836,10 @@
   }
 
   .api-flow-node:not(:last-child)::after {
+    left: 10px;
+  }
+
+  .integration-block:not(:last-child)::after {
     left: 10px;
   }
 
@@ -1805,7 +1896,9 @@
   .step-dot,
   .connectors-abstract span,
   .api-tag,
+  .integration-chip,
   .api-flow-node,
+  .integration-block,
   .plugin-block,
   .score-abstract::before {
     animation: none;

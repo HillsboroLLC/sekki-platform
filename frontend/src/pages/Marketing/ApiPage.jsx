@@ -1,8 +1,35 @@
 import React from 'react';
 import MarketingPageLayout from './MarketingPageLayout';
 
-const EXECUTION_CONNECTORS = ['Jira', 'Workfront', 'Smartsheet'];
-const DATA_CONNECTORS = ['Snowflake', 'Salesforce', 'Oracle Fusion'];
+const API_CAPABILITIES = [
+  {
+    title: 'Automate plan updates',
+    detail: 'Trigger milestone, owner, and status updates programmatically from your internal workflows.',
+  },
+  {
+    title: 'Generate insight payloads',
+    detail: 'Send operational context and receive structured recommendation outputs for downstream systems.',
+  },
+  {
+    title: 'Embed Jaspen logic',
+    detail: 'Use API responses in internal apps, dashboards, and orchestration pipelines.',
+  },
+];
+
+const API_WORKFLOWS = [
+  {
+    title: 'Regional variance detection',
+    detail: 'Detect differences in execution performance by region and return likely causes with action options.',
+  },
+  {
+    title: 'Decision-to-delivery automation',
+    detail: 'Convert approved recommendations into executable updates via internal workflow runners.',
+  },
+  {
+    title: 'Executive signal generation',
+    detail: 'Create recurring, structured decision signals for leadership reporting and governance review.',
+  },
+];
 
 export default function ApiPage() {
   return (
@@ -10,87 +37,62 @@ export default function ApiPage() {
       <section className="page-hero page-hero-api">
         <div className="hero-copy">
           <p className="hero-kicker">API</p>
-          <h1>APIs, integrations, and connectors in one clear model</h1>
+          <h1>Jaspen API for custom automation and intelligence workflows</h1>
           <p>
-            Jaspen uses prebuilt connectors for fast setup and API access for custom enterprise workflows.
-            Start with essential connectors first, then expand.
+            Build custom workflows that send context to Jaspen, evaluate scenarios, and return decision-grade
+            recommendations or action payloads to your internal systems.
           </p>
         </div>
         <div className="hero-abstract api-abstract">
-          <div className="api-tag">Integrations</div>
-          <div className="api-tag">Connectors</div>
-          <div className="api-tag">API</div>
+          <div className="api-tag">POST /analysis</div>
+          <div className="api-tag">POST /plan-updates</div>
+          <div className="api-tag">GET /insights</div>
         </div>
       </section>
 
       <section className="marketing-section">
-        <h2>What each term means</h2>
+        <h2>What the API can do</h2>
         <div className="api-terms-grid">
-          <article className="marketing-card api-term-card">
-            <h3>Integrations</h3>
-            <p>Business-facing setup of connected systems so teams can use Jaspen in daily workflows.</p>
-          </article>
-          <article className="marketing-card api-term-card">
-            <h3>Connectors</h3>
-            <p>Prebuilt integration modules for specific systems (for example Jira or Snowflake).</p>
-          </article>
-          <article className="marketing-card api-term-card">
-            <h3>API</h3>
-            <p>Developer interface for custom automations, internal apps, and enterprise-specific logic.</p>
-          </article>
+          {API_CAPABILITIES.map((item) => (
+            <article key={item.title} className="marketing-card api-term-card">
+              <h3>{item.title}</h3>
+              <p>{item.detail}</p>
+            </article>
+          ))}
         </div>
       </section>
 
       <section className="marketing-section">
         <div className="lydia-story lydia-story-api">
           <div className="lydia-visual api-flow-canvas">
-            <div className="api-flow-node">Data connectors</div>
-            <div className="api-flow-node">Jaspen analysis</div>
-            <div className="api-flow-node">Execution connectors</div>
+            <div className="api-flow-node">Input context</div>
+            <div className="api-flow-node">Jaspen API evaluation</div>
+            <div className="api-flow-node">Action payloads</div>
           </div>
           <article className="lydia-content">
             <h3>How the flow works in practice</h3>
             <p>
-              Jaspen reads from data systems to detect patterns, then recommends actions, and can write approved updates
-              into project tools so teams do less manual handoff work.
+              Applications send structured context to the API, Jaspen evaluates risk and opportunity patterns, and your
+              systems receive response payloads ready for operational action.
             </p>
             <ul className="lydia-bullets">
-              <li>Detect trend and variance signals from business data</li>
-              <li>Generate likely causes and recommended opportunities</li>
-              <li>Apply approved plan updates in execution systems</li>
+              <li>Programmatic analysis for recurring or event-based workflows</li>
+              <li>Structured responses for deterministic system handoffs</li>
+              <li>Custom orchestration aligned to enterprise architecture</li>
             </ul>
           </article>
         </div>
       </section>
 
       <section className="marketing-section">
-        <h2>Essential connectors first</h2>
-        <div className="connector-group-grid">
-          <article className="connector-group-card">
-            <h3>Execution connectors</h3>
-            <p>Used for plan updates, ownership changes, and status synchronization.</p>
-            <div className="connector-matrix">
-              {EXECUTION_CONNECTORS.map((name) => (
-                <article key={name} className="connector-cell">
-                  <h3>{name}</h3>
-                  <span>Essential</span>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="connector-group-card">
-            <h3>Data connectors</h3>
-            <p>Used for trend analysis and opportunity recommendations.</p>
-            <div className="connector-matrix">
-              {DATA_CONNECTORS.map((name) => (
-                <article key={name} className="connector-cell">
-                  <h3>{name}</h3>
-                  <span>Essential</span>
-                </article>
-              ))}
-            </div>
-          </article>
+        <h2>Common API workflows</h2>
+        <div className="marketing-grid">
+          {API_WORKFLOWS.map((workflow) => (
+            <article key={workflow.title} className="marketing-card">
+              <h3>{workflow.title}</h3>
+              <p>{workflow.detail}</p>
+            </article>
+          ))}
         </div>
       </section>
     </MarketingPageLayout>

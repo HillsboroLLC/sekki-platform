@@ -22,6 +22,7 @@ import PricingPage from './pages/Marketing/PricingPage';
 import ApiPage from './pages/Marketing/ApiPage';
 import DemosPage from './pages/Resources/DemosPage';
 import TutorialsPage from './pages/Resources/TutorialsPage';
+import IntegrationsPage from './pages/Resources/IntegrationsPage';
 import ConnectorsPage from './pages/Resources/ConnectorsPage';
 import PluginsPage from './pages/Resources/PluginsPage';
 
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="/pages/api" element={withShell(<ApiPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/pages/resources/demos" element={withShell(<DemosPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/pages/resources/tutorials" element={withShell(<TutorialsPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
+        <Route path="/pages/resources/integrations" element={withShell(<IntegrationsPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/pages/resources/connectors" element={withShell(<ConnectorsPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/pages/resources/plugins" element={withShell(<PluginsPage />, { showHeader: false, fullBleed: true, noPadding: true })} />
         <Route path="/auth/callback"  element={withShell(<AuthCallback />, { showHeader: false, fullBleed: true, noPadding: true })} />

@@ -2131,6 +2131,17 @@
   left: 0;
 }
 
+/* Ensure settings rail matches the chat page canvas */
+.jas-left-sidebar.jas-settings-sidebar {
+  background: var(--white);
+}
+
+.jas-left-sidebar.jas-settings-sidebar .jas-sidebar-header,
+.jas-left-sidebar.jas-settings-sidebar .jas-sidebar-content,
+.jas-left-sidebar.jas-settings-sidebar .jas-ud-scroll {
+  background: var(--white);
+}
+
 .jas-sidebar-header {
   padding: 18px 20px;
   display: flex;

@@ -45,12 +45,22 @@ def _should_enable_flask_cors(frontend_base_url):
     if explicit is not None:
         return _as_bool(explicit, default=False)
 
-    base = (frontend_base_url or '').lower()
-    return base.startswith('http://localhost') or base.startswith('http://127.0.0.1')
+    base = (frontend_base_url or '').lower().strip()
+    if base:
+        return base.startswith('http://localhost') or base.startswith('http://127.0.0.1')
+
+    app_env = (
+        os.getenv('APP_ENV')
+        or os.getenv('ENV')
+        or os.getenv('FLASK_ENV')
+        or ''
+    ).strip().lower()
+    return app_env in ('development', 'dev', 'local')
 
 
 def create_app():
-    frontend_base = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000')
+    frontend_base_raw = os.getenv('FRONTEND_BASE_URL')
+    frontend_base = frontend_base_raw or 'http://localhost:3000'
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_mapping(
         SECRET_KEY                     = os.getenv('SECRET_KEY'),
@@ -118,7 +128,7 @@ def create_app():
     mail.init_app(app)
 
     # —— CORS —— #
-    if _should_enable_flask_cors(frontend_base):
+    if _should_enable_flask_cors(frontend_base_raw):
         cors_origins = _derive_cors_origins(frontend_base)
         CORS(
             app,

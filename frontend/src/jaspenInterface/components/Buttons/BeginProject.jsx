@@ -47,7 +47,7 @@ export default function BeginProjectMenu({ currentPage, onNavigate }) {
     },
     {
       id: 'project',
-      label: 'Begin Project',
+      label: 'Project',
       icon: faProjectDiagram,
       action: () => onNavigate('project')
     }
@@ -67,7 +67,7 @@ export default function BeginProjectMenu({ currentPage, onNavigate }) {
         className="begin-project-btn"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span>Begin Project</span>
+        <span>Project</span>
         <span className={`begin-project-arrow ${isOpen ? 'open' : ''}`}>▼</span>
       </button>
       {isOpen && (

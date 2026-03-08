@@ -119,7 +119,17 @@ const isSelfServePlan = (plan) => ['free', 'essential'].includes(normalizePlanKe
 const AUTH_STORAGE_OWNER_KEY = 'jas_storage_owner_id';
 
 const clearLegacySessionCaches = () => {
-  const fixedKeys = ['jas_history', 'jas_projects', 'jas_last_session_id', 'jas_sid', 'jaspen_last_email'];
+  const fixedKeys = [
+    'jas_history',
+    'jas_projects',
+    'jas_last_session_id',
+    'jas_sid',
+    'jaspen_last_email',
+    'miq_history',
+    'miq_projects',
+    'miq_last_session_id',
+    'miq_sid',
+  ];
   fixedKeys.forEach((key) => localStorage.removeItem(key));
 
   for (let i = localStorage.length - 1; i >= 0; i -= 1) {
@@ -144,6 +154,9 @@ const syncSelfServeStorageOwnership = (user) => {
   if (!isSelfServePlan(user?.subscription_plan)) {
     return;
   }
+
+  // Always remove obsolete MIQ-only keys for self-serve sessions.
+  ['miq_last_session_id', 'miq_sid', 'miq_history', 'miq_projects'].forEach((key) => localStorage.removeItem(key));
 
   const ownerId = String(user?.id || user?.email || '').trim();
   if (!ownerId) {

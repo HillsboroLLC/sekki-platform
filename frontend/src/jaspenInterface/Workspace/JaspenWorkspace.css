@@ -1552,6 +1552,19 @@
   justify-self: center;
 }
 
+.jas-return-main-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jas-return-main-logo {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
 .jas-return-main-btn:hover {
   opacity: 0.9;
 }
@@ -1622,9 +1635,11 @@
 .jas-right-rail {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-left: auto;
   flex-shrink: 0;
+  min-width: 0;
+  padding-right: 4px;
 }
 
 .jas-scores-select,
@@ -1648,6 +1663,17 @@
 .jas-scores-select:focus,
 .jas-variant-select:focus {
   border-color: var(--navy);
+}
+
+@media (max-width: 1420px) {
+  .jas-scores-select,
+  .jas-variant-select {
+    min-width: 138px;
+  }
+
+  .begin-project-btn {
+    padding: 10px 12px;
+  }
 }
 
 /* ============================================================================
@@ -2308,6 +2334,17 @@
 .jas-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
 .jas-shell.drawer-open .chatgpt-interface { margin-left: var(--sidebar-width); transition: margin-left 0.3s ease; }
 
+.jas-left-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: rgba(17, 24, 39, 0.18);
+  cursor: pointer;
+}
+
 /* Sidebar legacy classes */
 .jas-left-sidebar {
   position: fixed;
@@ -2382,6 +2419,23 @@
 .jas-sidebar-clear:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.jas-sidebar-header-history {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.jas-sidebar-header-history h3 {
+  flex: 1;
+  text-align: center;
+}
+
+.jas-sidebar-clear-left {
+  flex-shrink: 0;
+}
+
+.jas-sidebar-header-history .jas-sidebar-close {
+  flex-shrink: 0;
 }
 .jas-sidebar-header h3 {
   font-size: 0.8125rem;
@@ -2781,7 +2835,7 @@
   background: var(--magenta);
   color: var(--white);
   border: none;
-  padding: 10px 20px;
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -2793,6 +2847,7 @@
   justify-content: center;
   gap: 8px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .begin-project-btn:hover {
   background: #8a025d;

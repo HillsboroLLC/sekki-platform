@@ -186,7 +186,17 @@ function isSelfServePlan(plan) {
 }
 
 function clearLegacySessionCaches() {
-  const fixedKeys = ['jas_history', 'jas_projects', 'jas_last_session_id', 'jas_sid', 'jaspen_last_email'];
+  const fixedKeys = [
+    'jas_history',
+    'jas_projects',
+    'jas_last_session_id',
+    'jas_sid',
+    'jaspen_last_email',
+    'miq_history',
+    'miq_projects',
+    'miq_last_session_id',
+    'miq_sid',
+  ];
   fixedKeys.forEach((key) => localStorage.removeItem(key));
 
   for (let i = localStorage.length - 1; i >= 0; i -= 1) {
@@ -538,7 +548,6 @@ const refreshBundle = async (tid) => {
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const [accountQuickMenuOpen, setAccountQuickMenuOpen] = useState(false);
   const [knowledgeMenuOpen, setKnowledgeMenuOpen] = useState(false);
-  const accountMenuRef = useRef(null);
   const savedEmail = (() => {
     try { return localStorage.getItem('jaspen_last_email'); } catch { return null; }
   })();
@@ -609,6 +618,12 @@ const refreshBundle = async (tid) => {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    try {
+      ['miq_last_session_id', 'miq_sid', 'miq_history', 'miq_projects'].forEach((key) => localStorage.removeItem(key));
+    } catch {}
+  }, []);
+
   const persistDisplayName = (value) => {
     const trimmed = String(value || '').trim();
     if (!trimmed) return;
@@ -664,8 +679,8 @@ const refreshBundle = async (tid) => {
   useEffect(() => {
     if (!accountQuickMenuOpen) return;
     const onPointerDown = (event) => {
-      if (!accountMenuRef.current) return;
-      if (!accountMenuRef.current.contains(event.target)) {
+      if (!(event.target instanceof Element)) return;
+      if (!event.target.closest('.jas-ud-footer')) {
         setAccountQuickMenuOpen(false);
         setKnowledgeMenuOpen(false);
       }
@@ -673,6 +688,12 @@ const refreshBundle = async (tid) => {
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [accountQuickMenuOpen]);
+
+  const dismissSidebars = useCallback(() => {
+    dispatchSidebar({ type: 'CLOSE_ALL' });
+    setAccountQuickMenuOpen(false);
+    setKnowledgeMenuOpen(false);
+  }, []);
 
   const startPlanChange = async (planKey) => {
     const token = getAuthToken();
@@ -879,7 +900,7 @@ const refreshBundle = async (tid) => {
   };
 
   const renderSidebarFooter = (onClose) => (
-    <div className="jas-ud-footer" ref={accountMenuRef}>
+    <div className="jas-ud-footer">
       <button
         type="button"
         className="jas-ud-footer-profile"
@@ -1192,7 +1213,12 @@ return {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.sessions) {
-          const apiSessions = data.sessions.map((session) => {
+          const shouldScopeSelfServe = isSelfServePlan(user?.subscription_plan) && Boolean(user?.id);
+          const scopedSessions = shouldScopeSelfServe
+            ? data.sessions.filter((session) => String(session?.user_id || '') === String(user.id))
+            : data.sessions;
+
+          const apiSessions = scopedSessions.map((session) => {
             // Preserve any full scorecard the backend already returned
             const full = (session && typeof session.result === 'object') ? session.result : {};
 
@@ -3089,6 +3115,14 @@ setView(id === 'chat' ? 'intake' : id);
       <div className={`jas jas-shell ${shellOpen ? 'drawer-open' : ''}`}>
         <main className="jas-main">
           <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+          {shellOpen && (
+            <button
+              type="button"
+              className="jas-left-sidebar-backdrop"
+              aria-label="Close sidebars"
+              onClick={dismissSidebars}
+            />
+          )}
 
 {activeTab === 'chat' && (
   <>
@@ -3323,7 +3357,15 @@ setView(id === 'chat' ? 'intake' : id);
                 title="Back to main chat"
                 aria-label="Back to main chat"
               >
-                <span className="jas-return-main-label">Jaspen</span>
+                <span className="jas-return-main-brand">
+                  <img
+                    src="/android-chrome-192x192.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="jas-return-main-logo"
+                  />
+                  <span className="jas-return-main-label">Jaspen</span>
+                </span>
                 <span className="jas-return-main-plus" aria-hidden="true">
                   <FontAwesomeIcon icon={faPlus} />
                 </span>
@@ -3387,7 +3429,7 @@ setView(id === 'chat' ? 'intake' : id);
                     disabled={beginBusy}
                   >
                     <FontAwesomeIcon icon={beginBusy ? faSpinner : faPlay} spin={beginBusy} />
-                    <span>{beginBusy ? "Working…" : "Begin Project"}</span>
+                    <span>{beginBusy ? "Working…" : "Project"}</span>
                   </button>
                 </div>
               )}
@@ -3714,6 +3756,14 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
   return (
     <div className={`jas jas-shell ${intakeShellOpen ? 'drawer-open' : ''}`}>
       <main className="jas-main">
+        {intakeShellOpen && (
+          <button
+            type="button"
+            className="jas-left-sidebar-backdrop"
+            aria-label="Close sidebars"
+            onClick={dismissSidebars}
+          />
+        )}
         <div className="chatgpt-interface">
       {busy && (
         <div className="thinking-overlay">
@@ -3853,21 +3903,19 @@ const done = category.completed === true;
       {/* LEFT SIDEBAR - History */}
       {hasHistory && (
         <div className={`jas-left-sidebar jas-history-sidebar ${sidebarState.history ? 'sidebar-open' : ''}`}>
-          <div className="jas-sidebar-header">
+          <div className="jas-sidebar-header jas-sidebar-header-history">
+            <button
+              className="jas-sidebar-clear jas-sidebar-clear-left"
+              onClick={handleClearHistory}
+              disabled={clearingHistory || analysisHistory.length === 0}
+              title="Clear all history"
+            >
+              {clearingHistory ? 'Clearing…' : 'Clear'}
+            </button>
             <h3>Analysis History</h3>
-            <div className="jas-sidebar-header-actions">
-              <button
-                className="jas-sidebar-clear"
-                onClick={handleClearHistory}
-                disabled={clearingHistory || analysisHistory.length === 0}
-                title="Clear all history"
-              >
-                {clearingHistory ? 'Clearing…' : 'Clear'}
-              </button>
-              <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_HISTORY' })}>
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
+            <button className="jas-sidebar-close" onClick={() => dispatchSidebar({ type: 'CLOSE_HISTORY' })}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
           </div>
           <div className="jas-sidebar-content">
             {analysisHistory.map((item, index) => (

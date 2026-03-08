@@ -423,7 +423,7 @@ export default function ScoreDashboard({
                 }
               }}
             >
-              <FontAwesomeIcon icon={faPlay} /> Begin Project
+              <FontAwesomeIcon icon={faPlay} /> Project
             </button>
           </div>
         )}

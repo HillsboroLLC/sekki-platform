@@ -38,6 +38,17 @@ def _derive_cors_origins(frontend_base_url):
     return sorted(origins)
 
 
+def _should_enable_flask_cors(frontend_base_url):
+    # Production environments commonly terminate CORS at Nginx/edge.
+    # Default Flask CORS to local dev only unless explicitly enabled.
+    explicit = os.getenv('ENABLE_FLASK_CORS')
+    if explicit is not None:
+        return _as_bool(explicit, default=False)
+
+    base = (frontend_base_url or '').lower()
+    return base.startswith('http://localhost') or base.startswith('http://127.0.0.1')
+
+
 def create_app():
     frontend_base = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000')
     app = Flask(__name__, instance_relative_config=False)
@@ -107,12 +118,13 @@ def create_app():
     mail.init_app(app)
 
     # —— CORS —— #
-    cors_origins = _derive_cors_origins(frontend_base)
-    CORS(
-        app,
-        supports_credentials=True,
-        resources={r"/api/*": {"origins": cors_origins}},
-    )
+    if _should_enable_flask_cors(frontend_base):
+        cors_origins = _derive_cors_origins(frontend_base)
+        CORS(
+            app,
+            supports_credentials=True,
+            resources={r"/api/*": {"origins": cors_origins}},
+        )
 
     # —— Register blueprints —— #
     from .routes.auth      import auth_bp

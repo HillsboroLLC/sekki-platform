@@ -189,24 +189,6 @@ function BaselineColumn({ levers, result }) {
               : result?.financial_impact?.payback_period || '—'}
           </span>
         </div>
-        <div
-          style={{
-            textAlign: 'center',
-            paddingTop: '16px',
-            borderTop: '1px solid var(--jas-border)',
-            marginTop: '8px',
-          }}
-        >
-          <div style={{ fontSize: 'var(--jas-text-sm)', color: 'var(--jas-gray-500)' }}>
-            AI Agent Score
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--jas-navy)' }}>
-            {result?.market_iq_score ?? '—'}
-          </div>
-          <div style={{ fontSize: 'var(--jas-text-sm)', color: 'var(--jas-gray-500)' }}>
-            Current Score
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -306,7 +288,7 @@ function ScenarioColumn({
             </div>
 
             <div className="result-score">
-              <div className="result-score-label">Market IQ Score</div>
+              <div className="result-score-label">Jaspen Score</div>
               <div className="result-score-value">
                 {result?.overall_score ?? result?.market_iq_score ?? '—'}
               </div>

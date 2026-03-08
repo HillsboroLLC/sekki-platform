@@ -19,7 +19,7 @@ export default function ComparisonView({
     normalized.project_name ||
     normalized.title ||
     normalized.compat?.title ||
-    'Market IQ Project';
+    'Untitled Idea';
 
   const overallScore = Number(
     normalized.market_iq_score ??

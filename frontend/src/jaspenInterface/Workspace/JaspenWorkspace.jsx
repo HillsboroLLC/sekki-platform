@@ -16,7 +16,7 @@ import {
   faQuestionCircle,
   faPaperPlane, faSpinner, faTimes, faBars, faCheck, faExclamationTriangle,
   faChartLine, faTrash, faPlus, faMinus, faMicrophone,
-  faBolt, faLayerGroup, faRobot, faListCheck, faArrowUpRightFromSquare, faGaugeHigh, faClockRotateLeft, faPaperclip, faArrowUp,
+  faBolt, faLayerGroup, faPlay, faListCheck, faArrowUpRightFromSquare, faGaugeHigh, faClockRotateLeft, faPaperclip, faArrowUp,
   faDownload, faChevronDown, faChevronUp
 } from '@fortawesome/free-solid-svg-icons';
 import {
@@ -67,6 +67,39 @@ function normalizeReadiness(value) {
  */
 function clampPercent(p) {
   return Math.max(0, Math.min(100, Math.round(Number(p) || 0)));
+}
+
+function isContextSyncMessage(text) {
+  return String(text || '').trim().toLowerCase() === '[context-sync]';
+}
+
+function toUiMessages(history = []) {
+  return (Array.isArray(history) ? history : [])
+    .map((msg) => ({
+      role: msg?.role === 'user' ? 'user' : 'ai',
+      text: (msg?.content || msg?.text || '').trim(),
+    }))
+    .filter((m) => m.text.length > 0 && !isContextSyncMessage(m.text));
+}
+
+function deriveIdeaTitle({ result = null, messages = [], fallback = 'Untitled Idea' } = {}) {
+  const projectName = String(
+    result?.project_name ||
+    result?.name ||
+    result?.title ||
+    result?.compat?.title ||
+    ''
+  ).trim();
+  if (projectName) return projectName;
+
+  const firstUserIdea = (Array.isArray(messages) ? messages : [])
+    .find((m) => m?.role === 'user' && String(m?.text || '').trim().length > 0);
+
+  if (firstUserIdea?.text) {
+    return String(firstUserIdea.text).trim().slice(0, 72);
+  }
+
+  return fallback;
 }
 
 // ============================================================================
@@ -133,7 +166,7 @@ return {
     roi_opportunity:  fin.roi_opportunity  ?? fin.roiOpportunity ?? null,
     projected_ebitda: fin.projected_ebitda ?? fin.projectedEbitda?? null,
   },
-  project_name: raw.project_name || compat.title || raw.title || 'Market IQ Project',
+  project_name: raw.project_name || compat.title || raw.title || 'Untitled Idea',
   risks: Array.isArray(raw.risks) ? raw.risks : (raw.top_risks || []),
   // Explicitly preserve detailed sections
   decision_framework: raw.decision_framework || raw.strategic_decision_framework || null,
@@ -431,8 +464,15 @@ const refreshBundle = async (tid) => {
         });
       }
     }
-    // NOTE: we do NOT overwrite current chat messages to avoid jarring UX.
-    // If you ever want to hydrate, you could setMessages(...) from bundle.messages here.
+    const bundleMessages = toUiMessages(
+      (Array.isArray(bundle?.messages) ? bundle.messages : []).map((m) => ({
+        role: m?.role || (m?.sender === 'user' ? 'user' : 'assistant'),
+        content: m?.content || m?.text || m?.message || '',
+      }))
+    );
+    if ((messages?.length || 0) === 0 && bundleMessages.length > 0) {
+      setMessages(bundleMessages);
+    }
   } catch (e) {
     console.debug('[refreshBundle] skipped', e);
   }
@@ -816,6 +856,91 @@ const refreshBundle = async (tid) => {
     navigate('/dashboard');
   };
 
+  const renderSidebarFooter = (onClose) => (
+    <div className="jas-ud-footer" ref={accountMenuRef}>
+      <button
+        type="button"
+        className="jas-ud-footer-profile"
+        onClick={() => {
+          setAccountQuickMenuOpen((prev) => !prev);
+          setKnowledgeMenuOpen(false);
+        }}
+      >
+        <div className="jas-ud-footer-avatar">{userInitials}</div>
+        <div className="jas-ud-footer-meta">
+          <span>{userName}</span>
+          <span>{currentPlanLabel}</span>
+        </div>
+      </button>
+      <div className="jas-ud-footer-actions">
+        <button
+          type="button"
+          className="jas-ud-footer-icon"
+          title="Get apps and extensions"
+          aria-label="Get apps and extensions"
+          onClick={() => {
+            openExternal('/pages/resources/connectors');
+            setAccountQuickMenuOpen(false);
+            setKnowledgeMenuOpen(false);
+          }}
+        >
+          <FontAwesomeIcon icon={faDownload} />
+        </button>
+        <button
+          type="button"
+          className="jas-ud-footer-icon"
+          title="Account menu"
+          aria-label="Account menu"
+          onClick={() => {
+            setAccountQuickMenuOpen((prev) => !prev);
+            setKnowledgeMenuOpen(false);
+          }}
+        >
+          <FontAwesomeIcon icon={accountQuickMenuOpen ? faChevronUp : faChevronDown} />
+        </button>
+      </div>
+      {accountQuickMenuOpen && (
+        <div className="jas-ud-footer-menu">
+          <div className="jas-ud-footer-email">{userEmail}</div>
+          <button type="button" onClick={() => { setBillingModalOpen(true); setAccountQuickMenuOpen(false); }}>
+            Upgrade plan
+          </button>
+          <button type="button" onClick={() => { openExternal('/login'); setAccountQuickMenuOpen(false); }}>
+            Gift Jaspen
+          </button>
+          <div
+            className="jas-ud-submenu-wrap"
+            onMouseEnter={() => setKnowledgeMenuOpen(true)}
+            onMouseLeave={() => setKnowledgeMenuOpen(false)}
+          >
+            <button type="button" className="jas-ud-submenu-trigger">
+              <span>Knowledge</span>
+              <span className="jas-ud-submenu-caret">›</span>
+            </button>
+            {knowledgeMenuOpen && (
+              <div className="jas-ud-submenu">
+                <button type="button" onClick={() => { openExternal('/pages/api'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>API console</button>
+                <button type="button" onClick={() => { openExternal('/#about'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>About Jaspen</button>
+                <button type="button" onClick={() => { openExternal('/pages/resources/tutorials'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Tutorials</button>
+                <button type="button" onClick={() => { openExternal('/pages/resources/tutorials'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Courses</button>
+                <button type="button" onClick={() => { openExternal('/pages/terms'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Usage policy</button>
+                <button type="button" onClick={() => { openExternal('/pages/privacy'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Privacy policy</button>
+                <button type="button" onClick={() => { openExternal('/pages/privacy#choices'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Your privacy choices</button>
+                <button type="button" onClick={() => { showToast('Keyboard shortcuts coming soon.', 'info'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Keyboard shortcuts</button>
+              </div>
+            )}
+          </div>
+          <button type="button" onClick={() => { openExternal('/pages/support'); setAccountQuickMenuOpen(false); }}>
+            Get help
+          </button>
+          <button type="button" onClick={() => { onClose?.(); handleLogout(); }} className="danger">
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   const renderUserMenuContent = (onClose) => (
     <div className="jas-ud-layout">
       <div className="jas-ud-scroll">
@@ -850,88 +975,7 @@ const refreshBundle = async (tid) => {
         </div>
       </div>
 
-      <div className="jas-ud-footer" ref={accountMenuRef}>
-        <button
-          type="button"
-          className="jas-ud-footer-profile"
-          onClick={() => {
-            setAccountQuickMenuOpen((prev) => !prev);
-            setKnowledgeMenuOpen(false);
-          }}
-        >
-          <div className="jas-ud-footer-avatar">{userInitials}</div>
-          <div className="jas-ud-footer-meta">
-            <span>{userName}</span>
-            <span>{currentPlanLabel}</span>
-          </div>
-        </button>
-        <div className="jas-ud-footer-actions">
-          <button
-            type="button"
-            className="jas-ud-footer-icon"
-            title="Get apps and extensions"
-            aria-label="Get apps and extensions"
-            onClick={() => {
-              openExternal('/pages/resources/connectors');
-              setAccountQuickMenuOpen(false);
-              setKnowledgeMenuOpen(false);
-            }}
-          >
-            <FontAwesomeIcon icon={faDownload} />
-          </button>
-          <button
-            type="button"
-            className="jas-ud-footer-icon"
-            title="Account menu"
-            aria-label="Account menu"
-            onClick={() => {
-              setAccountQuickMenuOpen((prev) => !prev);
-              setKnowledgeMenuOpen(false);
-            }}
-          >
-            <FontAwesomeIcon icon={accountQuickMenuOpen ? faChevronUp : faChevronDown} />
-          </button>
-        </div>
-        {accountQuickMenuOpen && (
-          <div className="jas-ud-footer-menu">
-            <div className="jas-ud-footer-email">{userEmail}</div>
-            <button type="button" onClick={() => { setBillingModalOpen(true); setAccountQuickMenuOpen(false); }}>
-              Upgrade plan
-            </button>
-            <button type="button" onClick={() => { openExternal('/login'); setAccountQuickMenuOpen(false); }}>
-              Gift Jaspen
-            </button>
-            <div
-              className="jas-ud-submenu-wrap"
-              onMouseEnter={() => setKnowledgeMenuOpen(true)}
-              onMouseLeave={() => setKnowledgeMenuOpen(false)}
-            >
-              <button type="button" className="jas-ud-submenu-trigger">
-                <span>Knowledge</span>
-                <span className="jas-ud-submenu-caret">›</span>
-              </button>
-              {knowledgeMenuOpen && (
-                <div className="jas-ud-submenu">
-                  <button type="button" onClick={() => { openExternal('/pages/api'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>API console</button>
-                  <button type="button" onClick={() => { openExternal('/#about'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>About Jaspen</button>
-                  <button type="button" onClick={() => { openExternal('/pages/resources/tutorials'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Tutorials</button>
-                  <button type="button" onClick={() => { openExternal('/pages/resources/tutorials'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Courses</button>
-                  <button type="button" onClick={() => { openExternal('/pages/terms'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Usage policy</button>
-                  <button type="button" onClick={() => { openExternal('/pages/privacy'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Privacy policy</button>
-                  <button type="button" onClick={() => { openExternal('/pages/privacy#choices'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Your privacy choices</button>
-                  <button type="button" onClick={() => { showToast('Keyboard shortcuts coming soon.', 'info'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Keyboard shortcuts</button>
-                </div>
-              )}
-            </div>
-            <button type="button" onClick={() => { openExternal('/pages/support'); setAccountQuickMenuOpen(false); }}>
-              Get help
-            </button>
-            <button type="button" onClick={() => { onClose?.(); handleLogout(); }} className="danger">
-              Log out
-            </button>
-          </div>
-        )}
-      </div>
+      {renderSidebarFooter(onClose)}
     </div>
   );
 
@@ -1137,7 +1181,7 @@ return {
                 // prefer the persisted result blob
                 ...full,
                 analysis_id: full.analysis_id ?? session.session_id,
-                project_name: full.project_name ?? session.name ?? 'Market IQ Analysis',
+                project_name: full.project_name ?? session.name ?? 'Untitled Idea',
                 market_iq_score: full.market_iq_score ?? session.score,
                 status: full.status ?? session.status,
                 chat_history: full.chat_history ?? session.chat_history,
@@ -1354,7 +1398,6 @@ useEffect(() => {
 
   // Autoscroll
   const endRef = useRef(null);
-  const contextPrimedRef = useRef(new Set());
   // Skip exactly one server readiness ping (used right after restoring a session)
   const skipPingRef = useRef(false);
   // Auto-restore previous session on refresh (URL sid > localStorage sid)
@@ -1435,14 +1478,7 @@ const rawHistory =
       : [];
 
 if (rawHistory.length > 0) {
-  const restored = rawHistory
-    .map((msg) => ({
-      role: msg?.role === 'user' ? 'user' : 'ai',
-      text: msg?.content || msg?.text || '',
-    }))
-    .filter((m) => (m.text || '').trim().length > 0);
-
-  setMessages(restored);
+  setMessages(toUiMessages(rawHistory));
 }
       // Restore collected_data
       if (session.collected_data && typeof session.collected_data === 'object') {
@@ -1481,41 +1517,6 @@ if (rawHistory.length > 0) {
   function toConversationHistory(msgs) {
     return msgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
   }
-
-  // Ensure Discuss (intake) chat has the current analysis context once per session
-  useEffect(() => {
-    if (view !== 'intake') return;
-    if (!sessionId || !analysisResult) return;
-    if (contextPrimedRef.current.has(sessionId)) return;
-
-    (async () => {
-      try {
-        const summaryLines = [
-          `Project: ${analysisResult.project_name}`,
-          `Score: ${analysisResult.market_iq_score} (${analysisResult.score_category || ''})`,
-        ].filter(Boolean);
-
-        await MarketIQ.convoContinue({
-          session_id: sessionId,
-          user_message: '[context-sync]',
-          conversation_history: [
-            ...toConversationHistory(messages),
-            {
-              role: 'system',
-              content:
-                'Use this as persistent context for future answers. ' +
-                'Do not repeat verbatim unless asked.\n' +
-                summaryLines.join('\n'),
-            },
-          ],
-        });
-
-        contextPrimedRef.current.add(sessionId);
-      } catch (err) {
-        console.debug('Context sync skipped:', err);
-      }
-    })();
-  }, [view, sessionId, analysisResult, messages]);
 
   // Fetch readiness snapshot (percent + categories) for a given session id
   // RETURNS the audit payload for immediate use in persistence
@@ -1607,11 +1608,7 @@ async function fetchReadinessFor(sid) {
     const hist = entry?.result?.chat_history;
     // Restore chat history as-is - NO FABRICATED MESSAGES
     if ((messages?.length || 0) === 0 && Array.isArray(hist) && hist.length > 0) {
-      const restored = hist.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'ai',
-        text: msg.content
-      }));
-      setMessages(restored);
+      setMessages(toUiMessages(hist));
     }
 
     // Readiness is ONLY fetched from backend via fetchReadinessFor - no sync from saved data
@@ -1861,13 +1858,14 @@ const [beginBusy, setBeginBusy] = useState(false);
 const [beginMsg, setBeginMsg] = useState("Generating your project plan…");
 
 async function onBeginProject() {
-    const suggestedName =
-        activeScorecard?.project_name ||
-        analysisResult?.project_name ||
-        (messages?.find(m => m.role === 'user')?.text?.slice(0, 40) || 'Market IQ Project');
+    const suggestedName = deriveIdeaTitle({
+      result: activeScorecard || analysisResult,
+      messages,
+      fallback: 'Untitled Idea',
+    });
 
     const ok = window.confirm(
-        `Begin a project from your Market IQ context?\n\n` +
+        `Begin a project from your Jaspen context?\n\n` +
         `Project name: "${suggestedName}"\n\n` +
         `This will create/update a project and plan in your Sekki workspace.`
     );
@@ -1891,7 +1889,7 @@ async function onBeginProject() {
             dry_run: false,
             persist: true,
             mode: 'replace',
-            commit_message: 'begin-project from MarketIQ'
+            commit_message: 'begin-project from Jaspen'
         };
 
         const resp = await fetch(`${API_BASE}/api/projects/generate/ai`, {
@@ -2050,7 +2048,7 @@ async function onBeginProject() {
       };
 
       const project_name =
-        r.project_name || compat.title || r.title || 'Market IQ Project';
+        r.project_name || compat.title || r.title || 'Untitled Idea';
 
       const risks = r.risks || r.top_risks || [];
 
@@ -2096,7 +2094,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
         ...raw,
         market_iq_score: raw.overall_score || raw.market_iq_score || 0,
         component_scores: raw.scores || raw.component_scores || {},
-        project_name: raw.name || raw.project_name || 'Market IQ Project',
+        project_name: raw.name || raw.project_name || deriveIdeaTitle({ messages, fallback: 'Untitled Idea' }),
         inputs: raw.inputs || raw.analysis_result?.inputs || null,
         compat: raw.compat || raw.analysis_result?.compat || null,
       };
@@ -2213,12 +2211,15 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
   // === Sidebar content for Refine & Rescore (mini scorecard, no duplicate buttons) ===
   const renderMiniScorecard = (result) => {
     if (!result) return null;
-    const comps = result.component_scores || {};
+    const comps = result.component_scores || result.scores || result.compat?.components || {};
+    const score = result.market_iq_score ?? result.overall_score ?? result.score ?? result.compat?.score ?? 0;
+    const category = result.score_category ||
+      (Number(score) >= 80 ? 'Excellent' : Number(score) >= 60 ? 'Good' : Number(score) >= 40 ? 'Fair' : 'At Risk');
     const items = [
-      { key: 'financial_health',       label: 'Financial Health',       val: comps.financial_health ?? 0 },
-      { key: 'operational_efficiency', label: 'Operational Efficiency', val: comps.operational_efficiency ?? 0 },
-      { key: 'market_position',        label: 'Market Position',        val: comps.market_position ?? 0 },
-      { key: 'execution_readiness',    label: 'Execution Readiness',    val: comps.execution_readiness ?? 0 },
+      { key: 'financial_health',       label: 'Financial Health',       val: comps.financial_health ?? comps.financialHealth ?? comps.financial ?? comps.economics ?? 0 },
+      { key: 'operational_efficiency', label: 'Operational Efficiency', val: comps.operational_efficiency ?? comps.operationalEfficiency ?? comps.operations ?? comps.execution ?? 0 },
+      { key: 'market_position',        label: 'Market Position',        val: comps.market_position ?? comps.marketPosition ?? comps.market ?? comps.strategy ?? 0 },
+      { key: 'execution_readiness',    label: 'Execution Readiness',    val: comps.execution_readiness ?? comps.executionReadiness ?? comps.readiness ?? comps.team ?? 0 },
     ];
     const clamp = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
     const risks = Array.isArray(result.risks) ? result.risks : [];
@@ -2226,11 +2227,11 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
     return (
       <div className="jas-mini-scorecard">
         <div className="jas-mini-scorecard-head">
-          <div className="jas-mini-project">{result.project_name || 'Market IQ Project'}</div>
+          <div className="jas-mini-project">{deriveIdeaTitle({ result, messages, fallback: 'Untitled Idea' })}</div>
           <div className="jas-mini-scoreline">
-            <span className="jas-mini-score">{clamp(result.market_iq_score)}</span>
+            <span className="jas-mini-score">{clamp(score)}</span>
             <span className="jas-mini-outof">/100</span>
-            <span className="jas-mini-cat">{result.score_category ? `• ${result.score_category}` : ''}</span>
+            <span className="jas-mini-cat">{category ? `• ${category}` : ''}</span>
           </div>
         </div>
 
@@ -2487,7 +2488,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
         const projectData = await MarketIQ.beginProject({
           threadBundleId: sessionId,
           scorecardId: scorecardId,
-          projectName: activeScorecard?.project_name || analysisResult?.project_name || 'Market IQ Project'
+          projectName: deriveIdeaTitle({ result: activeScorecard || analysisResult, messages, fallback: 'Untitled Idea' })
         });
         
         showToast('Project created successfully!', 'success');
@@ -2647,10 +2648,7 @@ const uiActions = parseUIActions(actionEnvelope);
     setSessionId(sid);
     setCurrentSessionId(sid);
 
-    const restoredMessages = merged.chat_history.map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'ai',
-      text: msg.content,
-    }));
+    const restoredMessages = toUiMessages(merged.chat_history);
     setMessages(restoredMessages);
 
     setCollectedData(merged.collected_data || {});
@@ -2677,7 +2675,10 @@ try {
     `restored_${Date.now()}`;
 
   setSessionId(id);
-// (removed) assistant drawer uses main `messages`
+  const restoredMessages = toUiMessages(merged?.chat_history || merged?.result?.chat_history || []);
+  if (restoredMessages.length > 0) {
+    setMessages(restoredMessages);
+  }
 
   setCurrentSessionId(id); // ADD THIS LINE - was missing!
   
@@ -2886,7 +2887,7 @@ const handleSaveScenario = async (scenario) => {
         },
         body: JSON.stringify({
           message: helpInput,
-          context: 'Market IQ'
+          context: 'Jaspen'
         })
       });
       const data = await response.json();
@@ -2960,6 +2961,11 @@ const handleSaveScenario = async (scenario) => {
     const sideTabBase = 80;
     const sideTabGap = 130;
     const sideTabSecond = sideTabBase + sideTabGap;
+    const workspaceProjectTitle = deriveIdeaTitle({
+      result: activeScorecard || analysisResult,
+      messages,
+      fallback: 'Untitled Idea',
+    });
     const TabButton = ({ id, label }) => (
       <button
         className={`jas-top-tab ${activeTab === id ? 'active' : ''}`}
@@ -3063,6 +3069,7 @@ setView(id === 'chat' ? 'intake' : id);
           </div>
         </div>
       </div>
+      {renderSidebarFooter(() => dispatchSidebar({ type: 'CLOSE_READINESS' }))}
     </div>
 
     {sessionId && messages.length > 0 && !sidebarState.readiness && (
@@ -3127,11 +3134,6 @@ setView(id === 'chat' ? 'intake' : id);
     aria-label="Jaspen"
     title="Jaspen"
   >
-    <img
-      src={`${process.env.PUBLIC_URL}/Dark_Navy_Icon.png`}
-      alt="Jaspen"
-      style={{ writingMode: 'horizontal-tb', width: '12px', height: '12px', objectFit: 'contain', display: 'block' }}
-    />
     <span className="jas-tab-label">Jaspen</span>
   </div>
 )}
@@ -3141,10 +3143,7 @@ setView(id === 'chat' ? 'intake' : id);
   <div className={`jas-ai-drawer ${aiDrawerOpen ? 'jas-drawer-open' : ''}`}>
     <div className="jas-ai-header">
       <div className="jas-ai-title">
-        <span>{isScenarioTab && scenarioDrawerView === 'scorecard' ? 'Score Summary' : 'Assistant'}</span>
-        <span className="jas-ai-badge">
-          <FontAwesomeIcon icon={isScenarioTab && scenarioDrawerView === 'scorecard' ? faChartLine : faRobot} />
-        </span>
+        <span>{isScenarioTab && scenarioDrawerView === 'scorecard' ? 'Score Summary' : 'Jaspen'}</span>
       </div>
       <button className="jas-close-btn" onClick={toggleAIDrawer}>
         <FontAwesomeIcon icon={faTimes} />
@@ -3158,7 +3157,7 @@ setView(id === 'chat' ? 'intake' : id);
           className={`jas-ai-toggle-btn ${scenarioDrawerView === 'assistant' ? 'active' : ''}`}
           onClick={() => setScenarioDrawerView('assistant')}
         >
-          Assistant
+          Jaspen
         </button>
         <button
           type="button"
@@ -3207,6 +3206,7 @@ setView(id === 'chat' ? 'intake' : id);
         {renderMiniScorecard(activeScorecard)}
       </div>
     )}
+    {renderSidebarFooter(() => setAiDrawerOpen(false))}
   </div>
 )}
 
@@ -3231,13 +3231,12 @@ setView(id === 'chat' ? 'intake' : id);
         <div className={`jas-workspace ${aiDrawerOpen ? 'jas-ai-open' : ''} ${isReadinessOpen ? 'jas-readiness-open' : ''} ${isSettingsOpen ? 'jas-settings-open' : ''}`}>
           <div className="jas-workspace-header">
             <div className="jas-workspace-title">
-              <span className="jas-brand-small">SEKKI • Market IQ</span>
               <h2 className="jas-project-title">
-                {activeScorecard?.project_name || analysisResult?.project_name || 'Market IQ Project'}
+                {workspaceProjectTitle}
               </h2>
             </div>
 
-            <nav className="jas-top-tabs" role="tablist" aria-label="Market IQ views">
+            <nav className="jas-top-tabs" role="tablist" aria-label="Jaspen views">
               <TabButton id="summary"  label="Score" />
               <TabButton id="scenario" label="Scenarios" />
               <TabButton id="chat"     label="Refine & Rescore" />
@@ -3280,7 +3279,8 @@ setView(id === 'chat' ? 'intake' : id);
                     onClick={onBeginProject}
                     disabled={beginBusy}
                   >
-                    {beginBusy ? "Working…" : "Begin Project"}
+                    <FontAwesomeIcon icon={beginBusy ? faSpinner : faPlay} spin={beginBusy} />
+                    <span>{beginBusy ? "Working…" : "Begin Project"}</span>
                   </button>
                 </div>
               )}
@@ -3368,7 +3368,7 @@ setView(id === 'chat' ? 'intake' : id);
           id: `proj_${Date.now()}`,
           source_analysis_id: sessionId,
           createdAt: Date.now(),
-          title: analysisResult?.project_name || 'Market IQ Project',
+          title: deriveIdeaTitle({ result: analysisResult, messages, fallback: 'Untitled Idea' }),
           payload: analysisResult,
         });
         window.location.href = `https://sekki.io/ops/project-planning?from=jas&analysis=${encodeURIComponent(sessionId)}`;
@@ -3524,7 +3524,7 @@ setView(id === 'chat' ? 'intake' : id);
                           className="finish-analyze-btn"
                           onClick={onFinishAnalyze}
                           disabled={!canAnalyze || busy}
-                          title={canAnalyze ? "Regenerate your Market IQ score" : "Keep chatting to gather more information"}
+                          title={canAnalyze ? "Regenerate your Jaspen score" : "Keep chatting to gather more information"}
                         >
                           <FontAwesomeIcon icon={faCheck} />
                           <span>Finish & Analyze</span>
@@ -3568,7 +3568,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       id: `proj_${Date.now()}`,
       source_analysis_id: sessionId,
       createdAt: Date.now(),
-      title: analysisResult?.project_name || 'Market IQ Project',
+      title: deriveIdeaTitle({ result: analysisResult, messages, fallback: 'Untitled Idea' }),
       payload: analysisResult,
     });
     window.location.href = `https://sekki.io/ops/project-planning?from=jas&analysis=${encodeURIComponent(sessionId)}`;
@@ -3740,6 +3740,7 @@ const done = category.completed === true;
   </div>
 </div>
         </div>
+        {renderSidebarFooter(() => dispatchSidebar({ type: 'CLOSE_READINESS' }))}
       </div>
 
       {/* LEFT SIDEBAR - History */}
@@ -3935,7 +3936,7 @@ const done = category.completed === true;
                 className="finish-analyze-btn"
                 onClick={onFinishAnalyze}
                 disabled={!canAnalyze || busy}
-                title={canAnalyze ? "Generate your Market IQ score" : "Keep chatting to gather more information"}
+                title={canAnalyze ? "Generate your Jaspen score" : "Keep chatting to gather more information"}
               >
                 <FontAwesomeIcon icon={faCheck} />
                 <span>Finish & Analyze</span>
@@ -3961,7 +3962,7 @@ const done = category.completed === true;
                 <div className="jas-help-welcome">
                   <p>Hi! I'm here to help you with:</p>
                   <ul>
-                    <li>Understanding Market IQ features</li>
+                    <li>Understanding Jaspen features</li>
                     <li>Navigating the platform</li>
                     <li>Project management tools</li>
                     <li>Lean Six Sigma resources</li>

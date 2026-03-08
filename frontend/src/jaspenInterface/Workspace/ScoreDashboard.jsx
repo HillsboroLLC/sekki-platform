@@ -414,7 +414,7 @@ export default function ScoreDashboard({
                   const projectData = await onBeginProject({
                     threadBundleId,
                     scorecardId: selectedScorecardId,
-                    projectName: result.project_name || 'Market IQ Project'
+                    projectName: result.project_name || 'Untitled Idea'
                   });
                   console.log('[ScoreDashboard] Project created:', projectData);
                 } catch (err) {

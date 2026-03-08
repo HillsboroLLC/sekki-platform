@@ -118,7 +118,7 @@ You conduct a natural business discovery chat.
 - One concise question at a time.
 - Reference what the user already said; no rigid questionnaire.
 - Never repeat the same question verbatim; adapt wording if needed.
-- Keep it friendly, crisp, and progress toward building a Market IQ scorecard.
+- Keep it friendly, crisp, and progress toward building a Jaspen scorecard.
 `.trim();
 
 export const MarketIQ = {
@@ -193,7 +193,7 @@ export const MarketIQ = {
         detailed: true,
         phase: 3,
         systemPrompt:
-          'You are a market analyst assisting with deep-dive Q&A on a completed Market IQ analysis. Provide conversational, helpful responses that reference the analysis context when relevant.',
+          'You are a market analyst assisting with deep-dive Q&A on a completed Jaspen analysis. Provide conversational, helpful responses that reference the analysis context when relevant.',
         analysis_context,
         analysis_id,
       },
@@ -273,7 +273,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
       {
         thread_id: session_id,
         name: project_name || 'Baseline Analysis',
-        framework_id: null, // Uses default "Market IQ Assessment"
+        framework_id: null, // Uses default "Jaspen Assessment"
       },
       { withSid: true, sidOverride: session_id }
     );

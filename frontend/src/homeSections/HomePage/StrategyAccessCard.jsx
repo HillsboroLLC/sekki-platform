@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 const TARGET_SCORE = 87;
 const ANIMATION_DURATION_MS = 1200;
+const GOOGLE_AUTH_ENTRY_PATH = '/auth/google/start';
 
 export default function StrategyAccessCard() {
   const [score, setScore] = useState(0);
@@ -57,8 +58,8 @@ export default function StrategyAccessCard() {
       : 'strategy-card-disclaimer';
 
   const handleGoogleClick = () => {
-    setAuthError(null);
-    window.location.href = "https://api.jaspen.ai/api/auth/google/start";
+    setAuthError('');
+    window.location.assign(GOOGLE_AUTH_ENTRY_PATH);
   };
 
   const handleEmailSubmit = async (event) => {

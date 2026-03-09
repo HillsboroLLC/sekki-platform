@@ -247,6 +247,12 @@ export default function Account() {
   const currentPlan = status?.plan_key || 'free';
   const plans = catalog?.plans || {};
   const packs = catalog?.overage_packs || {};
+  const creditsRemainingLabel = status?.credits_remaining == null
+    ? 'Contracted'
+    : Number(status?.credits_remaining || 0).toLocaleString();
+  const monthlyLimitLabel = status?.monthly_credit_limit == null
+    ? 'Contracted'
+    : Number(status?.monthly_credit_limit || 0).toLocaleString();
   const modelTypes = catalog?.model_types || FALLBACK_MODEL_TYPES;
   const orderedModelTypes = MODEL_ORDER.map((key) => modelTypes?.[key]).filter(Boolean);
   const formatModelDisplayName = (model) => {
@@ -276,26 +282,20 @@ export default function Account() {
           </button>
         </div>
 
-        <section className="account-section account-usage-section">
-          <h2>Usage overview</h2>
-          <p className="account-current-plan">
-            Current plan: <strong>{(plans[currentPlan]?.label || currentPlan).toString()}</strong>
-          </p>
-          <div className="account-usage-grid">
-            <article className="account-usage-card">
-              <h3>Credits remaining</h3>
-              <p className="account-big-value">
-                {status?.credits_remaining == null ? 'Contracted' : Number(status?.credits_remaining || 0).toLocaleString()}
-              </p>
-            </article>
-            <article className="account-usage-card">
-              <h3>Monthly limit</h3>
-              <p className="account-big-value">
-                {status?.monthly_credit_limit == null ? 'Contracted' : Number(status?.monthly_credit_limit || 0).toLocaleString()}
-              </p>
-            </article>
-          </div>
-        </section>
+        <div className="account-inline-status">
+          <span className="account-status-chip">
+            <span className="label">Current plan</span>
+            <strong>{(plans[currentPlan]?.label || currentPlan).toString()}</strong>
+          </span>
+          <span className="account-status-chip">
+            <span className="label">Credits remaining</span>
+            <strong>{creditsRemainingLabel}</strong>
+          </span>
+          <span className="account-status-chip">
+            <span className="label">Monthly limit</span>
+            <strong>{monthlyLimitLabel}</strong>
+          </span>
+        </div>
 
         {message && <p className="account-message">{message}</p>}
 

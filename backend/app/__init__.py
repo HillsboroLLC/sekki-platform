@@ -128,13 +128,29 @@ def create_app():
     mail.init_app(app)
 
     # —— CORS —— #
-    if _should_enable_flask_cors(frontend_base_raw):
+    enable_flask_cors = _should_enable_flask_cors(frontend_base_raw)
+    if enable_flask_cors:
         cors_origins = _derive_cors_origins(frontend_base)
         CORS(
             app,
             supports_credentials=True,
             resources={r"/api/*": {"origins": cors_origins}},
         )
+    else:
+        # Ensure upstream app does not emit CORS headers when edge (e.g., Nginx)
+        # is responsible for CORS, preventing duplicate ACAO values.
+        @app.after_request
+        def _strip_cors_headers(resp):
+            for key in (
+                'Access-Control-Allow-Origin',
+                'Access-Control-Allow-Credentials',
+                'Access-Control-Allow-Headers',
+                'Access-Control-Allow-Methods',
+                'Access-Control-Expose-Headers',
+                'Access-Control-Max-Age',
+            ):
+                resp.headers.pop(key, None)
+            return resp
 
     # —— Register blueprints —— #
     from .routes.auth      import auth_bp

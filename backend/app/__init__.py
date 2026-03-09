@@ -73,7 +73,9 @@ def create_app():
 
         # OpenAI / Claude
         OPENAI_API_KEY                 = os.getenv('OPENAI_API_KEY'),
-        CLAUDE_API_KEY                 = os.getenv('CLAUDE_API_KEY'),
+        ANTHROPIC_API_KEY              = os.getenv('ANTHROPIC_API_KEY') or os.getenv('CLAUDE_API_KEY'),
+        # Backward-compatible alias for old references.
+        CLAUDE_API_KEY                 = os.getenv('CLAUDE_API_KEY') or os.getenv('ANTHROPIC_API_KEY'),
 
         # JWT
         JWT_SECRET_KEY                 = os.getenv('JWT_SECRET_KEY'),
@@ -118,6 +120,12 @@ def create_app():
         'orbit': os.getenv('MODEL_ORBIT_ID') or os.getenv('OPENAI_MODEL_ORBIT') or 'gpt-4o',
         'titan': os.getenv('MODEL_TITAN_ID') or os.getenv('OPENAI_MODEL_TITAN') or 'gpt-4',
     }
+    app.config['AI_AGENT_ANTHROPIC_MODEL'] = os.getenv('AI_AGENT_ANTHROPIC_MODEL') or 'claude-3-5-sonnet-latest'
+    app.config['AI_AGENT_MAX_OUTPUT_TOKENS'] = int(os.getenv('AI_AGENT_MAX_OUTPUT_TOKENS', '260'))
+    app.config['AI_AGENT_TEMPERATURE'] = float(os.getenv('AI_AGENT_TEMPERATURE', '0.2'))
+    app.config['AI_AGENT_CREDITS_PER_1K_TOKENS'] = float(os.getenv('AI_AGENT_CREDITS_PER_1K_TOKENS', '1.0'))
+    app.config['AI_AGENT_MIN_CREDIT_CHARGE'] = int(os.getenv('AI_AGENT_MIN_CREDIT_CHARGE', '1'))
+    app.config['AI_AGENT_CREDIT_MULTIPLIERS'] = os.getenv('AI_AGENT_CREDIT_MULTIPLIERS_JSON', '')
     # —— Frontend base URL for success/cancel links —— #
     app.config['FRONTEND_BASE_URL'] = frontend_base
 

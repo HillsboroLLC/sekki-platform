@@ -166,6 +166,52 @@
   cursor: not-allowed;
 }
 
+.account-model-table-wrap {
+  border: 1px solid #d8e0ec;
+  border-radius: 14px;
+  overflow-x: auto;
+  background: #ffffff;
+}
+
+.account-model-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.account-model-table th,
+.account-model-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e6ecf5;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.86rem;
+}
+
+.account-model-table th {
+  background: #f7f9fd;
+  color: #112147;
+  font-weight: 700;
+}
+
+.account-model-name {
+  font-weight: 700;
+  color: #0d1230;
+}
+
+.account-model-desc {
+  margin-top: 4px;
+  color: #5b6e8d;
+  font-size: 0.79rem;
+  line-height: 1.4;
+}
+
+.account-model-table td.is-current-plan {
+  background: #fff7fc;
+  color: #8d1a5e;
+  font-weight: 700;
+}
+
 @media (max-width: 860px) {
   .account-plan-grid,
   .account-pack-grid,

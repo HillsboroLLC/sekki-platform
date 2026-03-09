@@ -1353,6 +1353,46 @@
   color: #304f87;
 }
 
+.pricing-model-table-wrap {
+  border: 1px solid #d8e0ed;
+  border-radius: 16px;
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.pricing-model-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.pricing-model-table th,
+.pricing-model-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e3e9f3;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.89rem;
+}
+
+.pricing-model-table th {
+  font-weight: 700;
+  color: var(--marketing-navy-deep);
+  background: rgba(244, 248, 253, 0.8);
+}
+
+.pricing-model-name {
+  font-weight: 700;
+  color: var(--marketing-navy-deep);
+}
+
+.pricing-model-desc {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--marketing-gray-500);
+  line-height: 1.45;
+}
+
 .score-intro-layout {
   display: grid;
   grid-template-columns: 1.16fr 0.84fr;

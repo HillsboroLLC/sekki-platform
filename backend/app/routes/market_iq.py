@@ -9,7 +9,16 @@ from datetime import datetime
 import uuid
 from app import db
 from app.models import User
-from app.billing_config import bootstrap_legacy_credits, consume_credits, get_monthly_credit_limit, to_public_plan
+from app.billing_config import (
+    bootstrap_legacy_credits,
+    consume_credits,
+    get_allowed_model_types,
+    get_default_model_type,
+    get_model_catalog,
+    get_monthly_credit_limit,
+    normalize_model_type,
+    to_public_plan,
+)
 from .sessions import load_user_sessions
 
 market_iq_bp = Blueprint('market_iq', __name__)
@@ -112,7 +121,32 @@ def _conversation_to_transcript(history):
     return '\n'.join(lines)
 
 
-def _generate_market_iq_scorecard(client, project_description):
+def _resolve_user_model_selection(user, requested_model_type=None):
+    plan_key = to_public_plan(user.subscription_plan)
+    allowed_model_types = get_allowed_model_types(plan_key, current_app.config)
+    default_model_type = get_default_model_type(plan_key, current_app.config)
+    selected_model_type = normalize_model_type(requested_model_type or default_model_type)
+
+    if selected_model_type not in allowed_model_types:
+        return None, {
+            'error': f"Model '{requested_model_type}' is not available on your {plan_key} plan.",
+            'code': 'model_type_not_allowed',
+            'plan_key': plan_key,
+            'allowed_model_types': allowed_model_types,
+            'default_model_type': default_model_type,
+        }
+
+    model_catalog = get_model_catalog(current_app.config)
+    model_meta = model_catalog.get(selected_model_type, {})
+    return {
+        'model_type': selected_model_type,
+        'llm_model': model_meta.get('llm_model'),
+        'allowed_model_types': allowed_model_types,
+        'default_model_type': default_model_type,
+    }, None
+
+
+def _generate_market_iq_scorecard(client, project_description, llm_model):
     """Run the existing LLM scoring flow and return parsed scorecard JSON."""
     analysis_prompt = f"""
 You are a Jaspen strategy analyst specializing in commercialization strategy and financial impact assessment. Analyze the following project and provide a comprehensive strategy score and breakdown.
@@ -170,7 +204,7 @@ Provide specific, actionable insights with quantified financial impacts where po
 """
 
     response = client.chat.completions.create(
-        model="gpt-4",
+        model=llm_model,
         messages=[
             {"role": "system", "content": "You are a Jaspen strategy analyst specializing in commercialization strategy. Always respond with valid JSON only."},
             {"role": "user", "content": analysis_prompt}
@@ -239,8 +273,19 @@ def analyze_project():
                 'suggestion': 'Purchase an overage pack or upgrade your plan.',
             }), 402
 
+        model_selection, model_error = _resolve_user_model_selection(
+            user,
+            requested_model_type=data.get('model_type'),
+        )
+        if model_error:
+            return jsonify(model_error), 403
+
         client = get_openai_client()
-        analysis_result = _generate_market_iq_scorecard(client, effective_description)
+        analysis_result = _generate_market_iq_scorecard(
+            client,
+            effective_description,
+            llm_model=model_selection['llm_model'],
+        )
 
         analysis_id = str(uuid.uuid4())
         generated_at = datetime.utcnow().isoformat()
@@ -263,6 +308,8 @@ def analyze_project():
                 'name': project_name,
                 'conversation_turns': len(conversation_history),
                 'generated_at': generated_at,
+                'model_type': model_selection['model_type'],
+                'llm_model': model_selection['llm_model'],
             }
         }
 
@@ -278,7 +325,11 @@ def analyze_project():
         analysis['meta']['credits_charged'] = analysis_credit_cost
         analysis['meta']['credits_remaining'] = remaining
 
-        return jsonify({'analysis': analysis}), 200
+        return jsonify({
+            'analysis': analysis,
+            'model_type': model_selection['model_type'],
+            'allowed_model_types': model_selection['allowed_model_types'],
+        }), 200
         
     except Exception as e:
         print(f"Error in Jaspen analysis: {str(e)}")
@@ -288,12 +339,27 @@ def analyze_project():
 @jwt_required()
 def chat_with_analysis():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        if bootstrap_legacy_credits(user, current_app.config):
+            db.session.commit()
+
         message = data.get('message', '')
         analysis_context = data.get('analysis_context', {})
         
         if not message:
             return jsonify({'error': 'Message is required'}), 400
+
+        requested_model_type = data.get('model_type') or analysis_context.get('model_type')
+        model_selection, model_error = _resolve_user_model_selection(
+            user,
+            requested_model_type=requested_model_type,
+        )
+        if model_error:
+            return jsonify(model_error), 403
         
         # Initialize OpenAI
         client = get_openai_client()
@@ -320,7 +386,7 @@ Keep responses concise but comprehensive (2-3 paragraphs maximum).
 
         # Call OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4",
+            model=model_selection['llm_model'],
             messages=[
                 {"role": "system", "content": "You are a Jaspen strategy assistant specializing in commercialization strategy and financial optimization."},
                 {"role": "user", "content": context_prompt}
@@ -333,6 +399,7 @@ Keep responses concise but comprehensive (2-3 paragraphs maximum).
         
         return jsonify({
             'response': ai_response,
+            'model_type': model_selection['model_type'],
             'timestamp': datetime.utcnow().isoformat()
         }), 200
         

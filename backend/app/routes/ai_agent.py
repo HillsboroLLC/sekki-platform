@@ -1,14 +1,20 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
+import json
+import math
 import os
 import re
 import uuid
 
+from app import db
 from app.models import User
 from app.billing_config import (
+    bootstrap_legacy_credits,
+    consume_credits,
     get_allowed_model_types,
     get_default_model_type,
+    get_monthly_credit_limit,
     get_model_catalog,
     normalize_model_type,
     to_public_plan,
@@ -414,6 +420,321 @@ def _next_question(readiness):
     return "Great, I have enough context. You can click Finish & Analyze when ready."
 
 
+def _anthropic_api_key():
+    return (
+        current_app.config.get("ANTHROPIC_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+        or current_app.config.get("CLAUDE_API_KEY")
+        or os.getenv("CLAUDE_API_KEY")
+    )
+
+
+def _anthropic_model_for_selection(model_selection):
+    selected = str((model_selection or {}).get("llm_model") or "").strip()
+    if selected.lower().startswith("claude"):
+        return selected
+    return str(
+        current_app.config.get("AI_AGENT_ANTHROPIC_MODEL")
+        or os.getenv("AI_AGENT_ANTHROPIC_MODEL")
+        or "claude-3-5-sonnet-latest"
+    ).strip()
+
+
+def _model_credit_multiplier(model_type):
+    model_type = normalize_model_type(model_type)
+    defaults = {"pluto": 1.0, "orbit": 1.5, "titan": 2.25}
+    raw = (
+        current_app.config.get("AI_AGENT_CREDIT_MULTIPLIERS")
+        or os.getenv("AI_AGENT_CREDIT_MULTIPLIERS_JSON")
+        or {}
+    )
+    multipliers = defaults.copy()
+    if isinstance(raw, str) and raw.strip():
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                for k, v in parsed.items():
+                    try:
+                        multipliers[str(k).strip().lower()] = max(0.1, float(v))
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+    elif isinstance(raw, dict):
+        for k, v in raw.items():
+            try:
+                multipliers[str(k).strip().lower()] = max(0.1, float(v))
+            except Exception:
+                continue
+    return float(multipliers.get(model_type, multipliers["pluto"]))
+
+
+def _estimate_usage_credit_charge(total_tokens, model_type):
+    total_tokens = int(total_tokens or 0)
+    if total_tokens <= 0:
+        return 0
+
+    per_1k = float(
+        current_app.config.get("AI_AGENT_CREDITS_PER_1K_TOKENS")
+        or os.getenv("AI_AGENT_CREDITS_PER_1K_TOKENS")
+        or 1.0
+    )
+    min_charge = int(
+        current_app.config.get("AI_AGENT_MIN_CREDIT_CHARGE")
+        or os.getenv("AI_AGENT_MIN_CREDIT_CHARGE")
+        or 1
+    )
+    raw_credits = (total_tokens / 1000.0) * max(0.01, per_1k) * _model_credit_multiplier(model_type)
+    return max(min_charge, int(math.ceil(raw_credits)))
+
+
+def _anthropic_messages_from_history(chat_history, max_turns=14):
+    normalized = []
+    for msg in (chat_history or []):
+        text = _message_text(msg)
+        if not text:
+            continue
+        role = str((msg or {}).get("role") or "").lower()
+        normalized.append({
+            "role": "assistant" if role in ("assistant", "ai", "bot") else "user",
+            "content": text,
+        })
+
+    if max_turns and len(normalized) > max_turns:
+        normalized = normalized[-max_turns:]
+    return normalized
+
+
+def _anthropic_tool_definitions():
+    return [
+        {
+            "name": "get_readiness_snapshot",
+            "description": "Return the latest readiness percent, missing checklist items, and top follow-up question.",
+            "input_schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "get_data_contract",
+            "description": "Return required fields for baseline evidence collection when readiness v2 is active.",
+            "input_schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        },
+    ]
+
+
+def _anthropic_tool_output(tool_name, readiness):
+    if tool_name == "get_data_contract":
+        if readiness.get("version") == "readiness-v2":
+            return {
+                "available": True,
+                "version": "readiness-v2",
+                "data_contract": EVIDENCE_DATA_CONTRACT,
+            }
+        return {
+            "available": False,
+            "reason": "Data contract is only used for readiness-v2.",
+        }
+
+    missing_items = [
+        {
+            "id": item.get("id"),
+            "label": item.get("label"),
+            "next_question": item.get("next_question"),
+            "status": item.get("status"),
+        }
+        for item in readiness.get("items", [])
+        if item.get("status") != "complete"
+    ]
+
+    return {
+        "percent": int((readiness.get("overall") or {}).get("percent") or 0),
+        "version": readiness.get("version"),
+        "missing_items": missing_items[:5],
+        "top_followup": _next_question(readiness),
+        "checklist_summary": readiness.get("checklist_summary") or {},
+    }
+
+
+def _anthropic_content_to_dicts(content_blocks):
+    normalized = []
+    for block in (content_blocks or []):
+        if isinstance(block, dict):
+            normalized.append(block)
+            continue
+        if hasattr(block, "model_dump"):
+            try:
+                normalized.append(block.model_dump())
+                continue
+            except Exception:
+                pass
+        payload = {"type": getattr(block, "type", "text")}
+        for field in ("id", "name", "input", "text"):
+            value = getattr(block, field, None)
+            if value is not None:
+                payload[field] = value
+        normalized.append(payload)
+    return normalized
+
+
+def _anthropic_text(content_blocks):
+    out = []
+    for block in (content_blocks or []):
+        if isinstance(block, dict):
+            if block.get("type") == "text" and block.get("text"):
+                out.append(str(block.get("text")))
+            continue
+        if getattr(block, "type", None) == "text":
+            text = getattr(block, "text", "")
+            if text:
+                out.append(str(text))
+    return "\n".join(out).strip()
+
+
+def _generate_assistant_reply(user_message, chat_history, readiness, model_selection):
+    fallback_reply = _next_question(readiness)
+    api_key = _anthropic_api_key()
+    if not api_key:
+        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+    try:
+        import anthropic
+    except Exception:
+        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+    model_name = _anthropic_model_for_selection(model_selection)
+    max_tokens = int(
+        current_app.config.get("AI_AGENT_MAX_OUTPUT_TOKENS")
+        or os.getenv("AI_AGENT_MAX_OUTPUT_TOKENS")
+        or 260
+    )
+    temperature = float(
+        current_app.config.get("AI_AGENT_TEMPERATURE")
+        or os.getenv("AI_AGENT_TEMPERATURE")
+        or 0.2
+    )
+
+    system_prompt = (
+        "You are Jaspen's intake agent. Ask one concise next question that advances readiness. "
+        "Do not repeat the user's wording unnecessarily. Use tool results when available."
+    )
+    messages = _anthropic_messages_from_history(chat_history, max_turns=16)
+    if not messages:
+        messages = [{"role": "user", "content": user_message}]
+
+    client = anthropic.Anthropic(api_key=api_key)
+    tools = _anthropic_tool_definitions()
+    total_input_tokens = 0
+    total_output_tokens = 0
+
+    response = client.messages.create(
+        model=model_name,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        system=system_prompt,
+        tools=tools,
+        messages=messages,
+    )
+    total_input_tokens += int(getattr(getattr(response, "usage", None), "input_tokens", 0) or 0)
+    total_output_tokens += int(getattr(getattr(response, "usage", None), "output_tokens", 0) or 0)
+
+    # Tool loop: allow Claude to call local readiness/data-contract tools.
+    for _ in range(3):
+        tool_blocks = [b for b in (response.content or []) if getattr(b, "type", None) == "tool_use" or (isinstance(b, dict) and b.get("type") == "tool_use")]
+        if not tool_blocks:
+            break
+
+        tool_results = []
+        for block in tool_blocks:
+            if isinstance(block, dict):
+                tool_name = str(block.get("name") or "").strip()
+                tool_use_id = block.get("id")
+            else:
+                tool_name = str(getattr(block, "name", "") or "").strip()
+                tool_use_id = getattr(block, "id", None)
+
+            result_payload = _anthropic_tool_output(tool_name, readiness)
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": json.dumps(result_payload),
+            })
+
+        messages.append({"role": "assistant", "content": _anthropic_content_to_dicts(response.content)})
+        messages.append({"role": "user", "content": tool_results})
+        response = client.messages.create(
+            model=model_name,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system_prompt,
+            tools=tools,
+            messages=messages,
+        )
+        total_input_tokens += int(getattr(getattr(response, "usage", None), "input_tokens", 0) or 0)
+        total_output_tokens += int(getattr(getattr(response, "usage", None), "output_tokens", 0) or 0)
+
+    reply = _anthropic_text(response.content) or fallback_reply
+    usage = {
+        "provider": "anthropic",
+        "model": model_name,
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
+        "total_tokens": total_input_tokens + total_output_tokens,
+    }
+    return reply, usage
+
+
+def _record_usage(session, usage, credits_charged):
+    if not isinstance(session, dict):
+        return
+    usage = usage if isinstance(usage, dict) else {}
+
+    input_tokens = int(usage.get("input_tokens") or 0)
+    output_tokens = int(usage.get("output_tokens") or 0)
+    total_tokens = int(usage.get("total_tokens") or (input_tokens + output_tokens))
+    provider = usage.get("provider") or "unknown"
+    model = usage.get("model")
+
+    summary = session.get("usage_summary")
+    if not isinstance(summary, dict):
+        summary = {
+            "provider": provider,
+            "model": model,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "credits_charged": 0,
+            "events": 0,
+        }
+    summary["provider"] = provider
+    summary["model"] = model
+    summary["input_tokens"] = int(summary.get("input_tokens") or 0) + input_tokens
+    summary["output_tokens"] = int(summary.get("output_tokens") or 0) + output_tokens
+    summary["total_tokens"] = int(summary.get("total_tokens") or 0) + total_tokens
+    summary["credits_charged"] = int(summary.get("credits_charged") or 0) + int(credits_charged or 0)
+    summary["events"] = int(summary.get("events") or 0) + 1
+    session["usage_summary"] = summary
+
+    events = session.get("usage_events")
+    if not isinstance(events, list):
+        events = []
+    events.append({
+        "timestamp": _iso_now(),
+        "provider": provider,
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+        "credits_charged": int(credits_charged or 0),
+    })
+    session["usage_events"] = events[-150:]
+
+
 def _resolve_model_selection(user, requested_model_type=None, fallback_model_type=None):
     plan_key = to_public_plan(user.subscription_plan)
     allowed_model_types = get_allowed_model_types(plan_key, current_app.config)
@@ -581,6 +902,8 @@ def conversation_start():
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
+    if bootstrap_legacy_credits(user, current_app.config):
+        db.session.commit()
 
     user_message = str(data.get("message") or data.get("description") or "").strip()
     if not user_message:
@@ -601,7 +924,20 @@ def conversation_start():
 
     chat_history.append({"role": "user", "content": user_message, "timestamp": _iso_now()})
     readiness = _compute_readiness(chat_history)
-    assistant_reply = _next_question(readiness)
+    assistant_reply, usage = _generate_assistant_reply(user_message, chat_history, readiness, model_selection)
+
+    credits_charged = _estimate_usage_credit_charge(usage.get("total_tokens"), model_selection["model_type"])
+    charged, remaining = consume_credits(user, credits_charged)
+    if not charged:
+        return jsonify({
+            "error": "Insufficient credits",
+            "required_credits": credits_charged,
+            "credits_remaining": user.credits_remaining,
+            "plan_key": to_public_plan(user.subscription_plan),
+            "monthly_credit_limit": get_monthly_credit_limit(user.subscription_plan, current_app.config),
+            "suggestion": "Purchase an overage pack or upgrade your plan.",
+        }), 402
+
     chat_history.append({"role": "assistant", "content": assistant_reply, "timestamp": _iso_now()})
 
     session["chat_history"] = chat_history
@@ -609,8 +945,10 @@ def conversation_start():
     session["model_type"] = model_selection["model_type"]
     session["timestamp"] = _iso_now()
     session["status"] = "in_progress"
+    _record_usage(session, usage, credits_charged)
     sessions[thread_id] = session
-    save_user_sessions(user_id, sessions)
+    if not save_user_sessions(user_id, sessions):
+        return jsonify({"error": "Failed to persist conversation state"}), 500
 
     return jsonify({
         "thread_id": thread_id,
@@ -619,6 +957,11 @@ def conversation_start():
         "message": assistant_reply,
         "model_type": model_selection["model_type"],
         "allowed_model_types": model_selection["allowed_model_types"],
+        "usage": usage,
+        "credits": {
+            "charged": credits_charged,
+            "remaining": remaining,
+        },
         "readiness": {
             "percent": readiness["overall"]["percent"],
             "categories": readiness["categories"],
@@ -636,6 +979,11 @@ def conversation_start():
 def conversation_continue():
     data = request.get_json() or {}
     user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    if bootstrap_legacy_credits(user, current_app.config):
+        db.session.commit()
 
     thread_id = str(data.get("thread_id") or data.get("session_id") or request.headers.get("X-Session-ID") or "").strip()
     user_message = str(data.get("message") or data.get("user_message") or "").strip()
@@ -646,28 +994,61 @@ def conversation_continue():
         return jsonify({"error": "message is required"}), 400
 
     sessions = load_user_sessions(user_id)
-    session = sessions.get(thread_id) or _new_session(user_id, thread_id, "Jaspen Intake")
+    session = sessions.get(thread_id)
+    fallback_model_type = (session or {}).get("model_type")
+    model_selection, model_error = _resolve_model_selection(
+        user,
+        requested_model_type=data.get("model_type"),
+        fallback_model_type=fallback_model_type,
+    )
+    if model_error:
+        return jsonify(model_error), 403
+
+    session = session or _new_session(user_id, thread_id, "Jaspen Intake", model_selection["model_type"])
     chat_history = session.get("chat_history")
     if not isinstance(chat_history, list):
         chat_history = []
 
     chat_history.append({"role": "user", "content": user_message, "timestamp": _iso_now()})
     readiness = _compute_readiness(chat_history)
-    assistant_reply = _next_question(readiness)
+    assistant_reply, usage = _generate_assistant_reply(user_message, chat_history, readiness, model_selection)
+
+    credits_charged = _estimate_usage_credit_charge(usage.get("total_tokens"), model_selection["model_type"])
+    charged, remaining = consume_credits(user, credits_charged)
+    if not charged:
+        return jsonify({
+            "error": "Insufficient credits",
+            "required_credits": credits_charged,
+            "credits_remaining": user.credits_remaining,
+            "plan_key": to_public_plan(user.subscription_plan),
+            "monthly_credit_limit": get_monthly_credit_limit(user.subscription_plan, current_app.config),
+            "suggestion": "Purchase an overage pack or upgrade your plan.",
+        }), 402
+
     chat_history.append({"role": "assistant", "content": assistant_reply, "timestamp": _iso_now()})
 
     session["chat_history"] = chat_history
+    session["model_type"] = model_selection["model_type"]
     session["timestamp"] = _iso_now()
     session["status"] = "ready_to_analyze" if readiness["overall"]["percent"] >= 85 else "in_progress"
+    _record_usage(session, usage, credits_charged)
     sessions[thread_id] = session
-    save_user_sessions(user_id, sessions)
+    if not save_user_sessions(user_id, sessions):
+        return jsonify({"error": "Failed to persist conversation state"}), 500
 
     return jsonify({
         "thread_id": thread_id,
         "session_id": thread_id,
         "reply": assistant_reply,
         "message": assistant_reply,
+        "model_type": model_selection["model_type"],
+        "allowed_model_types": model_selection["allowed_model_types"],
         "actions": [],
+        "usage": usage,
+        "credits": {
+            "charged": credits_charged,
+            "remaining": remaining,
+        },
         "readiness": {
             "percent": readiness["overall"]["percent"],
             "categories": readiness["categories"],
@@ -690,6 +1071,20 @@ def readiness_spec():
     if spec.get("version") == "readiness-v2":
         spec["data_contract"] = EVIDENCE_DATA_CONTRACT
     return jsonify(spec), 200
+
+
+@ai_agent_bp.route("/provider/status", methods=["GET"])
+@jwt_required()
+def provider_status():
+    api_key = _anthropic_api_key()
+    return jsonify({
+        "anthropic_configured": bool(api_key),
+        "anthropic_model": str(
+            current_app.config.get("AI_AGENT_ANTHROPIC_MODEL")
+            or os.getenv("AI_AGENT_ANTHROPIC_MODEL")
+            or "claude-3-5-sonnet-latest"
+        ),
+    }), 200
 
 
 @ai_agent_bp.route("/readiness/audit", methods=["GET"])
@@ -724,6 +1119,7 @@ def list_threads():
             **candidate,
             "session_id": thread_id,
             "name": candidate.get("name") or "Jaspen Intake",
+            "model_type": normalize_model_type(candidate.get("model_type")) or None,
             "chat_history": chat_history,
             "readiness": readiness,
         })
@@ -786,6 +1182,7 @@ def get_thread(thread_id):
         "id": resolved_thread_id,
         "session_id": resolved_thread_id,
         "name": session.get("name") or "Jaspen Intake",
+        "model_type": normalize_model_type(session.get("model_type")) or None,
         "status": session.get("status") or ("completed" if analyses else "in_progress"),
         "created_at": session.get("created"),
         "updated_at": session.get("timestamp"),
@@ -796,6 +1193,7 @@ def get_thread(thread_id):
     session_payload = {
         **session,
         "session_id": resolved_thread_id,
+        "model_type": normalize_model_type(session.get("model_type")) or None,
         "chat_history": chat_history,
         "readiness": readiness,
     }
@@ -849,6 +1247,25 @@ def update_thread(thread_id):
             "updated_at": session.get("timestamp"),
         },
         "session": session_payload,
+    }), 200
+
+
+@ai_agent_bp.route("/threads/<thread_id>/usage", methods=["GET"])
+@jwt_required()
+def get_thread_usage(thread_id):
+    user_id = get_jwt_identity()
+    sessions = load_user_sessions(user_id) or {}
+    session_key, session = _resolve_user_session(sessions, thread_id)
+    if not isinstance(session, dict):
+        return jsonify({"error": "Thread not found"}), 404
+
+    resolved_thread_id = str(session.get("session_id") or session_key or thread_id)
+    usage_summary = session.get("usage_summary") if isinstance(session.get("usage_summary"), dict) else {}
+    usage_events = session.get("usage_events") if isinstance(session.get("usage_events"), list) else []
+    return jsonify({
+        "thread_id": resolved_thread_id,
+        "usage_summary": usage_summary,
+        "usage_events": usage_events,
     }), 200
 
 

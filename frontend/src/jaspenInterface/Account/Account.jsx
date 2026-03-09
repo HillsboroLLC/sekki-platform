@@ -9,11 +9,38 @@ function getToken() {
 
 const PLAN_ORDER = ['free', 'essential', 'team', 'enterprise'];
 const PACK_ORDER = ['pack_1000', 'pack_5000', 'pack_20000'];
+const MODEL_ORDER = ['pluto', 'orbit', 'titan'];
+const PLAN_RANK = {
+  free: 0,
+  essential: 1,
+  team: 2,
+  enterprise: 3,
+};
+const FALLBACK_MODEL_TYPES = {
+  pluto: {
+    model_type: 'pluto',
+    label: 'Pluto',
+    description: 'Fastest model for core intake and scorecard workflows.',
+    min_plan: 'free',
+  },
+  orbit: {
+    model_type: 'orbit',
+    label: 'Orbit',
+    description: 'Balanced depth and speed for broader cross-functional synthesis.',
+    min_plan: 'team',
+  },
+  titan: {
+    model_type: 'titan',
+    label: 'Titan',
+    description: 'Highest-depth reasoning for complex multi-team initiatives.',
+    min_plan: 'enterprise',
+  },
+};
 
 export default function Account() {
   const navigate = useNavigate();
   const [status, setStatus] = useState(null);
-  const [catalog, setCatalog] = useState({ plans: {}, overage_packs: {} });
+  const [catalog, setCatalog] = useState({ plans: {}, overage_packs: {}, model_types: FALLBACK_MODEL_TYPES });
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState('');
   const [message, setMessage] = useState('');
@@ -45,7 +72,7 @@ export default function Account() {
         }
         if (mounted) {
           setStatus(statusData);
-          setCatalog(catalogData || { plans: {}, overage_packs: {} });
+          setCatalog(catalogData || { plans: {}, overage_packs: {}, model_types: FALLBACK_MODEL_TYPES });
         }
       } catch (error) {
         if (mounted) setMessage(error.message || 'Unable to load account details.');
@@ -216,6 +243,13 @@ export default function Account() {
   const currentPlan = status?.plan_key || 'free';
   const plans = catalog?.plans || {};
   const packs = catalog?.overage_packs || {};
+  const modelTypes = catalog?.model_types || FALLBACK_MODEL_TYPES;
+  const orderedModelTypes = MODEL_ORDER.map((key) => modelTypes?.[key]).filter(Boolean);
+  const isModelAvailableForPlan = (minPlan, planKey) => {
+    const requiredRank = PLAN_RANK[String(minPlan || 'free').toLowerCase()] ?? 0;
+    const planRank = PLAN_RANK[String(planKey || 'free').toLowerCase()] ?? 0;
+    return planRank >= requiredRank;
+  };
 
   return (
     <div className="account-page">
@@ -313,6 +347,40 @@ export default function Account() {
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className="account-section">
+          <h2>Model access by plan</h2>
+          <div className="account-model-table-wrap">
+            <table className="account-model-table">
+              <thead>
+                <tr>
+                  <th scope="col">Model</th>
+                  {PLAN_ORDER.map((key) => (
+                    <th scope="col" key={key}>{plans[key]?.label || key}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {orderedModelTypes.map((model) => (
+                  <tr key={model.model_type || model.label}>
+                    <th scope="row">
+                      <div className="account-model-name">{model.label || model.model_type}</div>
+                      <div className="account-model-desc">{model.description || ''}</div>
+                    </th>
+                    {PLAN_ORDER.map((key) => (
+                      <td
+                        key={`${model.model_type}-${key}`}
+                        className={key === currentPlan ? 'is-current-plan' : ''}
+                      >
+                        {isModelAvailableForPlan(model.min_plan, key) ? 'Included' : 'Upgrade'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 

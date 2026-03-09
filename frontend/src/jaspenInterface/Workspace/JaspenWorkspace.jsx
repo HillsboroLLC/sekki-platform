@@ -532,11 +532,15 @@ const refreshBundle = async (tid) => {
   const [nameSaving, setNameSaving] = useState(false);
   const [nameError, setNameError] = useState('');
   const [billingStatus, setBillingStatus] = useState(null);
-  const [billingCatalog, setBillingCatalog] = useState({ plans: {}, overage_packs: {} });
+  const [billingCatalog, setBillingCatalog] = useState({ plans: {}, overage_packs: {}, model_types: {} });
+  const [selectedModelType, setSelectedModelType] = useState('pluto');
   const [billingLoading, setBillingLoading] = useState(true);
   const [billingMessage, setBillingMessage] = useState('');
   const [billingActionLoading, setBillingActionLoading] = useState('');
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [threadUsage, setThreadUsage] = useState(null);
+  const [threadUsageLoading, setThreadUsageLoading] = useState(false);
+  const [threadUsageError, setThreadUsageError] = useState('');
   const [accountQuickMenuOpen, setAccountQuickMenuOpen] = useState(false);
   const [knowledgeMenuOpen, setKnowledgeMenuOpen] = useState(false);
   const savedEmail = (() => {
@@ -549,11 +553,47 @@ const refreshBundle = async (tid) => {
   const planOrder = ['free', 'essential', 'team', 'enterprise'];
   const planRank = { free: 0, essential: 1, team: 2, enterprise: 3 };
   const plans = billingCatalog?.plans || {};
+  const modelTypes = billingCatalog?.model_types || {};
   const currentPlanKey = String(billingStatus?.plan_key || 'free').toLowerCase();
   const currentPlanLabel = plans[currentPlanKey]?.label || (currentPlanKey[0]?.toUpperCase() + currentPlanKey.slice(1));
   const monthlyCreditLimit = billingStatus?.monthly_credit_limit;
   const creditsRemaining = billingStatus?.credits_remaining;
+  const monthlyCreditsUsed = billingStatus?.credits_used;
+  const resolvedMonthlyCreditsUsed = useMemo(() => {
+    const direct = Number(monthlyCreditsUsed);
+    if (Number.isFinite(direct)) return Math.max(0, direct);
+
+    const limitNum = Number(monthlyCreditLimit);
+    const remainingNum = Number(creditsRemaining);
+    if (Number.isFinite(limitNum) && Number.isFinite(remainingNum)) {
+      return Math.max(0, limitNum - remainingNum);
+    }
+    return null;
+  }, [monthlyCreditsUsed, monthlyCreditLimit, creditsRemaining]);
+  const monthlyUsagePercent = useMemo(() => {
+    const limitNum = Number(monthlyCreditLimit);
+    if (!Number.isFinite(limitNum) || limitNum <= 0 || resolvedMonthlyCreditsUsed == null) return null;
+    return Math.max(0, Math.min(100, Math.round((resolvedMonthlyCreditsUsed / limitNum) * 100)));
+  }, [monthlyCreditLimit, resolvedMonthlyCreditsUsed]);
   const creditsBadge = creditsRemaining == null ? 'Contracted' : Number(creditsRemaining || 0).toLocaleString();
+  const allowedModelTypes = useMemo(() => {
+    const fromStatus = Array.isArray(billingStatus?.allowed_model_types)
+      ? billingStatus.allowed_model_types.map((item) => String(item || '').toLowerCase()).filter(Boolean)
+      : [];
+    if (fromStatus.length > 0) return fromStatus;
+    return ['pluto'];
+  }, [billingStatus]);
+  const defaultModelType = useMemo(() => {
+    const candidate = String(billingStatus?.default_model_type || '').toLowerCase();
+    if (candidate && allowedModelTypes.includes(candidate)) return candidate;
+    return allowedModelTypes[0] || 'pluto';
+  }, [billingStatus, allowedModelTypes]);
+  const modelTypeStorageKey = useMemo(() => {
+    if (user?.id) return `jaspen_model_type_id_${user.id}`;
+    if (user?.email) return `jaspen_model_type_email_${String(user.email).toLowerCase()}`;
+    return 'jaspen_model_type_last';
+  }, [user?.id, user?.email]);
+  const activeThreadId = currentSessionId || sessionId || null;
 
   const getAuthToken = useCallback(
     () => localStorage.getItem('access_token') || localStorage.getItem('token'),
@@ -656,7 +696,7 @@ const refreshBundle = async (tid) => {
         throw new Error(statusData?.msg || 'Unable to load plan details.');
       }
       setBillingStatus(statusData || null);
-      setBillingCatalog(catalogData || { plans: {}, overage_packs: {} });
+      setBillingCatalog(catalogData || { plans: {}, overage_packs: {}, model_types: {} });
       setBillingMessage('');
     } catch (error) {
       setBillingMessage(error.message || 'Unable to load plan details.');
@@ -668,6 +708,67 @@ const refreshBundle = async (tid) => {
   useEffect(() => {
     loadBilling();
   }, [loadBilling, user?.id, user?.email]);
+
+  const loadThreadUsage = useCallback(async (targetThreadId = activeThreadId) => {
+    if (!targetThreadId) {
+      setThreadUsage(null);
+      setThreadUsageError('');
+      return;
+    }
+
+    setThreadUsageLoading(true);
+    setThreadUsageError('');
+    try {
+      const response = await authFetch(`/api/ai-agent/threads/${encodeURIComponent(targetThreadId)}/usage`, {
+        method: 'GET',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401) {
+          await handleUnauthorized();
+        }
+        throw new Error(payload?.error || payload?.msg || payload?.message || 'Unable to load usage details.');
+      }
+      setThreadUsage(payload || null);
+    } catch (err) {
+      setThreadUsageError(err?.message || 'Unable to load usage details.');
+      setThreadUsage(null);
+    } finally {
+      setThreadUsageLoading(false);
+    }
+  }, [activeThreadId, handleUnauthorized]);
+
+  useEffect(() => {
+    if (!sidebarState.settings) return;
+    if (!activeThreadId) {
+      setThreadUsage(null);
+      setThreadUsageError('');
+      return;
+    }
+    loadThreadUsage(activeThreadId);
+  }, [sidebarState.settings, activeThreadId, messages.length, loadThreadUsage]);
+
+  useEffect(() => {
+    let saved = '';
+    try {
+      saved = String(localStorage.getItem(modelTypeStorageKey) || '').toLowerCase();
+    } catch {
+      saved = '';
+    }
+    if (saved && allowedModelTypes.includes(saved)) {
+      setSelectedModelType(saved);
+      return;
+    }
+    setSelectedModelType(defaultModelType);
+  }, [modelTypeStorageKey, allowedModelTypes, defaultModelType]);
+
+  useEffect(() => {
+    const normalized = String(selectedModelType || '').toLowerCase();
+    if (!normalized || !allowedModelTypes.includes(normalized)) return;
+    try {
+      localStorage.setItem(modelTypeStorageKey, normalized);
+    } catch {}
+  }, [modelTypeStorageKey, selectedModelType, allowedModelTypes]);
 
   useEffect(() => {
     if (!sidebarState.settings) {
@@ -1055,6 +1156,99 @@ const refreshBundle = async (tid) => {
         </div>
 
         <div className="jas-ud-section">
+          <div className="jas-ud-section-label">Account Usage (This Month)</div>
+          {billingLoading && (
+            <p className="jas-ud-usage-empty">Loading usage...</p>
+          )}
+          {!billingLoading && monthlyCreditLimit == null && (
+            <p className="jas-ud-usage-empty">Contracted pooled credits on {currentPlanLabel} plan.</p>
+          )}
+          {!billingLoading && monthlyCreditLimit != null && (
+            <>
+              <div className="jas-ud-usage-grid">
+                <div className="jas-ud-usage-stat">
+                  <span>Used</span>
+                  <strong>{Number(resolvedMonthlyCreditsUsed || 0).toLocaleString()}</strong>
+                </div>
+                <div className="jas-ud-usage-stat">
+                  <span>Remaining</span>
+                  <strong>{Number(creditsRemaining || 0).toLocaleString()}</strong>
+                </div>
+                <div className="jas-ud-usage-stat">
+                  <span>Monthly limit</span>
+                  <strong>{Number(monthlyCreditLimit || 0).toLocaleString()}</strong>
+                </div>
+                <div className="jas-ud-usage-stat">
+                  <span>Utilization</span>
+                  <strong>{monthlyUsagePercent == null ? '0%' : `${monthlyUsagePercent}%`}</strong>
+                </div>
+              </div>
+              <div className="jas-ud-usage-meter" aria-label="Monthly credit usage">
+                <span style={{ width: `${monthlyUsagePercent == null ? 0 : monthlyUsagePercent}%` }} />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="jas-ud-section">
+          <div className="jas-ud-section-label">Current Thread Usage</div>
+          {!activeThreadId && (
+            <p className="jas-ud-usage-empty">Start or open a thread to see usage details.</p>
+          )}
+          {activeThreadId && threadUsageLoading && (
+            <p className="jas-ud-usage-empty">Loading usage...</p>
+          )}
+          {activeThreadId && !threadUsageLoading && threadUsageError && (
+            <p className="jas-ud-usage-error">{threadUsageError}</p>
+          )}
+          {activeThreadId && !threadUsageLoading && !threadUsageError && (
+            <>
+              <div className="jas-ud-usage-top">
+                <span className="jas-ud-usage-model">
+                  Model: {String(threadUsage?.usage_summary?.model || selectedModelType || 'unknown')}
+                </span>
+                <button
+                  type="button"
+                  className="jas-ud-usage-refresh"
+                  onClick={() => loadThreadUsage(activeThreadId)}
+                >
+                  Refresh
+                </button>
+              </div>
+              <div className="jas-ud-usage-grid">
+                <div className="jas-ud-usage-stat">
+                  <span>Total tokens</span>
+                  <strong>{Number(threadUsage?.usage_summary?.total_tokens || 0).toLocaleString()}</strong>
+                </div>
+                <div className="jas-ud-usage-stat">
+                  <span>Credits charged</span>
+                  <strong>{Number(threadUsage?.usage_summary?.credits_charged || 0).toLocaleString()}</strong>
+                </div>
+                <div className="jas-ud-usage-stat">
+                  <span>Input tokens</span>
+                  <strong>{Number(threadUsage?.usage_summary?.input_tokens || 0).toLocaleString()}</strong>
+                </div>
+                <div className="jas-ud-usage-stat">
+                  <span>Output tokens</span>
+                  <strong>{Number(threadUsage?.usage_summary?.output_tokens || 0).toLocaleString()}</strong>
+                </div>
+              </div>
+              {Array.isArray(threadUsage?.usage_events) && threadUsage.usage_events.length > 0 && (
+                <div className="jas-ud-usage-events">
+                  {threadUsage.usage_events.slice(-4).reverse().map((event, idx) => (
+                    <div key={`${event?.timestamp || 'usage'}-${idx}`} className="jas-ud-usage-event">
+                      <span>{new Date(event?.timestamp || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                      <span>{Number(event?.total_tokens || 0).toLocaleString()} tok</span>
+                      <span>{Number(event?.credits_charged || 0).toLocaleString()} cr</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="jas-ud-section">
           <button className="jas-ud-item" onClick={() => { openExternal('/pages/support'); setAccountQuickMenuOpen(false); }}>
             <FontAwesomeIcon icon={faQuestionCircle} />
             <span className="jas-ud-item-label">Get help</span>
@@ -1340,6 +1534,7 @@ async function loadSessionById(id) {
       return {
         session_id: thread.id,
         name: thread.name,
+        model_type: thread.model_type || null,
         chat_history: thread.conversation_history || [],
         readiness: normalizeReadiness(thread.readiness_snapshot || null),
         collected_data: {},
@@ -1366,6 +1561,7 @@ result: latestAnalysis ? {
     return {
       ...raw,
       result: resolvedResult,
+      model_type: raw.model_type || null,
       readiness: raw.readiness ? normalizeReadiness(raw.readiness) : normalizeReadiness(null),
     };
   } catch (e) {
@@ -1543,6 +1739,10 @@ useEffect(() => {
       setSessionId(sid);
       setCurrentSessionId(sid);
       setLastSessionId(sid);
+      const restoredModelType = String(session?.model_type || '').toLowerCase();
+      if (restoredModelType && allowedModelTypes.includes(restoredModelType)) {
+        setSelectedModelType(restoredModelType);
+      }
 
 // Restore chat history (support both session.chat_history and session.result.chat_history)
 const rawHistory =
@@ -1583,7 +1783,7 @@ if (rawHistory.length > 0) {
     })();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [allowedModelTypes]);
 
   const scrollToEnd = () => endRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToEnd, [messages, busy]);
@@ -1804,6 +2004,26 @@ const renderReadinessChecklist = () => (
   </div>
 );
 
+const renderModelTypeInlinePicker = (className = '') => (
+  <select
+    className={`jas-model-picker-inline-select ${className}`.trim()}
+    value={selectedModelType}
+    onChange={(event) => setSelectedModelType(String(event.target.value || '').toLowerCase())}
+    disabled={busy}
+    aria-label="Model type"
+    title="Model type"
+  >
+    {allowedModelTypes.map((modelTypeKey) => {
+      const item = modelTypes?.[modelTypeKey] || {};
+      return (
+        <option key={modelTypeKey} value={modelTypeKey}>
+          {item?.label || modelTypeKey}
+        </option>
+      );
+    })}
+  </select>
+);
+
   // Utilities
   const normalize = (s) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -1819,6 +2039,17 @@ const renderReadinessChecklist = () => (
       return [...prev, { role: 'ai', text: clean }];
     });
   };
+
+  const handleModelTypeBlocked = useCallback((errorLike) => {
+    const payload = errorLike?.data || {};
+    const backendAllowed = Array.isArray(payload?.allowed_model_types) ? payload.allowed_model_types : [];
+    const nextModel = backendAllowed.length > 0 ? String(backendAllowed[0]).toLowerCase() : defaultModelType;
+    if (nextModel) {
+      setSelectedModelType(nextModel);
+    }
+    setBillingModalOpen(true);
+    showToast(payload?.error || 'This model requires a higher plan. Please upgrade to continue.', 'info');
+  }, [defaultModelType, showToast]);
 
   // === Auth ===
   const handleLogout = async (e) => {
@@ -1837,7 +2068,11 @@ const renderReadinessChecklist = () => (
 
     try {
       // Step 1: Call MarketIQ.convoStart (client wrapper)
-      const data = await MarketIQ.convoStart({ description, system_prompt: null });
+      const data = await MarketIQ.convoStart({
+        description,
+        system_prompt: null,
+        model_type: selectedModelType,
+      });
 
       console.log('[startConversation] convoStart returned:', {
         thread_id: data.thread_id,
@@ -1866,6 +2101,9 @@ const renderReadinessChecklist = () => (
       if (reply) {
         appendAssistant(reply);
       }
+      if (data?.model_type) {
+        setSelectedModelType(String(data.model_type).toLowerCase());
+      }
 
 
       // REMOVED - AI Agent backend handles persistence automatically
@@ -1875,12 +2113,18 @@ const renderReadinessChecklist = () => (
         sessionId: sid,
         messages: [{ role: "user", text: description }, { role: "ai", text: reply }],
         readiness: data.readiness || 0,
+        model_type: data?.model_type || selectedModelType,
         collectedData: data.collected_data || {},
       });
 
       await fetchSessions();
     } catch (e) {
-      setError("Could not start the conversation. Please try again.");
+      if (e?.status === 403 && e?.data?.code === 'model_type_not_allowed') {
+        handleModelTypeBlocked(e);
+        setError(e?.data?.error || 'This model requires a higher plan.');
+      } else {
+        setError("Could not start the conversation. Please try again.");
+      }
       console.error(e);
     } finally {
       setBusy(false);
@@ -1917,6 +2161,7 @@ async function continueConversation(userText) {
       session_id: sessionId,
       user_message: userText,
       conversation_history,
+      model_type: selectedModelType,
     });
 
     console.log('[continueConversation] convoContinue returned:', {
@@ -1931,6 +2176,9 @@ async function continueConversation(userText) {
     // Step 2: Append assistant message ONLY if backend returned one
     if (serverReply) {
       appendAssistant(serverReply);
+    }
+    if (data?.model_type) {
+      setSelectedModelType(String(data.model_type).toLowerCase());
     }
 
     console.log('[continueConversation] about to call fetchReadinessFor with sessionId:', sessionId);
@@ -1973,13 +2221,14 @@ async function continueConversation(userText) {
     // Note: AI Agent backend handles persistence automatically
     // No need to call saveSessionToBackend - readiness is already saved by backend
 
-    setPreviousSessionState({
+      setPreviousSessionState({
       sessionId,
       messages: [
         ...messages,
         { role: "user", text: userText },
         { role: "ai", text: serverReply },
       ],
+      model_type: data?.model_type || selectedModelType,
       readiness: auditPayload ? {
         percent: clampPercent(auditPayload.overall?.percent ?? 0),
         categories: auditPayload.categories || [],
@@ -1998,7 +2247,12 @@ async function continueConversation(userText) {
       collectedData: updatedCollected,
     });
   } catch (e) {
-    setError("Having trouble continuing the conversation. Please resend.");
+    if (e?.status === 403 && e?.data?.code === 'model_type_not_allowed') {
+      handleModelTypeBlocked(e);
+      setError(e?.data?.error || 'This model requires a higher plan.');
+    } else {
+      setError("Having trouble continuing the conversation. Please resend.");
+    }
     console.error(e);
   } finally {
     setBusy(false);
@@ -2229,8 +2483,15 @@ async function onBeginProject() {
       const seed = Number(String(sid).replace(/\D/g, '')) % 2147483647 || 123456;
 
 const data = await MarketIQ.analyzeFromConversation({
-  session_id: sid, transcript, deterministic: true, seed
+  session_id: sid,
+  transcript,
+  deterministic: true,
+  seed,
+  model_type: selectedModelType,
 });
+if (data?.model_type) {
+  setSelectedModelType(String(data.model_type).toLowerCase());
+}
 console.log('[Finish&Analyze] analyze response', { keys: data ? Object.keys(data) : null, has_analysis_result: Boolean(data?.analysis_result) });
 // DEBUG: Check if meta.extracted_levers survived
 console.log('[Finish&Analyze] data.analysis_result.meta?', data?.analysis_result?.meta);
@@ -2292,7 +2553,12 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
         setActiveTab('summary');
       }, 0);
     } catch (e) {
-      setError("Could not build the scorecard yet. Try adding one more detail, then Finish again.");
+      if (e?.status === 403 && e?.data?.code === 'model_type_not_allowed') {
+        handleModelTypeBlocked(e);
+        setError(e?.data?.error || 'This model requires a higher plan.');
+      } else {
+        setError("Could not build the scorecard yet. Try adding one more detail, then Finish again.");
+      }
       console.error(e);
     } finally {
       setBusy(false);
@@ -3718,6 +3984,8 @@ setView(id === 'chat' ? 'intake' : id);
                         <FontAwesomeIcon icon={faMicrophone} />
                       </button>
 
+                      {renderModelTypeInlinePicker()}
+
                       <button
                         className="chatgpt-send"
                         onClick={onSubmit}
@@ -4103,6 +4371,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
               >
                 <FontAwesomeIcon icon={faMicrophone} />
               </button>
+              {renderModelTypeInlinePicker()}
               <button
                 className="jas-ci-btn send"
                 onClick={onSubmit}

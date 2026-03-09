@@ -203,7 +203,7 @@ export const MarketIQ = {
   },
 
   // ---------- Conversational intake (Claude via /api/chat) ----------
-async convoStart({description, project_id}) {
+async convoStart({ description, project_id, model_type }) {
     console.log('[MarketIQClient.convoStart] ENTRY', {
       description: description?.substring(0, 50),
       project_id,
@@ -217,7 +217,8 @@ async convoStart({description, project_id}) {
       {
         message: description,
         project_id: pid,
-        name: description.substring(0, 60) || 'New Idea'
+        name: description.substring(0, 60) || 'New Idea',
+        model_type: model_type || undefined,
       },
       { withSid: true }
     );
@@ -234,10 +235,11 @@ async convoStart({description, project_id}) {
       thread_id: data.thread_id || null,
       message: data.message || data.reply,
       readiness: data.readiness || { percent: 0, categories: [] },
+      model_type: data.model_type || null,
       status: data.status || 'gathering_info',
     };
   },
-async convoContinue({ session_id, user_message, conversation_history }) {
+async convoContinue({ session_id, user_message, conversation_history, model_type }) {
     console.log('[MarketIQClient.convoContinue] ENTRY', {
       session_id,
       user_message: user_message?.substring(0, 50),
@@ -249,6 +251,7 @@ async convoContinue({ session_id, user_message, conversation_history }) {
       {
         thread_id: session_id,
         message: user_message,
+        model_type: model_type || undefined,
       },
       { withSid: true }
     );
@@ -265,15 +268,17 @@ async convoContinue({ session_id, user_message, conversation_history }) {
       ...data,
       message: data.message || data.reply,
       readiness: data.readiness || { percent: 0, categories: [] },
+      model_type: data.model_type || null,
     };
   },
-async analyzeFromConversation({ session_id, transcript, deterministic = true, seed, project_name, assumptions }) {
+async analyzeFromConversation({ session_id, transcript, deterministic = true, seed, project_name, assumptions, model_type }) {
     const data = await postJSON(
       endpoints.analyze,
       {
         thread_id: session_id,
         name: project_name || 'Baseline Analysis',
         framework_id: null, // Uses default "Jaspen Assessment"
+        model_type: model_type || undefined,
       },
       { withSid: true, sidOverride: session_id }
     );
@@ -286,6 +291,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
     return {
       analysis_result: data.analysis || data,
       analysis_id: data.analysis?.id || session_id,
+      model_type: data.model_type || null,
     };
   },
     // ---------- Thread bundle (messages + latest analysis + scenarios) ----------

@@ -40,6 +40,36 @@ const FALLBACK_PACKS = [
   { pack_key: 'pack_20000', label: '20,000 credits', price_usd: 180, credits: 20000 },
 ];
 
+const FALLBACK_MODEL_TYPES = {
+  pluto: {
+    model_type: 'pluto',
+    label: 'Pluto',
+    description: 'Fastest model for core intake and scorecard workflows.',
+    min_plan: 'free',
+  },
+  orbit: {
+    model_type: 'orbit',
+    label: 'Orbit',
+    description: 'Balanced depth and speed for broader cross-functional synthesis.',
+    min_plan: 'team',
+  },
+  titan: {
+    model_type: 'titan',
+    label: 'Titan',
+    description: 'Highest-depth reasoning for complex multi-team initiatives.',
+    min_plan: 'enterprise',
+  },
+};
+
+const MODEL_ORDER = ['pluto', 'orbit', 'titan'];
+const PLAN_ORDER = ['free', 'essential', 'team', 'enterprise'];
+const PLAN_RANK = {
+  free: 0,
+  essential: 1,
+  team: 2,
+  enterprise: 3,
+};
+
 function getToken() {
   return localStorage.getItem('access_token') || localStorage.getItem('token');
 }
@@ -48,6 +78,7 @@ export default function PricingPage() {
   const { user, loading } = useAuth();
   const [plans, setPlans] = useState(FALLBACK_PLANS);
   const [packs, setPacks] = useState(FALLBACK_PACKS);
+  const [modelTypes, setModelTypes] = useState(FALLBACK_MODEL_TYPES);
   const [pendingKey, setPendingKey] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
 
@@ -85,6 +116,10 @@ export default function PricingPage() {
             .filter(Boolean);
           if (orderedPacks.length) setPacks(orderedPacks);
         }
+
+        if (data?.model_types) {
+          setModelTypes(data.model_types);
+        }
       })
       .catch(() => {
         // Keep fallback content if catalog fetch fails.
@@ -95,7 +130,21 @@ export default function PricingPage() {
     () => plans.reduce((acc, plan) => ({ ...acc, [plan.plan_key]: plan }), {}),
     [plans]
   );
+  const planOrder = useMemo(
+    () => PLAN_ORDER.filter((key) => Boolean(planByKey[key])),
+    [planByKey]
+  );
+  const orderedModelTypes = useMemo(
+    () => MODEL_ORDER.map((key) => modelTypes?.[key]).filter(Boolean),
+    [modelTypes]
+  );
   const isLoggedIn = !!user;
+
+  const isModelAvailableForPlan = (minPlan, planKey) => {
+    const requiredRank = PLAN_RANK[String(minPlan || 'free').toLowerCase()] ?? 0;
+    const planRank = PLAN_RANK[String(planKey || 'free').toLowerCase()] ?? 0;
+    return planRank >= requiredRank;
+  };
 
   const beginCheckout = async (planKey) => {
     const token = getToken();
@@ -278,6 +327,40 @@ export default function PricingPage() {
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section id="model-access" className="marketing-section">
+        <h2>Model access by plan</h2>
+        <p className="pricing-pack-copy">
+          Access is plan-gated by model depth. You can switch models from the chat composer.
+        </p>
+        <div className="pricing-model-table-wrap">
+          <table className="pricing-model-table">
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                {planOrder.map((planKey) => (
+                  <th scope="col" key={planKey}>{planByKey[planKey]?.label || planKey}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {orderedModelTypes.map((model) => (
+                <tr key={model.model_type || model.label}>
+                  <th scope="row">
+                    <div className="pricing-model-name">{model.label || model.model_type}</div>
+                    <div className="pricing-model-desc">{model.description || ''}</div>
+                  </th>
+                  {planOrder.map((planKey) => (
+                    <td key={`${model.model_type}-${planKey}`}>
+                      {isModelAvailableForPlan(model.min_plan, planKey) ? 'Included' : 'Upgrade'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 

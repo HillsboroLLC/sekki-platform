@@ -24,9 +24,9 @@ def get_openai_client():
 
 # Initialize Claude client
 def get_claude_client():
-    api_key = current_app.config.get('CLAUDE_API_KEY')
+    api_key = current_app.config.get('ANTHROPIC_API_KEY') or current_app.config.get('CLAUDE_API_KEY')
     if not api_key:
-        raise ValueError("CLAUDE_API_KEY not found in configuration")
+        raise ValueError("ANTHROPIC_API_KEY not found in configuration")
     return anthropic.Anthropic(api_key=api_key)
 
 @chat_bp.route('/chat', methods=['POST'], strict_slashes=False)
@@ -489,7 +489,7 @@ def test_chat():
     return jsonify({
         'message': 'Chat route is working',
         'openai_configured': bool(current_app.config.get('OPENAI_API_KEY')),
-        'claude_configured': bool(current_app.config.get('CLAUDE_API_KEY'))
+        'anthropic_configured': bool(current_app.config.get('ANTHROPIC_API_KEY') or current_app.config.get('CLAUDE_API_KEY'))
     })
 
 @chat_bp.route('/models', methods=['GET'])

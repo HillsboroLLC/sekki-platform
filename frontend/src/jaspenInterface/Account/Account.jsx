@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../config/apiBase';
+import { getPlanConnectorSentence } from '../../shared/billing/planConnectors';
 import './Account.css';
 
 function getToken() {
@@ -311,6 +312,9 @@ export default function Account() {
                     {plan.monthly_credits == null
                       ? 'Contracted pooled usage'
                       : `${Number(plan.monthly_credits).toLocaleString()} credits/month`}
+                  </p>
+                  <p className="account-plan-connectors">
+                    Connectors: {getPlanConnectorSentence(key)}
                   </p>
 
                   {isCurrent ? (

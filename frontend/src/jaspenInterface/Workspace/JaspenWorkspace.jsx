@@ -10,6 +10,7 @@ import { API_BASE } from '../../config/apiBase';
 import { useChatCommands, parseUIActions, ChatActionTypes } from "../../shared/hooks/useChatCommands"
 import { useToast, ToastContainer } from '../../shared/components/Toast';
 import { useAuth } from 'shared/auth/AuthContext';
+import { getPlanConnectorSentence } from '../../shared/billing/planConnectors';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -1286,6 +1287,9 @@ const refreshBundle = async (tid) => {
                     {plan.monthly_credits == null
                       ? 'Contracted pooled credits'
                       : `${Number(plan.monthly_credits).toLocaleString()} credits/month`}
+                  </p>
+                  <p className="detail jas-account-plan-connectors">
+                    Connectors: {getPlanConnectorSentence(key)}
                   </p>
                   {isCurrent ? (
                     <span className="jas-account-pill">Current</span>

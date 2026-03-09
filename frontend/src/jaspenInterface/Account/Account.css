@@ -107,6 +107,11 @@
   color: #4f6282;
 }
 
+.account-plan-connectors {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 .account-plan-price {
   font-weight: 800;
   color: #14213e;

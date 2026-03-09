@@ -1216,6 +1216,12 @@
   margin: 6px 0 10px;
 }
 
+.jas-account-plan-card .jas-account-plan-connectors {
+  margin-top: -4px;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
 .jas-account-pill {
   display: inline-flex;
   align-items: center;

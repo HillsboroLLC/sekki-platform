@@ -65,6 +65,12 @@ const INITIAL_NOTIFICATION_UPDATES = [
   },
 ];
 
+const buildDefaultNotifications = ({ unread = true } = {}) =>
+  INITIAL_NOTIFICATION_UPDATES.map((item) => ({
+    ...item,
+    unread,
+  }));
+
 // ============================================================================
 // Readiness Normalization Helpers (Backend Contract Compliance)
 // ============================================================================
@@ -565,7 +571,7 @@ const refreshBundle = async (tid) => {
   const [billingActionLoading, setBillingActionLoading] = useState('');
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationItems, setNotificationItems] = useState(() => INITIAL_NOTIFICATION_UPDATES);
+  const [notificationItems, setNotificationItems] = useState(() => buildDefaultNotifications({ unread: true }));
   const [threadUsage, setThreadUsage] = useState(null);
   const [threadUsageLoading, setThreadUsageLoading] = useState(false);
   const [threadUsageError, setThreadUsageError] = useState('');
@@ -625,6 +631,10 @@ const refreshBundle = async (tid) => {
     () => notificationItems.filter((item) => item.unread).length,
     [notificationItems]
   );
+  const notificationsForDisplay = useMemo(() => {
+    if (notificationItems.length > 0) return notificationItems;
+    return buildDefaultNotifications({ unread: false });
+  }, [notificationItems]);
   const allowedModelTypes = useMemo(() => {
     const fromStatus = Array.isArray(billingStatus?.allowed_model_types)
       ? billingStatus.allowed_model_types.map((item) => String(item || '').toLowerCase()).filter(Boolean)
@@ -744,16 +754,22 @@ const refreshBundle = async (tid) => {
     try {
       const raw = localStorage.getItem(notificationsStorageKey);
       if (!raw) {
-        setNotificationItems(INITIAL_NOTIFICATION_UPDATES);
+        setNotificationItems(buildDefaultNotifications({ unread: true }));
         return;
       }
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
+        if (parsed.length === 0) {
+          // Migration: older Clear action persisted [] (removed history).
+          // Restore default notifications as read-only history.
+          setNotificationItems(buildDefaultNotifications({ unread: false }));
+          return;
+        }
         setNotificationItems(parsed);
         return;
       }
     } catch {}
-    setNotificationItems(INITIAL_NOTIFICATION_UPDATES);
+    setNotificationItems(buildDefaultNotifications({ unread: true }));
   }, [notificationsStorageKey]);
 
   useEffect(() => {
@@ -1185,19 +1201,15 @@ const refreshBundle = async (tid) => {
             </div>
           </div>
           <div className="jas-notifications-list">
-            {notificationItems.length === 0 ? (
-              <div className="jas-notification-empty">No notifications</div>
-            ) : (
-              notificationItems.map((item) => (
-                <article key={item.id} className="jas-notification-item">
-                  <div className="jas-notification-row">
-                    <h4>{item.title}</h4>
-                    <span>{item.stamp}</span>
-                  </div>
-                  <p>{item.body}</p>
-                </article>
-              ))
-            )}
+            {notificationsForDisplay.map((item) => (
+              <article key={item.id} className="jas-notification-item">
+                <div className="jas-notification-row">
+                  <h4>{item.title}</h4>
+                  <span>{item.stamp}</span>
+                </div>
+                <p>{item.body}</p>
+              </article>
+            ))}
           </div>
         </div>
       </div>

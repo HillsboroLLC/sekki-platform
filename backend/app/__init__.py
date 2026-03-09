@@ -113,6 +113,11 @@ def create_app():
         'pack_5000':       os.getenv('PRICE_ID_OVERAGE_5000'),
         'pack_20000':      os.getenv('PRICE_ID_OVERAGE_20000'),
     }
+    app.config['MODEL_TYPE_BACKING_IDS'] = {
+        'pluto': os.getenv('MODEL_PLUTO_ID') or os.getenv('OPENAI_MODEL_PLUTO') or 'gpt-4o-mini',
+        'orbit': os.getenv('MODEL_ORBIT_ID') or os.getenv('OPENAI_MODEL_ORBIT') or 'gpt-4o',
+        'titan': os.getenv('MODEL_TITAN_ID') or os.getenv('OPENAI_MODEL_TITAN') or 'gpt-4',
+    }
     # —— Frontend base URL for success/cancel links —— #
     app.config['FRONTEND_BASE_URL'] = frontend_base
 

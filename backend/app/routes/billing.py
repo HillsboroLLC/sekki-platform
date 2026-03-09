@@ -9,6 +9,9 @@ from app.billing_config import (
     apply_plan_to_user,
     add_credits,
     bootstrap_legacy_credits,
+    get_allowed_model_types,
+    get_default_model_type,
+    get_model_catalog,
     get_monthly_credit_limit,
     get_overage_packs,
     get_plan_catalog,
@@ -54,10 +57,12 @@ def list_plans():
 def get_billing_catalog():
     plan_catalog = get_plan_catalog(current_app.config)
     pack_catalog = get_overage_packs(current_app.config)
+    model_catalog = get_model_catalog(current_app.config)
 
     return jsonify({
         'plans': plan_catalog,
         'overage_packs': pack_catalog,
+        'model_types': model_catalog,
     }), 200
 
 
@@ -75,12 +80,16 @@ def get_billing_status():
     plan_catalog = get_plan_catalog(current_app.config)
     current_plan = plan_catalog.get(plan_key) or {}
     monthly_limit = get_monthly_credit_limit(plan_key, current_app.config)
+    allowed_model_types = get_allowed_model_types(plan_key, current_app.config)
+    default_model_type = get_default_model_type(plan_key, current_app.config)
 
     return jsonify({
         'plan_key': plan_key,
         'plan': current_plan,
         'credits_remaining': user.credits_remaining,
         'monthly_credit_limit': monthly_limit,
+        'allowed_model_types': allowed_model_types,
+        'default_model_type': default_model_type,
         'stripe_customer_id': user.stripe_customer_id,
         'stripe_subscription_id': user.stripe_subscription_id,
     }), 200

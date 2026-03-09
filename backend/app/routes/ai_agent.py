@@ -1,9 +1,18 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 import os
 import re
 import uuid
+
+from app.models import User
+from app.billing_config import (
+    get_allowed_model_types,
+    get_default_model_type,
+    get_model_catalog,
+    normalize_model_type,
+    to_public_plan,
+)
 
 from .sessions import load_user_sessions, save_user_sessions
 
@@ -296,12 +305,13 @@ def _build_readiness_items(spec, version, categories, user_text, user_turns):
     return items, summary
 
 
-def _new_session(user_id, thread_id, name):
+def _new_session(user_id, thread_id, name, model_type=None):
     now = _iso_now()
     return {
         "session_id": thread_id,
         "name": name or "Jaspen Intake",
         "document_type": "market_iq",
+        "model_type": normalize_model_type(model_type) or None,
         "current_phase": 1,
         "chat_history": [],
         "notes": {},
@@ -402,6 +412,31 @@ def _next_question(readiness):
         if not category.get("completed"):
             return followups.get(category["key"])
     return "Great, I have enough context. You can click Finish & Analyze when ready."
+
+
+def _resolve_model_selection(user, requested_model_type=None, fallback_model_type=None):
+    plan_key = to_public_plan(user.subscription_plan)
+    allowed_model_types = get_allowed_model_types(plan_key, current_app.config)
+    default_model_type = get_default_model_type(plan_key, current_app.config)
+    normalized = normalize_model_type(requested_model_type or fallback_model_type or default_model_type)
+
+    if normalized not in allowed_model_types:
+        return None, {
+            "error": f"Model '{requested_model_type}' is not available on your {plan_key} plan.",
+            "code": "model_type_not_allowed",
+            "plan_key": plan_key,
+            "allowed_model_types": allowed_model_types,
+            "default_model_type": default_model_type,
+        }
+
+    model_catalog = get_model_catalog(current_app.config)
+    model_meta = model_catalog.get(normalized, {})
+    return {
+        "model_type": normalized,
+        "llm_model": model_meta.get("llm_model"),
+        "allowed_model_types": allowed_model_types,
+        "default_model_type": default_model_type,
+    }, None
 
 
 def _resolve_user_session(sessions, thread_id):
@@ -543,6 +578,9 @@ def _find_session_by_thread(thread_id, user_id=None):
 def conversation_start():
     data = request.get_json() or {}
     user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
     user_message = str(data.get("message") or data.get("description") or "").strip()
     if not user_message:
@@ -550,9 +588,12 @@ def conversation_start():
 
     thread_id = str(data.get("thread_id") or request.headers.get("X-Session-ID") or f"thread_{uuid.uuid4().hex[:12]}")
     name = str(data.get("name") or user_message[:60] or "Jaspen Intake").strip()
+    model_selection, model_error = _resolve_model_selection(user, requested_model_type=data.get("model_type"))
+    if model_error:
+        return jsonify(model_error), 403
 
     sessions = load_user_sessions(user_id)
-    session = sessions.get(thread_id) or _new_session(user_id, thread_id, name)
+    session = sessions.get(thread_id) or _new_session(user_id, thread_id, name, model_selection["model_type"])
 
     chat_history = session.get("chat_history")
     if not isinstance(chat_history, list):
@@ -565,6 +606,7 @@ def conversation_start():
 
     session["chat_history"] = chat_history
     session["name"] = name
+    session["model_type"] = model_selection["model_type"]
     session["timestamp"] = _iso_now()
     session["status"] = "in_progress"
     sessions[thread_id] = session
@@ -575,6 +617,8 @@ def conversation_start():
         "session_id": thread_id,
         "reply": assistant_reply,
         "message": assistant_reply,
+        "model_type": model_selection["model_type"],
+        "allowed_model_types": model_selection["allowed_model_types"],
         "readiness": {
             "percent": readiness["overall"]["percent"],
             "categories": readiness["categories"],

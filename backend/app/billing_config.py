@@ -10,6 +10,13 @@ PLAN_ALIASES = {
     'founder': 'essential',
 }
 
+PLAN_RANK = {
+    'free': 0,
+    'essential': 1,
+    'team': 2,
+    'enterprise': 3,
+}
+
 DEFAULT_PLAN_CATALOG = {
     'free': {
         'label': 'Free',
@@ -63,6 +70,35 @@ DEFAULT_OVERAGE_PACKS = {
     },
 }
 
+MODEL_TYPE_ALIASES = {
+    'pluto-1': 'pluto',
+    'orbit-1': 'orbit',
+    'titan-1': 'titan',
+}
+
+MODEL_TYPE_ORDER = ['pluto', 'orbit', 'titan']
+
+DEFAULT_MODEL_CATALOG = {
+    'pluto': {
+        'label': 'Pluto',
+        'description': 'Fastest model for core intake and scorecard workflows.',
+        'min_plan': 'free',
+        'default_llm_model': 'gpt-4o-mini',
+    },
+    'orbit': {
+        'label': 'Orbit',
+        'description': 'Balanced depth and speed for broader cross-functional synthesis.',
+        'min_plan': 'team',
+        'default_llm_model': 'gpt-4o',
+    },
+    'titan': {
+        'label': 'Titan',
+        'description': 'Highest-depth reasoning for complex multi-team initiatives.',
+        'min_plan': 'enterprise',
+        'default_llm_model': 'gpt-4',
+    },
+}
+
 
 def normalize_plan_key(plan_key):
     """Return canonical plan keys; unknown values are passed through for validation upstream."""
@@ -70,6 +106,18 @@ def normalize_plan_key(plan_key):
         return 'free'
     normalized = str(plan_key).strip().lower()
     return PLAN_ALIASES.get(normalized, normalized)
+
+
+def normalize_model_type(model_type):
+    if not model_type:
+        return ''
+    normalized = str(model_type).strip().lower()
+    return MODEL_TYPE_ALIASES.get(normalized, normalized)
+
+
+def _plan_rank(plan_key):
+    canonical = normalize_plan_key(plan_key)
+    return PLAN_RANK.get(canonical, 0)
 
 
 def get_plan_catalog(app_config):
@@ -90,6 +138,39 @@ def get_overage_packs(app_config):
         value['pack_key'] = key
         value['stripe_price_id'] = stripe_pack_ids.get(key)
     return packs
+
+
+def get_model_catalog(app_config):
+    catalog = deepcopy(DEFAULT_MODEL_CATALOG)
+    backing_ids = app_config.get('MODEL_TYPE_BACKING_IDS', {}) or {}
+    for key, value in catalog.items():
+        value['model_type'] = key
+        value['llm_model'] = backing_ids.get(key) or value.get('default_llm_model')
+    return catalog
+
+
+def get_allowed_model_types(plan_key, app_config):
+    catalog = get_model_catalog(app_config)
+    rank = _plan_rank(plan_key)
+    allowed = []
+    for model_type in MODEL_TYPE_ORDER:
+        item = catalog.get(model_type) or {}
+        min_plan = item.get('min_plan', 'free')
+        if rank >= _plan_rank(min_plan):
+            allowed.append(model_type)
+    return allowed or ['pluto']
+
+
+def get_default_model_type(plan_key, app_config):
+    allowed = get_allowed_model_types(plan_key, app_config)
+    return allowed[0] if allowed else 'pluto'
+
+
+def is_model_type_allowed(plan_key, model_type, app_config):
+    model_type = normalize_model_type(model_type)
+    if not model_type:
+        return False
+    return model_type in get_allowed_model_types(plan_key, app_config)
 
 
 def get_monthly_credit_limit(plan_key, app_config):

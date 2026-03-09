@@ -177,6 +177,35 @@ async function authFetch(path, options = {}) {
 
   // Merge headers safely
   const headers = { ...(options.headers || {}) };
+  const method = String(options.method || 'GET').toUpperCase();
+
+  // When JWT cookie CSRF protection is enabled server-side, mutating requests
+  // must include the double-submit token from cookie in X-CSRF-TOKEN.
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && !headers['X-CSRF-TOKEN']) {
+    const cookieParts = String(document.cookie || '')
+      .split(';')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const cookieMap = {};
+    cookieParts.forEach((part) => {
+      const eq = part.indexOf('=');
+      if (eq > 0) {
+        const key = part.slice(0, eq);
+        const value = part.slice(eq + 1);
+        cookieMap[key] = value;
+      }
+    });
+
+    const csrfToken =
+      cookieMap.csrf_access_token ||
+      cookieMap.csrf_token ||
+      cookieMap['XSRF-TOKEN'] ||
+      null;
+
+    if (csrfToken) {
+      headers['X-CSRF-TOKEN'] = decodeURIComponent(csrfToken);
+    }
+  }
 
   return fetch(url, {
     ...options,
@@ -297,7 +326,7 @@ export function AuthProvider({ children }) {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        return { success: false, error: data?.error || 'Unable to update display name.' };
+        return { success: false, error: data?.error || data?.msg || data?.message || 'Unable to update display name.' };
       }
 
       const normalized = normalizeUser(data);

@@ -762,14 +762,13 @@ const refreshBundle = async (tid) => {
     } catch {}
   }, [notificationsStorageKey, notificationItems]);
 
-  useEffect(() => {
-    if (!notificationsOpen) return;
+  const clearNotificationBadge = useCallback(() => {
     setNotificationItems((prev) =>
       prev.some((item) => item.unread)
         ? prev.map((item) => ({ ...item, unread: false }))
         : prev
     );
-  }, [notificationsOpen]);
+  }, []);
 
   const persistDisplayName = async (value) => {
     const trimmed = String(value || '').trim();
@@ -1170,8 +1169,8 @@ const refreshBundle = async (tid) => {
               <button
                 type="button"
                 className="jas-notifications-clear"
-                onClick={() => setNotificationItems([])}
-                disabled={notificationItems.length === 0}
+                onClick={clearNotificationBadge}
+                disabled={unreadNotificationCount === 0}
               >
                 Clear
               </button>
@@ -1337,6 +1336,18 @@ const refreshBundle = async (tid) => {
 
         <div className="jas-ud-section">
           <div className="jas-ud-section-label">Account</div>
+          <button
+            className="jas-ud-item"
+            onClick={() => {
+              setNotificationsOpen(true);
+              setAccountQuickMenuOpen(false);
+              setKnowledgeMenuOpen(false);
+            }}
+          >
+            <FontAwesomeIcon icon={faBell} />
+            <span className="jas-ud-item-label">Notifications</span>
+            <span className="jas-ud-item-badge">{unreadNotificationCount}</span>
+          </button>
           <button className="jas-ud-item" onClick={openDisplayNameEditor}>
             <FontAwesomeIcon icon={faUser} />
             <span className="jas-ud-item-label">Edit display name</span>

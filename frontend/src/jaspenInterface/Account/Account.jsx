@@ -20,18 +20,21 @@ const FALLBACK_MODEL_TYPES = {
   pluto: {
     model_type: 'pluto',
     label: 'Pluto',
+    version: '1.0',
     description: 'Fastest model for core intake and scorecard workflows.',
     min_plan: 'free',
   },
   orbit: {
     model_type: 'orbit',
     label: 'Orbit',
+    version: '1.0',
     description: 'Balanced depth and speed for broader cross-functional synthesis.',
     min_plan: 'team',
   },
   titan: {
     model_type: 'titan',
     label: 'Titan',
+    version: '1.0',
     description: 'Highest-depth reasoning for complex multi-team initiatives.',
     min_plan: 'enterprise',
   },
@@ -245,6 +248,11 @@ export default function Account() {
   const packs = catalog?.overage_packs || {};
   const modelTypes = catalog?.model_types || FALLBACK_MODEL_TYPES;
   const orderedModelTypes = MODEL_ORDER.map((key) => modelTypes?.[key]).filter(Boolean);
+  const formatModelDisplayName = (model) => {
+    const label = model?.label || model?.model_type || 'Model';
+    const version = String(model?.version || '1.0').trim();
+    return `${label}-${version}`;
+  };
   const isModelAvailableForPlan = (minPlan, planKey) => {
     const requiredRank = PLAN_RANK[String(minPlan || 'free').toLowerCase()] ?? 0;
     const planRank = PLAN_RANK[String(planKey || 'free').toLowerCase()] ?? 0;
@@ -366,7 +374,7 @@ export default function Account() {
                 {orderedModelTypes.map((model) => (
                   <tr key={model.model_type || model.label}>
                     <th scope="row">
-                      <div className="account-model-name">{model.label || model.model_type}</div>
+                      <div className="account-model-name">{formatModelDisplayName(model)}</div>
                       <div className="account-model-desc">{model.description || ''}</div>
                     </th>
                     {PLAN_ORDER.map((key) => (

@@ -81,18 +81,21 @@ MODEL_TYPE_ORDER = ['pluto', 'orbit', 'titan']
 DEFAULT_MODEL_CATALOG = {
     'pluto': {
         'label': 'Pluto',
+        'version': '1.0',
         'description': 'Fastest model for core intake and scorecard workflows.',
         'min_plan': 'free',
         'default_llm_model': 'gpt-4o-mini',
     },
     'orbit': {
         'label': 'Orbit',
+        'version': '1.0',
         'description': 'Balanced depth and speed for broader cross-functional synthesis.',
         'min_plan': 'team',
         'default_llm_model': 'gpt-4o',
     },
     'titan': {
         'label': 'Titan',
+        'version': '1.0',
         'description': 'Highest-depth reasoning for complex multi-team initiatives.',
         'min_plan': 'enterprise',
         'default_llm_model': 'gpt-4',

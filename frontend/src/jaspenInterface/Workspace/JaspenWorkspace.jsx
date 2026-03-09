@@ -40,6 +40,7 @@ import "./JaspenWorkspace.css";
 const PM_VARIANT  = "monitor-check";
 const LSS_VARIANT = "chart-scatter";
 const MODEL_DISPLAY_ORDER = ['pluto', 'orbit', 'titan'];
+const MODEL_VERSION_BY_TYPE = { pluto: '1.0', orbit: '1.0', titan: '1.0' };
 
 // ============================================================================
 // Readiness Normalization Helpers (Backend Contract Compliance)
@@ -535,6 +536,7 @@ const refreshBundle = async (tid) => {
   const [billingStatus, setBillingStatus] = useState(null);
   const [billingCatalog, setBillingCatalog] = useState({ plans: {}, overage_packs: {}, model_types: {} });
   const [selectedModelType, setSelectedModelType] = useState('pluto');
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [billingLoading, setBillingLoading] = useState(true);
   const [billingMessage, setBillingMessage] = useState('');
   const [billingActionLoading, setBillingActionLoading] = useState('');
@@ -596,6 +598,29 @@ const refreshBundle = async (tid) => {
       return a.localeCompare(b);
     });
   }, [modelTypes]);
+  const modelOptions = useMemo(() => {
+    return allModelTypeKeys.map((modelTypeKey) => {
+      const normalizedKey = String(modelTypeKey || '').toLowerCase();
+      const item = modelTypes?.[normalizedKey] || {};
+      const fallbackLabel = normalizedKey
+        ? normalizedKey.charAt(0).toUpperCase() + normalizedKey.slice(1)
+        : 'Model';
+      const label = item?.label || fallbackLabel;
+      const version = String(item?.version || MODEL_VERSION_BY_TYPE[normalizedKey] || '1.0').trim();
+      const withVersion = `${label}-${version}`;
+      const isAllowed = allowedModelTypes.includes(normalizedKey);
+      return {
+        key: normalizedKey,
+        label,
+        withVersion,
+        isAllowed,
+      };
+    });
+  }, [allModelTypeKeys, modelTypes, allowedModelTypes]);
+  const selectedModelOption = useMemo(
+    () => modelOptions.find((option) => option.key === selectedModelType) || modelOptions[0] || null,
+    [modelOptions, selectedModelType]
+  );
   const defaultModelType = useMemo(() => {
     const candidate = String(billingStatus?.default_model_type || '').toLowerCase();
     if (candidate && allowedModelTypes.includes(candidate)) return candidate;
@@ -782,6 +807,29 @@ const refreshBundle = async (tid) => {
       localStorage.setItem(modelTypeStorageKey, normalized);
     } catch {}
   }, [modelTypeStorageKey, selectedModelType, allowedModelTypes]);
+
+  useEffect(() => {
+    if (!modelMenuOpen) return;
+    const onPointerDown = (event) => {
+      if (!(event.target instanceof Node)) return;
+      if (!modelMenuRef.current?.contains(event.target)) {
+        setModelMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setModelMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [modelMenuOpen]);
+
+  useEffect(() => {
+    if (busy) setModelMenuOpen(false);
+  }, [busy]);
 
   useEffect(() => {
     if (!sidebarState.settings) {
@@ -1912,6 +1960,7 @@ async function fetchReadinessFor(sid) {
   const fileInputRef = useRef(null);
   const chatTabInputRef = useRef(null);
   const intakeInputRef = useRef(null);
+  const modelMenuRef = useRef(null);
 
 // ======= UI Readiness - SINGLE SOURCE FROM BACKEND ====================
 // ONLY source: readinessAudit.overall.percent from GET /api/readiness/audit
@@ -2020,30 +2069,45 @@ const renderReadinessChecklist = () => (
 );
 
 const renderModelTypeInlinePicker = (className = '') => (
-  <div className={`jas-model-picker-inline ${className}`.trim()}>
-    <select
-      className="jas-model-picker-inline-select"
-      value={selectedModelType}
-      onChange={(event) => setSelectedModelType(String(event.target.value || '').toLowerCase())}
+  <div className={`jas-model-picker-inline ${className}`.trim()} ref={modelMenuRef}>
+    <button
+      type="button"
+      className={`jas-model-picker-trigger ${modelMenuOpen ? 'is-open' : ''}`}
+      aria-haspopup="listbox"
+      aria-expanded={modelMenuOpen}
+      aria-label="Select model"
+      title="Select model"
+      onClick={() => setModelMenuOpen((prev) => !prev)}
       disabled={busy}
-      aria-label="Model type"
-      title="Model type"
     >
-      {allModelTypeKeys.map((modelTypeKey) => {
-        const normalizedKey = String(modelTypeKey || '').toLowerCase();
-        const item = modelTypes?.[normalizedKey] || {};
-        const fallbackLabel = normalizedKey
-          ? normalizedKey.charAt(0).toUpperCase() + normalizedKey.slice(1)
-          : 'Model';
-        const isAllowed = allowedModelTypes.includes(normalizedKey);
-        const optionLabel = isAllowed ? (item?.label || fallbackLabel) : `${item?.label || fallbackLabel} (Upgrade to access)`;
-        return (
-          <option key={modelTypeKey} value={modelTypeKey} disabled={!isAllowed}>
-            {optionLabel}
-          </option>
-        );
-      })}
-    </select>
+      <span className="jas-model-picker-trigger-text">{selectedModelOption?.withVersion || 'Model'}</span>
+      <FontAwesomeIcon icon={faChevronDown} className={`jas-model-picker-caret ${modelMenuOpen ? 'is-open' : ''}`} />
+    </button>
+    {modelMenuOpen && (
+      <div className="jas-model-picker-menu" role="listbox" aria-label="Model options">
+        {modelOptions.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            role="option"
+            aria-selected={selectedModelType === option.key}
+            className={`jas-model-picker-option ${selectedModelType === option.key ? 'is-selected' : ''}`}
+            disabled={!option.isAllowed}
+            onClick={() => {
+              if (!option.isAllowed) return;
+              setSelectedModelType(option.key);
+              setModelMenuOpen(false);
+            }}
+          >
+            <span className="jas-model-picker-option-main">{option.withVersion}</span>
+            {!option.isAllowed && <span className="jas-model-picker-option-meta">(Upgrade to access)</span>}
+            {option.isAllowed && selectedModelType === option.key && (
+              <FontAwesomeIcon icon={faCheck} className="jas-model-picker-option-check" />
+            )}
+          </button>
+        ))}
+      </div>
+    )}
   </div>
 );
 

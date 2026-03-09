@@ -1437,6 +1437,7 @@
 .jas-model-picker-inline {
   display: inline-flex;
   align-items: center;
+  position: relative;
   height: 32px;
   padding: 0;
   border: none;
@@ -1448,33 +1449,106 @@
   box-shadow: none;
 }
 
-.jas-model-picker-inline-select {
+.jas-model-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   height: 100%;
-  border: 1px solid var(--gray-300);
-  border-radius: 10px;
+  border: none;
   background: transparent;
   color: var(--gray-700);
   font-size: 0.8125rem;
-  font-weight: 500;
-  padding: 0 8px;
-  min-width: 96px;
-  max-width: 154px;
-  -webkit-appearance: menulist;
-  appearance: auto;
+  font-weight: 600;
+  padding: 0 2px;
+  cursor: pointer;
   outline: none;
-  background-color: var(--white);
 }
 
-.jas-model-picker-inline-select:focus,
-.jas-model-picker-inline-select:focus-visible,
+.jas-model-picker-trigger:focus,
+.jas-model-picker-trigger:focus-visible,
 .jas-model-picker-inline:focus-visible {
   outline: none !important;
   box-shadow: none !important;
 }
 
-.jas-model-picker-inline-select:disabled {
+.jas-model-picker-trigger:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.jas-model-picker-trigger-text {
+  white-space: nowrap;
+}
+
+.jas-model-picker-caret {
+  font-size: 0.72rem;
+  color: var(--gray-500);
+  transition: transform 0.16s ease;
+}
+
+.jas-model-picker-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.jas-model-picker-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  min-width: 220px;
+  max-width: 280px;
+  background: #ffffff;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  box-shadow: 0 12px 24px rgba(17, 28, 58, 0.18);
+  padding: 6px;
+  z-index: 70;
+}
+
+.jas-model-picker-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.jas-model-picker-option:hover:not(:disabled) {
+  background: var(--gray-100);
+}
+
+.jas-model-picker-option.is-selected {
+  background: rgba(64, 87, 199, 0.12);
+}
+
+.jas-model-picker-option:disabled {
+  cursor: not-allowed;
+}
+
+.jas-model-picker-option-main {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.jas-model-picker-option-meta {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+
+.jas-model-picker-option:disabled .jas-model-picker-option-main {
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.jas-model-picker-option-check {
+  font-size: 0.7rem;
+  color: #4057c7;
 }
 
 .jas-chat-input-left-controls,

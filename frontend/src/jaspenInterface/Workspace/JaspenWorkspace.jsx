@@ -577,6 +577,11 @@ const refreshBundle = async (tid) => {
   const userInitials = getInitials(displayName || user?.name || user?.email || savedEmail || 'User');
   const userName = displayName || user?.name || user?.email?.split('@')[0] || savedEmail?.split?.('@')[0] || 'User';
   const userEmail = user?.email || savedEmail || 'user@example.com';
+  const notificationsStorageKey = useMemo(() => {
+    if (user?.id) return `jaspen_notifications_id_${user.id}`;
+    if (user?.email) return `jaspen_notifications_email_${String(user.email).toLowerCase()}`;
+    return 'jaspen_notifications_last';
+  }, [user?.id, user?.email]);
   const [welcomeNow, setWelcomeNow] = useState(() => new Date());
   const planOrder = ['free', 'essential', 'team', 'enterprise'];
   const planRank = { free: 0, essential: 1, team: 2, enterprise: 3 };
@@ -734,6 +739,28 @@ const refreshBundle = async (tid) => {
       ['miq_last_session_id', 'miq_sid', 'miq_history', 'miq_projects'].forEach((key) => localStorage.removeItem(key));
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(notificationsStorageKey);
+      if (!raw) {
+        setNotificationItems(INITIAL_NOTIFICATION_UPDATES);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setNotificationItems(parsed);
+        return;
+      }
+    } catch {}
+    setNotificationItems(INITIAL_NOTIFICATION_UPDATES);
+  }, [notificationsStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(notificationsStorageKey, JSON.stringify(notificationItems));
+    } catch {}
+  }, [notificationsStorageKey, notificationItems]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -1139,25 +1166,39 @@ const refreshBundle = async (tid) => {
         >
           <div className="jas-notifications-header">
             <h3>Notifications</h3>
-            <button
-              type="button"
-              className="jas-notifications-close"
-              onClick={() => setNotificationsOpen(false)}
-              aria-label="Close notifications"
-            >
-              <FontAwesomeIcon icon={faTimes} />
-            </button>
+            <div className="jas-notifications-header-actions">
+              <button
+                type="button"
+                className="jas-notifications-clear"
+                onClick={() => setNotificationItems([])}
+                disabled={notificationItems.length === 0}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="jas-notifications-close"
+                onClick={() => setNotificationsOpen(false)}
+                aria-label="Close notifications"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
           </div>
           <div className="jas-notifications-list">
-            {notificationItems.map((item) => (
-              <article key={item.id} className="jas-notification-item">
-                <div className="jas-notification-row">
-                  <h4>{item.title}</h4>
-                  <span>{item.stamp}</span>
-                </div>
-                <p>{item.body}</p>
-              </article>
-            ))}
+            {notificationItems.length === 0 ? (
+              <div className="jas-notification-empty">No notifications</div>
+            ) : (
+              notificationItems.map((item) => (
+                <article key={item.id} className="jas-notification-item">
+                  <div className="jas-notification-row">
+                    <h4>{item.title}</h4>
+                    <span>{item.stamp}</span>
+                  </div>
+                  <p>{item.body}</p>
+                </article>
+              ))
+            )}
           </div>
         </div>
       </div>

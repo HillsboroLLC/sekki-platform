@@ -9,7 +9,7 @@
 .jas-shell {
   --navy: #161f3b;
   --magenta: #a0036c;
-  --light-bg: #f0f3f2;
+  --light-bg: #f8fafc;
   --white: #ffffff;
   --sidebar-width: 320px;
   --side-tab-top: 128px;
@@ -37,7 +37,7 @@
   width: 100%;
   overflow: hidden;
   position: relative;
-  background: var(--white);
+  background: var(--light-bg);
   font-family: var(--font);
 }
 
@@ -1755,7 +1755,7 @@
 
 /* === Claude-like Layout Enhancements (Scoped) === */
 .jas-shell {
-  background: radial-gradient(1200px 600px at 50% -220px, var(--white) 0%, var(--gray-50) 45%, var(--light-bg) 100%);
+  background: var(--light-bg);
 }
 
 .jas-chat-content > .jas-chat-welcome,
@@ -2769,7 +2769,7 @@
    LEGACY COMPATIBILITY (keep existing functionality working)
    ============================================================================ */
 .jas { font-family: var(--font); }
-.jas-shell { display: flex; height: 100vh; width: 100%; overflow: hidden; position: relative; background: var(--white); }
+.jas-shell { display: flex; height: 100vh; width: 100%; overflow: hidden; position: relative; background: var(--light-bg); }
 .jas-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
 .jas-shell.drawer-open .chatgpt-interface { margin-left: var(--sidebar-width); transition: margin-left 0.3s ease; }
 
@@ -2794,27 +2794,27 @@
 
 /* Ensure settings rail matches the chat page canvas */
 .jas-left-sidebar.jas-settings-sidebar {
-  background: var(--white);
+  background: var(--light-bg);
 }
 
 .jas-left-sidebar.jas-settings-sidebar .jas-sidebar-header,
 .jas-left-sidebar.jas-settings-sidebar .jas-sidebar-content,
 .jas-left-sidebar.jas-settings-sidebar .jas-ud-scroll {
-  background: var(--white);
+  background: var(--light-bg);
 }
 
 /* Keep history rail on the same canvas color as chat area */
 .jas-left-sidebar.jas-history-sidebar,
 .jas-left-sidebar.jas-history-sidebar .jas-sidebar-header,
 .jas-left-sidebar.jas-history-sidebar .jas-sidebar-content {
-  background: var(--white);
+  background: var(--light-bg);
 }
 
 /* Keep readiness rail on the same canvas color as other sidebars */
 .jas-left-sidebar.jas-readiness-sidebar,
 .jas-left-sidebar.jas-readiness-sidebar .jas-sidebar-header,
 .jas-left-sidebar.jas-readiness-sidebar .jas-sidebar-content {
-  background: var(--white);
+  background: var(--light-bg);
 }
 
 .jas-sidebar-header {

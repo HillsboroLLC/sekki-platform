@@ -19,7 +19,7 @@ from app.billing_config import (
     normalize_model_type,
     to_public_plan,
 )
-from .sessions import load_user_sessions
+from .sessions import load_user_sessions, save_user_sessions
 
 market_iq_bp = Blueprint('market_iq', __name__)
 
@@ -119,6 +119,19 @@ def _conversation_to_transcript(history):
         lines.append(f"{speaker}: {text}")
 
     return '\n'.join(lines)
+
+
+def _resolve_session_entry(sessions, thread_id):
+    """Resolve a session payload by map key or embedded session_id."""
+    tid = str(thread_id or '').strip()
+    if not tid or not isinstance(sessions, dict):
+        return None, None
+    if tid in sessions:
+        return tid, sessions.get(tid)
+    for key, candidate in sessions.items():
+        if str((candidate or {}).get('session_id', '')).strip() == tid:
+            return key, candidate
+    return None, None
 
 
 def _resolve_user_model_selection(user, requested_model_type=None):
@@ -229,7 +242,7 @@ def analyze_project():
         if bootstrap_legacy_credits(user, current_app.config):
             db.session.commit()
 
-        thread_id = data.get('thread_id')
+        thread_id = data.get('thread_id') or request.headers.get('X-Session-ID')
         project_name = data.get('name') or data.get('project_name') or 'Jaspen Project'
         framework_id = data.get('framework_id')
         project_description = (data.get('description') or '').strip()
@@ -289,13 +302,14 @@ def analyze_project():
 
         analysis_id = str(uuid.uuid4())
         generated_at = datetime.utcnow().isoformat()
+        resolved_thread_id = str(thread_id or f"thread_{uuid.uuid4().hex[:12]}")
 
         prior_meta = analysis_result.get('meta') if isinstance(analysis_result.get('meta'), dict) else {}
         analysis = {
             **analysis_result,
             'id': analysis_id,
             'analysis_id': analysis_id,
-            'thread_id': thread_id,
+            'thread_id': resolved_thread_id,
             'framework_id': framework_id,
             'project_name': project_name,
             'project_description': effective_description,
@@ -303,7 +317,7 @@ def analyze_project():
             'user_id': current_user_id,
             'meta': {
                 **prior_meta,
-                'thread_id': thread_id,
+                'thread_id': resolved_thread_id,
                 'framework_id': framework_id,
                 'name': project_name,
                 'conversation_turns': len(conversation_history),
@@ -325,12 +339,93 @@ def analyze_project():
         analysis['meta']['credits_charged'] = analysis_credit_cost
         analysis['meta']['credits_remaining'] = remaining
 
+        # Persist analysis onto the thread/session so Finish & Analyze creates a real thread bundle.
+        sessions = load_user_sessions(current_user_id) or {}
+        session_key, session = _resolve_session_entry(sessions, resolved_thread_id)
+        if not isinstance(session, dict):
+            session = {
+                'session_id': resolved_thread_id,
+                'name': project_name or 'Jaspen Intake',
+                'document_type': 'market_iq',
+                'model_type': model_selection['model_type'],
+                'current_phase': 1,
+                'chat_history': conversation_history if isinstance(conversation_history, list) else [],
+                'notes': {},
+                'created': generated_at,
+                'timestamp': generated_at,
+                'status': 'in_progress',
+                'user_id': str(current_user_id),
+            }
+            session_key = resolved_thread_id
+
+        history = session.get('analysis_history')
+        if not isinstance(history, list):
+            history = session.get('analyses')
+        if not isinstance(history, list):
+            history = []
+        history = [
+            {
+                'analysis_id': analysis_id,
+                'id': analysis_id,
+                'created_at': generated_at,
+                'label': 'Baseline',
+                'thread_id': resolved_thread_id,
+                'result': analysis,
+            },
+            *[h for h in history if isinstance(h, dict) and str(h.get('analysis_id') or h.get('id')) != analysis_id],
+        ][:50]
+
+        session['session_id'] = resolved_thread_id
+        session['name'] = project_name or session.get('name') or 'Jaspen Intake'
+        session['document_type'] = session.get('document_type') or 'market_iq'
+        session['model_type'] = model_selection['model_type']
+        session['result'] = analysis
+        session['analysis_history'] = history
+        session['analyses'] = history
+        session['adopted_analysis_id'] = analysis_id
+        session['baseline_inputs'] = _extract_baseline_inputs(analysis)
+        session['timestamp'] = generated_at
+        session['completed_at'] = generated_at
+        session['status'] = 'completed'
+        if not session.get('created'):
+            session['created'] = generated_at
+        if not isinstance(session.get('chat_history'), list):
+            session['chat_history'] = conversation_history if isinstance(conversation_history, list) else []
+        if not isinstance(session.get('notes'), dict):
+            session['notes'] = {}
+
+        sessions[session_key or resolved_thread_id] = session
+        persisted_session = save_user_sessions(current_user_id, sessions)
+
+        # Ensure scenario-thread storage exists, even before any scenario/WBS is created.
+        all_data = _load_scenarios(current_user_id)
+        td = all_data.get(resolved_thread_id)
+        if not isinstance(td, dict):
+            td = _thread_entry()
+        if not isinstance(td.get('scenarios'), dict):
+            td['scenarios'] = {}
+        if not isinstance(td.get('baseline_inputs'), dict):
+            td['baseline_inputs'] = {}
+        if 'adopted_scenario_id' not in td:
+            td['adopted_scenario_id'] = None
+        if td.get('baseline') is None or not td.get('scenarios'):
+            td['baseline'] = analysis
+            td['baseline_inputs'] = _extract_baseline_inputs(analysis)
+            td['adopted_scenario_id'] = None
+        if 'project_wbs' not in td:
+            td['project_wbs'] = None
+        all_data[resolved_thread_id] = td
+        persisted_bundle = _save_scenarios(current_user_id, all_data)
+        analysis['meta']['thread_bundle_persisted'] = bool(persisted_session and persisted_bundle)
+
         return jsonify({
             'analysis': analysis,
+            'thread_id': resolved_thread_id,
+            'session_id': resolved_thread_id,
             'model_type': model_selection['model_type'],
             'allowed_model_types': model_selection['allowed_model_types'],
         }), 200
-        
+
     except Exception as e:
         print(f"Error in Jaspen analysis: {str(e)}")
         return jsonify({'error': 'Analysis failed. Please try again.'}), 500
@@ -462,6 +557,7 @@ def _thread_entry():
         'baseline_inputs': {},
         'scenarios': {},
         'adopted_scenario_id': None,
+        'project_wbs': None,
     }
 
 
@@ -921,11 +1017,26 @@ def get_thread_bundle(thread_id):
         user_id = get_jwt_identity()
         scn_limit = int(request.args.get('scn_limit', 50))
 
-        td = _load_scenarios(user_id).get(thread_id, {})
+        all_data = _load_scenarios(user_id)
+        td = all_data.get(thread_id, {})
+        if not isinstance(td, dict):
+            td = {}
+        sessions = load_user_sessions(user_id) or {}
+        _, session = _resolve_session_entry(sessions, thread_id)
 
-        baseline         = td.get('baseline')
-        scenarios_dict   = td.get('scenarios', {})
-        adopted_id       = td.get('adopted_scenario_id')
+        baseline = td.get('baseline')
+        scenarios_dict = td.get('scenarios', {})
+        adopted_id = td.get('adopted_scenario_id')
+        session_result = session.get('result') if isinstance(session, dict) and isinstance(session.get('result'), dict) else None
+        baseline_inputs = td.get('baseline_inputs') or (
+            session.get('baseline_inputs') if isinstance(session, dict) and isinstance(session.get('baseline_inputs'), dict) else {}
+        )
+        if baseline is None and session_result:
+            baseline = session_result
+        if not isinstance(scenarios_dict, dict):
+            scenarios_dict = {}
+        if not isinstance(baseline_inputs, dict):
+            baseline_inputs = {}
 
         # Sorted scenario list
         scenarios_list = sorted(scenarios_dict.values(),
@@ -938,7 +1049,7 @@ def get_thread_bundle(thread_id):
 
         # Build scenario_levers from baseline inputs
         scenario_levers = []
-        for key, val in (td.get('baseline_inputs') or {}).items():
+        for key, val in baseline_inputs.items():
             if not isinstance(val, (int, float)):
                 continue
             k = key.lower()
@@ -956,13 +1067,21 @@ def get_thread_bundle(thread_id):
             })
 
         return jsonify({
-            'thread': {'id': thread_id},
-            'messages': [],                      # handled by AI-Agent service
+            'thread': {
+                'id': thread_id,
+                'session_id': thread_id,
+                'name': (session or {}).get('name') if isinstance(session, dict) else None,
+                'status': (session or {}).get('status') if isinstance(session, dict) else 'in_progress',
+            },
+            'messages': (session.get('chat_history') if isinstance(session, dict) and isinstance(session.get('chat_history'), list) else []),
             'baseline_scorecard': baseline,
             'current_scorecard': current_scorecard,
             'scenarios': scenarios_list,
             'scenario_levers': scenario_levers,
             'adopted_scenario_id': adopted_id,
+            'project_wbs': td.get('project_wbs'),
+            'status': (session or {}).get('status') if isinstance(session, dict) else 'in_progress',
+            'result': session_result,
         }), 200
 
     except Exception as e:

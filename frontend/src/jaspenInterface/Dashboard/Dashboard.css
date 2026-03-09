@@ -1,6 +1,6 @@
 :root {
   /* Light‐mode variables */
-  --bg-color:        #f0f3f2;
+  --bg-color:        #f8fafc;
   --text-color:      #161f3b;
   --card-bg-color:   #ffffff;
   --primary-color:   #A0006D;    /* Eggplant */
@@ -957,11 +957,11 @@ body {
 /* ────────────────────────────────────────────────────────────────────────── */
 body.dark-mode {
   background-color: #161f3b;
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .workspace-header h1,
 body.dark-mode .workspace-header a {
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .left-panel,
 body.dark-mode .dashboard-card,
@@ -975,10 +975,10 @@ body.dark-mode .dashboard-card .card-subtitle,
 body.dark-mode .storage-text,
 body.dark-mode label,
 body.dark-mode strong {
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .action-button {
-  background-color: #f0f3f2;
+  background-color: #f8fafc;
   color: #161f3b;
 }
 body.dark-mode .action-button:hover {
@@ -986,15 +986,15 @@ body.dark-mode .action-button:hover {
 }
 body.dark-mode .workflows-button {
   background-color: #232f4f;
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .workflows-button:hover {
   background-color: #1b2748;
 }
 body.dark-mode .sessions-icon,
 body.dark-mode .sessions-label {
-  fill: #f0f3f2;
-  color: #f0f3f2;
+  fill: #f8fafc;
+  color: #f8fafc;
 }
 
 /* Dark mode for task board */
@@ -1003,7 +1003,7 @@ body.dark-mode .kanban-column {
 }
 body.dark-mode .kanban-item {
   background-color: #232f4f;
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .document-type-item {
   background-color: #1b2748;
@@ -1014,7 +1014,7 @@ body.dark-mode .modal-content {
 body.dark-mode .account-button {
   background-color: #1b2748;
   border-color: #404040;
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .account-button:hover {
   background-color: rgba(160, 0, 109, 0.2);
@@ -1032,7 +1032,7 @@ body.dark-mode .billing-option-card {
 body.dark-mode .billing-summary-card h3,
 body.dark-mode .billing-option-price,
 body.dark-mode .billing-subhead {
-  color: #f0f3f2;
+  color: #f8fafc;
 }
 body.dark-mode .billing-chip {
   background: rgba(255, 255, 255, 0.12);
@@ -1043,7 +1043,7 @@ body.dark-mode .billing-action-link {
 }
 body.dark-mode .kanban-column textarea {
   background-color: #1b2748;
-  color: #f0f3f2;
+  color: #f8fafc;
   border-color: #404040;
 }
 body.dark-mode .help-modal-content {
@@ -1051,7 +1051,7 @@ body.dark-mode .help-modal-content {
 }
 body.dark-mode .add-task-form input {
   background-color: #1b2748;
-  color: #f0f3f2;
+  color: #f8fafc;
   border-color: #404040;
 }
 

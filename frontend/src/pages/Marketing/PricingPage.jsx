@@ -243,11 +243,11 @@ export default function PricingPage() {
       });
       const data = await response.json();
       if (!response.ok || !data?.url) {
-        throw new Error(data?.msg || 'Unable to open billing portal.');
+        throw new Error(data?.msg || 'Unable to open billing settings.');
       }
       window.location.href = data.url;
     } catch (err) {
-      setStatusMessage(err.message || 'Unable to open billing portal.');
+      setStatusMessage(err.message || 'Unable to open billing settings.');
     } finally {
       setPendingKey('');
     }
@@ -412,11 +412,11 @@ export default function PricingPage() {
         <div className="resource-callout">
           <h3>Manage subscription</h3>
           <p>
-            Use Stripe Customer Portal to update payment methods, manage Essential, or cancel at period end.
+            Update payment methods, manage Essential, or cancel at period end from your billing settings.
           </p>
           {isLoggedIn ? (
             <button type="button" className="pricing-portal-button" onClick={openPortal} disabled={pendingKey === 'portal'}>
-              {pendingKey === 'portal' ? 'Opening...' : 'Open billing portal'}
+              {pendingKey === 'portal' ? 'Opening...' : 'Manage billing'}
             </button>
           ) : (
             <a href="/?auth=1" className="pricing-cta-link">Sign in to manage billing</a>

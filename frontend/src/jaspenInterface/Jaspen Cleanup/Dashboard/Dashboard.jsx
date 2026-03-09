@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../shared/auth/AuthContext';
-import { API_BASE } from '../../config/apiBase';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { API_BASE } from '../../../config/apiBase';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -253,11 +253,11 @@ export default function Dashboard() {
       });
       const data = await response.json();
       if (!response.ok || !data?.url) {
-        throw new Error(data?.msg || 'Unable to open billing portal.');
+        throw new Error(data?.msg || 'Unable to open billing settings.');
       }
       window.location.href = data.url;
     } catch (error) {
-      setBillingError(error.message || 'Unable to open billing portal.');
+      setBillingError(error.message || 'Unable to open billing settings.');
       setBillingActionLoading('');
     }
   };
@@ -867,7 +867,7 @@ export default function Dashboard() {
                   onClick={openBillingPortal}
                   disabled={billingActionLoading === 'portal'}
                 >
-                  {billingActionLoading === 'portal' ? 'Opening...' : 'Open Stripe Billing Portal'}
+                  {billingActionLoading === 'portal' ? 'Opening...' : 'Manage billing'}
                 </button>
               </div>
             </div>

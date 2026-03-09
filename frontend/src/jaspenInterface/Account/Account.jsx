@@ -163,11 +163,11 @@ export default function Account() {
           navigate('/?auth=1', { replace: true });
           return;
         }
-        throw new Error(data?.msg || 'No billing portal is available yet for this account.');
+        throw new Error(data?.msg || 'Online billing management is not available for this account yet.');
       }
       window.location.href = data.url;
     } catch (error) {
-      setMessage(error.message || 'Unable to open billing portal.');
+      setMessage(error.message || 'Unable to open billing settings.');
     } finally {
       setPendingAction('');
     }
@@ -264,30 +264,38 @@ export default function Account() {
     <div className="account-page">
       <div className="account-panel">
         <div className="account-header-row">
-          <h1>Billing & Usage</h1>
-          <button type="button" onClick={() => navigate('/dashboard')} className="account-secondary-btn">
-            Back to dashboard
+          <div className="account-title-wrap">
+            <p className="account-eyebrow">Account</p>
+            <h1>Billing & Usage</h1>
+            <p className="account-subtext">
+              Manage plan access, credit usage, and available connectors for your workspace.
+            </p>
+          </div>
+          <button type="button" onClick={() => navigate('/new')} className="account-secondary-btn">
+            Back to Jaspen
           </button>
         </div>
 
-        <p className="account-subtext">
-          Current plan: <strong>{(plans[currentPlan]?.label || currentPlan).toString()}</strong>
-        </p>
-
-        <div className="account-usage-grid">
-          <article className="account-usage-card">
-            <h3>Credits remaining</h3>
-            <p className="account-big-value">
-              {status?.credits_remaining == null ? 'Contracted' : Number(status?.credits_remaining || 0).toLocaleString()}
-            </p>
-          </article>
-          <article className="account-usage-card">
-            <h3>Monthly limit</h3>
-            <p className="account-big-value">
-              {status?.monthly_credit_limit == null ? 'Contracted' : Number(status?.monthly_credit_limit || 0).toLocaleString()}
-            </p>
-          </article>
-        </div>
+        <section className="account-section account-usage-section">
+          <h2>Usage overview</h2>
+          <p className="account-current-plan">
+            Current plan: <strong>{(plans[currentPlan]?.label || currentPlan).toString()}</strong>
+          </p>
+          <div className="account-usage-grid">
+            <article className="account-usage-card">
+              <h3>Credits remaining</h3>
+              <p className="account-big-value">
+                {status?.credits_remaining == null ? 'Contracted' : Number(status?.credits_remaining || 0).toLocaleString()}
+              </p>
+            </article>
+            <article className="account-usage-card">
+              <h3>Monthly limit</h3>
+              <p className="account-big-value">
+                {status?.monthly_credit_limit == null ? 'Contracted' : Number(status?.monthly_credit_limit || 0).toLocaleString()}
+              </p>
+            </article>
+          </div>
+        </section>
 
         {message && <p className="account-message">{message}</p>}
 
@@ -338,7 +346,7 @@ export default function Account() {
         </section>
 
         <section className="account-section">
-          <h2>Overage credit packs</h2>
+          <h2>One-time credit packs</h2>
           <div className="account-pack-grid">
             {PACK_ORDER.map((key) => {
               const pack = packs[key];
@@ -354,7 +362,7 @@ export default function Account() {
                     onClick={() => buyPack(key)}
                     disabled={isPending}
                   >
-                    {isPending ? 'Redirecting...' : `Buy for $${pack.price_usd}`}
+                    {isPending ? 'Redirecting...' : `Purchase for $${pack.price_usd}`}
                   </button>
                 </article>
               );
@@ -403,7 +411,7 @@ export default function Account() {
             onClick={openBillingPortal}
             disabled={pendingAction === 'portal'}
           >
-            {pendingAction === 'portal' ? 'Opening...' : 'Open Stripe billing portal'}
+            {pendingAction === 'portal' ? 'Opening...' : 'Manage billing'}
           </button>
           <button
             type="button"

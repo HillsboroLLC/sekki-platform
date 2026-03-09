@@ -1185,11 +1185,11 @@ const refreshBundle = async (tid) => {
         if (response.status === 401) {
           await handleUnauthorized();
         }
-        throw new Error(data?.msg || 'Unable to open billing portal.');
+        throw new Error(data?.msg || 'Unable to open billing settings.');
       }
       window.location.href = data.url;
     } catch (error) {
-      setBillingMessage(error.message || 'Unable to open billing portal.');
+      setBillingMessage(error.message || 'Unable to open billing settings.');
     } finally {
       setBillingActionLoading('');
     }
@@ -1319,7 +1319,7 @@ const refreshBundle = async (tid) => {
               onClick={openBillingPortal}
               disabled={billingActionLoading === 'portal'}
             >
-              {billingActionLoading === 'portal' ? 'Opening...' : 'Open Stripe billing portal'}
+              {billingActionLoading === 'portal' ? 'Opening...' : 'Manage billing'}
             </button>
             <button
               type="button"

@@ -28,7 +28,7 @@ import PluginsPage from './pages/Resources/PluginsPage';
 
 // Jaspen
 import PricingResult from './jaspenInterface/PricingResult/PricingResult';
-import Dashboard     from './jaspenInterface/Dashboard/Dashboard';
+import Dashboard     from './jaspenInterface/Jaspen Cleanup/Dashboard/Dashboard';
 import Sessions      from './jaspenInterface/Sessions/Sessions';
 import Account       from './jaspenInterface/Account/Account';
 import PaymentPage   from './jaspenInterface/PaymentPage/PaymentPage';
@@ -86,14 +86,33 @@ export default function App() {
         <Route path="/auth/callback"  element={withShell(<AuthCallback />, { showHeader: false, fullBleed: true, noPadding: true })} />
 
         {/* Protected (Market) */}
-        <Route path="/dashboard" element={<ProtectedRoute>{withShell(<Dashboard />)}</ProtectedRoute>} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              {withShell(<Dashboard />, { showHeader: false, fullBleed: true, noPadding: true })}
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/new"
           element={withShell(<JaspenWorkspace />, { title: 'Jaspen', showHeader: false, fullBleed: true, noPadding: true })}
         />
         <Route path="/market-iq" element={<Navigate to="/new" replace />} />
         <Route path="/sessions"  element={<ProtectedRoute>{withShell(<Sessions />)}</ProtectedRoute>} />
-        <Route path="/account"   element={<ProtectedRoute>{withShell(<Account />)}</ProtectedRoute>} />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              {withShell(<Account />, {
+                title: 'Account and billing',
+                showHeader: false,
+                fullBleed: true,
+                noPadding: true,
+              })}
+            </ProtectedRoute>
+          }
+        />
         <Route path="/payment"   element={<ProtectedRoute>{withShell(<PaymentPage />)}</ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

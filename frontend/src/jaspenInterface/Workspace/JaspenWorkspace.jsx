@@ -39,6 +39,7 @@ import "./JaspenWorkspace.css";
 // === Header Icon Helpers =====================================================
 const PM_VARIANT  = "monitor-check";
 const LSS_VARIANT = "chart-scatter";
+const MODEL_DISPLAY_ORDER = ['pluto', 'orbit', 'titan'];
 
 // ============================================================================
 // Readiness Normalization Helpers (Backend Contract Compliance)
@@ -553,7 +554,7 @@ const refreshBundle = async (tid) => {
   const planOrder = ['free', 'essential', 'team', 'enterprise'];
   const planRank = { free: 0, essential: 1, team: 2, enterprise: 3 };
   const plans = billingCatalog?.plans || {};
-  const modelTypes = billingCatalog?.model_types || {};
+  const modelTypes = useMemo(() => billingCatalog?.model_types || {}, [billingCatalog]);
   const currentPlanKey = String(billingStatus?.plan_key || 'free').toLowerCase();
   const currentPlanLabel = plans[currentPlanKey]?.label || (currentPlanKey[0]?.toUpperCase() + currentPlanKey.slice(1));
   const monthlyCreditLimit = billingStatus?.monthly_credit_limit;
@@ -583,6 +584,18 @@ const refreshBundle = async (tid) => {
     if (fromStatus.length > 0) return fromStatus;
     return ['pluto'];
   }, [billingStatus]);
+  const allModelTypeKeys = useMemo(() => {
+    const catalogKeys = Object.keys(modelTypes || {}).map((key) => String(key || '').toLowerCase()).filter(Boolean);
+    const merged = Array.from(new Set([...MODEL_DISPLAY_ORDER, ...catalogKeys]));
+    return merged.sort((a, b) => {
+      const ai = MODEL_DISPLAY_ORDER.indexOf(a);
+      const bi = MODEL_DISPLAY_ORDER.indexOf(b);
+      const rankA = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+      const rankB = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.localeCompare(b);
+    });
+  }, [modelTypes]);
   const defaultModelType = useMemo(() => {
     const candidate = String(billingStatus?.default_model_type || '').toLowerCase();
     if (candidate && allowedModelTypes.includes(candidate)) return candidate;
@@ -2006,7 +2019,6 @@ const renderReadinessChecklist = () => (
 
 const renderModelTypeInlinePicker = (className = '') => (
   <div className={`jas-model-picker-inline ${className}`.trim()}>
-    <FontAwesomeIcon icon={faBolt} className="jas-model-picker-inline-icon" />
     <select
       className="jas-model-picker-inline-select"
       value={selectedModelType}
@@ -2015,15 +2027,19 @@ const renderModelTypeInlinePicker = (className = '') => (
       aria-label="Model type"
       title="Model type"
     >
-      {allowedModelTypes.map((modelTypeKey) => {
+      {allModelTypeKeys.map((modelTypeKey) => {
         const normalizedKey = String(modelTypeKey || '').toLowerCase();
         const item = modelTypes?.[normalizedKey] || {};
         const fallbackLabel = normalizedKey
           ? normalizedKey.charAt(0).toUpperCase() + normalizedKey.slice(1)
           : 'Model';
+        const isAllowed = allowedModelTypes.includes(normalizedKey);
+        const minPlan = String(item?.min_plan || 'free').toLowerCase();
+        const minPlanLabel = plans?.[minPlan]?.label || (minPlan ? minPlan.charAt(0).toUpperCase() + minPlan.slice(1) : 'higher plan');
+        const optionLabel = isAllowed ? (item?.label || fallbackLabel) : `${item?.label || fallbackLabel} (Upgrade to ${minPlanLabel})`;
         return (
-          <option key={modelTypeKey} value={modelTypeKey}>
-            {item?.label || fallbackLabel}
+          <option key={modelTypeKey} value={modelTypeKey} disabled={!isAllowed}>
+            {optionLabel}
           </option>
         );
       })}
@@ -3927,47 +3943,50 @@ setView(id === 'chat' ? 'intake' : id);
                   </div>
 
                   <div className="chatgpt-input-area">
+                    <input
+                      ref={fileInputRef}
+                      id="jas-file-input"
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
+                      onChange={onFilesSelected}
+                      style={{ display: 'none' }}
+                    />
+
+                    {pendingFiles?.length > 0 && (
+                      <div className="jas-file-chips">
+                        {pendingFiles.map((f, i) => (
+                          <span key={i} className="jas-file-chip">
+                            {f.name}
+                            <button
+                              type="button"
+                              className="jas-file-chip-remove"
+                              title="Remove"
+                              onClick={() =>
+                                setPendingFiles(prev => prev.filter((_, idx) => idx !== i))
+                              }
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="chatgpt-input-container">
-                      <button
-                        type="button"
-                        className="chatgpt-plus"
-                        aria-label="Attach files"
-                        title="Attach files"
-                        disabled={busy}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <FontAwesomeIcon icon={faPlus} />
-                      </button>
-
-                      <input
-                        ref={fileInputRef}
-                        id="jas-file-input"
-                        type="file"
-                        multiple
-                        accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
-                        onChange={onFilesSelected}
-                        style={{ display: 'none' }}
-                      />
-
-                      {pendingFiles?.length > 0 && (
-                        <div className="jas-file-chips">
-                          {pendingFiles.map((f, i) => (
-                            <span key={i} className="jas-file-chip">
-                              {f.name}
-                              <button
-                                type="button"
-                                className="jas-file-chip-remove"
-                                title="Remove"
-                                onClick={() =>
-                                  setPendingFiles(prev => prev.filter((_, idx) => idx !== i))
-                                }
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <div className="chatgpt-input-left-controls">
+                        <button
+                          type="button"
+                          className="chatgpt-plus"
+                          aria-label="Attach files"
+                          title="Attach files"
+                          disabled={busy}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <FontAwesomeIcon icon={faPlus} />
+                        </button>
+                        {renderModelTypeInlinePicker()}
+                      </div>
 
                       <textarea
                         value={input}
@@ -3979,28 +3998,28 @@ setView(id === 'chat' ? 'intake' : id);
                         disabled={busy}
                       />
 
-                      <button
-                        type="button"
-                        className={`chatgpt-mic ${isRecording ? 'is-recording' : ''}`}
-                        aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-                        aria-pressed={isRecording}
-                        title={isRecording ? 'Stop recording' : 'Start recording'}
-                        disabled={busy}
-                        onClick={() => setIsRecording(prev => !prev)}
-                      >
-                        <FontAwesomeIcon icon={faMicrophone} />
-                      </button>
+                      <div className="chatgpt-input-right-controls">
+                        <button
+                          type="button"
+                          className={`chatgpt-mic ${isRecording ? 'is-recording' : ''}`}
+                          aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                          aria-pressed={isRecording}
+                          title={isRecording ? 'Stop recording' : 'Start recording'}
+                          disabled={busy}
+                          onClick={() => setIsRecording(prev => !prev)}
+                        >
+                          <FontAwesomeIcon icon={faMicrophone} />
+                        </button>
 
-                      {renderModelTypeInlinePicker()}
-
-                      <button
-                        className="chatgpt-send"
-                        onClick={onSubmit}
-                        disabled={busy || (!input.trim() && pendingFiles.length === 0)}
-                        title="Send"
-                      >
-                        {busy ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faPaperPlane} />}
-                      </button>
+                        <button
+                          className="chatgpt-send"
+                          onClick={onSubmit}
+                          disabled={busy || (!input.trim() && pendingFiles.length === 0)}
+                          title="Send"
+                        >
+                          {busy ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faPaperPlane} />}
+                        </button>
+                      </div>
                     </div>
 
                     {sessionId && hasConversationMessages && (
@@ -4349,15 +4368,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
           )}
 
           <div className="jas-chat-input-box">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKey}
-              placeholder={sessionId ? "Continue the conversation..." : "Describe your project or goal..."}
-              rows={1}
-              disabled={busy}
-            />
-            <div className="jas-chat-input-icons">
+            <div className="jas-chat-input-left-controls">
               <button
                 type="button"
                 className="jas-ci-btn"
@@ -4368,6 +4379,17 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
               >
                 <FontAwesomeIcon icon={faPaperclip} />
               </button>
+              {renderModelTypeInlinePicker()}
+            </div>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKey}
+              placeholder={sessionId ? "Continue the conversation..." : "Describe your project or goal..."}
+              rows={1}
+              disabled={busy}
+            />
+            <div className="jas-chat-input-right-controls">
               <button
                 type="button"
                 className={`jas-ci-btn ${isRecording ? 'recording' : ''}`}
@@ -4378,7 +4400,6 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
               >
                 <FontAwesomeIcon icon={faMicrophone} />
               </button>
-              {renderModelTypeInlinePicker()}
               <button
                 className="jas-ci-btn send"
                 onClick={onSubmit}

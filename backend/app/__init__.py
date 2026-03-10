@@ -126,6 +126,8 @@ def create_app():
     app.config['AI_AGENT_CREDITS_PER_1K_TOKENS'] = float(os.getenv('AI_AGENT_CREDITS_PER_1K_TOKENS', '1.0'))
     app.config['AI_AGENT_MIN_CREDIT_CHARGE'] = int(os.getenv('AI_AGENT_MIN_CREDIT_CHARGE', '1'))
     app.config['AI_AGENT_CREDIT_MULTIPLIERS'] = os.getenv('AI_AGENT_CREDIT_MULTIPLIERS_JSON', '')
+    app.config['ADMIN_EMAILS'] = os.getenv('ADMIN_EMAILS', '')
+    app.config['ADMIN_BLOCKED_EMAILS'] = os.getenv('ADMIN_BLOCKED_EMAILS', '')
     app.config['JIRA_BASE_URL'] = os.getenv('JIRA_BASE_URL', '')
     app.config['JIRA_EMAIL'] = os.getenv('JIRA_EMAIL', '')
     app.config['JIRA_API_TOKEN'] = os.getenv('JIRA_API_TOKEN', '')
@@ -173,6 +175,7 @@ def create_app():
 
     # —— Register blueprints —— #
     from .routes.auth      import auth_bp
+    from .routes.admin     import admin_bp
     from .routes.chat      import chat_bp
     from .routes.billing   import billing_bp
     from .routes.connectors import connectors_bp
@@ -181,6 +184,7 @@ def create_app():
     from .routes.market_iq import market_iq_bp, analyze_project
 
     app.register_blueprint(auth_bp,      url_prefix='/api/auth')
+    app.register_blueprint(admin_bp,     url_prefix='/api/admin')
     app.register_blueprint(chat_bp,      url_prefix='/api/chat')
     app.register_blueprint(billing_bp,   url_prefix='/api/billing')
     app.register_blueprint(connectors_bp, url_prefix='/api/connectors')

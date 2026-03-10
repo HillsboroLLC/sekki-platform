@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../../shared/auth/AuthContext';
 
 export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChange }) {
+  const { login, signup } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
 
@@ -10,6 +13,7 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
   const resetState = () => {
     setStatus('idle');
     setError('');
+    setPassword('');
   };
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
 
   const statusMessage = useMemo(() => {
     if (status === 'sent') {
-      return 'Check your inbox for a secure magic link.';
+      return 'Authenticated. Redirecting...';
     }
     return '';
   }, [status]);
@@ -52,12 +56,44 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
   const handleEmailSubmit = async (event) => {
     event.preventDefault();
 
-    if (!email.trim()) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
       setError('Please enter a valid email address.');
       return;
     }
+    if (!password || String(password).length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
 
-    setError('Email authentication is not currently available. Please use Google sign-in.');
+    setStatus('sending');
+    setError('');
+    try {
+      const loginAttempt = await login(normalizedEmail, password);
+      if (loginAttempt?.success) {
+        setStatus('sent');
+        window.location.href = '/new';
+        return;
+      }
+
+      const inferredName = normalizedEmail.split('@')[0] || 'Jaspen User';
+      const signupAttempt = await signup(normalizedEmail, password, inferredName);
+      if (signupAttempt?.success) {
+        setStatus('sent');
+        window.location.href = '/new';
+        return;
+      }
+
+      setError(
+        loginAttempt?.error
+        || signupAttempt?.error
+        || 'Unable to sign in with email right now.'
+      );
+      setStatus('idle');
+    } catch (authError) {
+      setError(authError?.message || 'Unable to sign in with email right now.');
+      setStatus('idle');
+    }
   };
 
   return (
@@ -72,7 +108,7 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
           <h2>{isEmailMode ? 'Continue with email' : 'Continue with Google'}</h2>
           <p>
             {isEmailMode
-              ? 'We will send a secure magic link to finish signing in.'
+              ? 'Use your email and password to sign in. New email users are auto-created.'
               : 'Use your Google account to access Jaspen instantly.'}
           </p>
         </div>
@@ -92,12 +128,22 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
               onChange={(event) => setEmail(event.target.value)}
               disabled={status === 'sending' || status === 'sent'}
             />
+            <label className="auth-modal-label" htmlFor="auth-password">Password</label>
+            <input
+              id="auth-password"
+              type="password"
+              className="auth-modal-input"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={status === 'sending' || status === 'sent'}
+            />
             <button
               type="submit"
               className="jaspen-btn jaspen-btn-primary auth-modal-submit"
               disabled={status === 'sending' || status === 'sent'}
             >
-              {status === 'sending' ? 'Sending…' : 'Send magic link'}
+              {status === 'sending' ? 'Signing in…' : 'Continue with email'}
             </button>
           </form>
         ) : (

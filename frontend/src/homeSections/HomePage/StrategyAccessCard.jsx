@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../../shared/auth/AuthContext';
 
 const TARGET_SCORE = 87;
 const ANIMATION_DURATION_MS = 1200;
 
 export default function StrategyAccessCard() {
+  const { login, signup } = useAuth();
   const [score, setScore] = useState(0);
   const [status, setStatus] = useState('Pending');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [authStatus, setAuthStatus] = useState('idle');
   const [authError, setAuthError] = useState('');
 
@@ -46,7 +49,7 @@ export default function StrategyAccessCard() {
 
   const helperText = useMemo(() => {
     if (authError) return authError;
-    if (authStatus === 'sent') return 'Check your inbox for a secure magic link.';
+    if (authStatus === 'sent') return 'Authenticated. Redirecting...';
     return 'By continuing, you agree to receive product updates.';
   }, [authError, authStatus]);
 
@@ -57,19 +60,51 @@ export default function StrategyAccessCard() {
       : 'strategy-card-disclaimer';
 
   const handleGoogleClick = () => {
-    setAuthError(null);
+    setAuthError('');
     window.location.href = "https://api.jaspen.ai/api/auth/google/start";
   };
 
   const handleEmailSubmit = async (event) => {
     event.preventDefault();
 
-    if (!email.trim()) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
       setAuthError('Please enter a valid email address.');
       return;
     }
+    if (!password || String(password).length < 8) {
+      setAuthError('Password must be at least 8 characters.');
+      return;
+    }
 
-    setAuthError('Email authentication is not currently available. Please use Google sign-in.');
+    setAuthStatus('sending');
+    setAuthError('');
+    try {
+      const loginAttempt = await login(normalizedEmail, password);
+      if (loginAttempt?.success) {
+        setAuthStatus('sent');
+        window.location.href = '/new';
+        return;
+      }
+
+      const inferredName = normalizedEmail.split('@')[0] || 'Jaspen User';
+      const signupAttempt = await signup(normalizedEmail, password, inferredName);
+      if (signupAttempt?.success) {
+        setAuthStatus('sent');
+        window.location.href = '/new';
+        return;
+      }
+
+      setAuthError(
+        loginAttempt?.error
+        || signupAttempt?.error
+        || 'Unable to sign in with email right now.'
+      );
+      setAuthStatus('idle');
+    } catch (error) {
+      setAuthError(error?.message || 'Unable to sign in with email right now.');
+      setAuthStatus('idle');
+    }
   };
 
   return (
@@ -105,6 +140,15 @@ export default function StrategyAccessCard() {
             aria-label="Email address"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            disabled={authStatus === 'sending' || authStatus === 'sent'}
+          />
+          <input
+            type="password"
+            className="strategy-email-input"
+            placeholder="Password"
+            aria-label="Password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
             disabled={authStatus === 'sending' || authStatus === 'sent'}
           />
           <button

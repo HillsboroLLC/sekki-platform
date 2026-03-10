@@ -53,6 +53,16 @@ export default function Account() {
   const [pendingAction, setPendingAction] = useState('');
   const [connectorPendingId, setConnectorPendingId] = useState('');
   const [message, setMessage] = useState('');
+  const [adminState, setAdminState] = useState({
+    checked: false,
+    isAdmin: false,
+    loading: false,
+    users: [],
+    query: '',
+    selectedUserId: '',
+    draft: null,
+    pending: false,
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -61,7 +71,7 @@ export default function Account() {
       const token = getToken();
 
       try {
-        const [statusRes, catalogRes, connectorsRes] = await Promise.all([
+        const [statusRes, catalogRes, connectorsRes, adminCapsRes] = await Promise.all([
           fetch(`${API_BASE}/api/billing/status`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: 'include',
@@ -71,11 +81,16 @@ export default function Account() {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: 'include',
           }),
+          fetch(`${API_BASE}/api/admin/capabilities`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            credentials: 'include',
+          }),
         ]);
 
         const statusData = await statusRes.json();
         const catalogData = await catalogRes.json();
         const connectorsData = await connectorsRes.json().catch(() => ({}));
+        const adminCapsData = await adminCapsRes.json().catch(() => ({}));
 
         if (!statusRes.ok) {
           if (statusRes.status === 401) {
@@ -88,6 +103,10 @@ export default function Account() {
           navigate('/?auth=1', { replace: true });
           return;
         }
+        if (!adminCapsRes.ok && adminCapsRes.status === 401) {
+          navigate('/?auth=1', { replace: true });
+          return;
+        }
         if (mounted) {
           setStatus(statusData);
           setCatalog(catalogData || { plans: {}, overage_packs: {}, model_types: FALLBACK_MODEL_TYPES });
@@ -95,11 +114,33 @@ export default function Account() {
             loading: false,
             items: Array.isArray(connectorsData?.connectors) ? connectorsData.connectors : [],
           });
+          const isAdmin = Boolean(adminCapsRes.ok && adminCapsData?.is_admin);
+          setAdminState((prev) => ({
+            ...prev,
+            checked: true,
+            isAdmin,
+          }));
+          if (isAdmin) {
+            const usersRes = await fetch(`${API_BASE}/api/admin/users?limit=100`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              credentials: 'include',
+            });
+            const usersData = await usersRes.json().catch(() => ({}));
+            if (mounted && usersRes.ok) {
+              setAdminState((prev) => ({
+                ...prev,
+                checked: true,
+                isAdmin: true,
+                users: Array.isArray(usersData?.users) ? usersData.users : [],
+              }));
+            }
+          }
         }
       } catch (error) {
         if (mounted) {
           setMessage(error.message || 'Unable to load account details.');
           setConnectorState((prev) => ({ ...prev, loading: false }));
+          setAdminState((prev) => ({ ...prev, checked: true }));
         }
       } finally {
         if (mounted) setLoading(false);
@@ -311,6 +352,156 @@ export default function Account() {
       setMessage(error.message || 'Unable to update connector.');
     } finally {
       setConnectorPendingId('');
+    }
+  };
+
+  const toAdminDraft = (user) => {
+    if (!user || !user.id) return null;
+    return {
+      id: user.id,
+      email: user.email || '',
+      name: user.name || '',
+      subscription_plan: user.subscription_plan || 'free',
+      credits_remaining: user.credits_remaining == null ? '' : String(user.credits_remaining),
+      seat_limit: user.seat_limit == null ? '' : String(user.seat_limit),
+      max_seats: user.max_seats == null ? '' : String(user.max_seats),
+      unlimited_analysis: Boolean(user.unlimited_analysis),
+      max_concurrent_sessions: user.max_concurrent_sessions == null ? '' : String(user.max_concurrent_sessions),
+      stripe_customer_id: user.stripe_customer_id || '',
+      stripe_subscription_id: user.stripe_subscription_id || '',
+    };
+  };
+
+  const refreshAdminUsers = async (nextQuery = adminState.query || '') => {
+    if (!adminState.isAdmin) return;
+    const token = getToken();
+    setAdminState((prev) => ({ ...prev, loading: true, query: nextQuery }));
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/users?limit=100&q=${encodeURIComponent(nextQuery)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/?auth=1', { replace: true });
+          return;
+        }
+        if (response.status === 403) {
+          setAdminState((prev) => ({ ...prev, loading: false, isAdmin: false, checked: true }));
+          return;
+        }
+        throw new Error(data?.error || 'Unable to load users.');
+      }
+
+      const users = Array.isArray(data?.users) ? data.users : [];
+      setAdminState((prev) => {
+        let draft = prev.draft;
+        if (draft?.id) {
+          const replacement = users.find((item) => item.id === draft.id);
+          draft = replacement ? toAdminDraft(replacement) : null;
+        }
+        return {
+          ...prev,
+          loading: false,
+          users,
+          draft,
+          selectedUserId: draft?.id || '',
+        };
+      });
+    } catch (error) {
+      setAdminState((prev) => ({ ...prev, loading: false }));
+      setMessage(error.message || 'Unable to load users.');
+    }
+  };
+
+  const saveAdminUser = async () => {
+    if (!adminState.isAdmin || !adminState.draft?.id) return;
+    const token = getToken();
+    setAdminState((prev) => ({ ...prev, pending: true }));
+    setMessage('');
+    try {
+      const draft = adminState.draft;
+      const payload = {
+        name: String(draft.name || '').trim(),
+        subscription_plan: String(draft.subscription_plan || '').trim().toLowerCase(),
+        credits_remaining: draft.credits_remaining === '' ? null : Number(draft.credits_remaining),
+        seat_limit: draft.seat_limit === '' ? 0 : Number(draft.seat_limit),
+        max_seats: draft.max_seats === '' ? 0 : Number(draft.max_seats),
+        unlimited_analysis: Boolean(draft.unlimited_analysis),
+        max_concurrent_sessions: draft.max_concurrent_sessions === '' ? null : Number(draft.max_concurrent_sessions),
+        stripe_customer_id: String(draft.stripe_customer_id || '').trim(),
+        stripe_subscription_id: String(draft.stripe_subscription_id || '').trim(),
+      };
+      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to save user.');
+      }
+      const saved = data?.user;
+      if (saved?.id) {
+        setAdminState((prev) => ({
+          ...prev,
+          pending: false,
+          users: (prev.users || []).map((item) => (item.id === saved.id ? saved : item)),
+          draft: toAdminDraft(saved),
+          selectedUserId: saved.id,
+        }));
+      } else {
+        setAdminState((prev) => ({ ...prev, pending: false }));
+      }
+      setMessage(`Saved user ${saved?.email || ''}.`);
+      await refreshStatus();
+    } catch (error) {
+      setAdminState((prev) => ({ ...prev, pending: false }));
+      setMessage(error.message || 'Unable to save user.');
+    }
+  };
+
+  const forceEssential = async () => {
+    if (!adminState.isAdmin || !adminState.draft?.id) return;
+    const token = getToken();
+    setAdminState((prev) => ({ ...prev, pending: true }));
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(adminState.draft.id)}/force-plan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ plan_key: 'essential', reset_credits: true }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to force plan.');
+      }
+      const saved = data?.user;
+      if (saved?.id) {
+        setAdminState((prev) => ({
+          ...prev,
+          pending: false,
+          users: (prev.users || []).map((item) => (item.id === saved.id ? saved : item)),
+          draft: toAdminDraft(saved),
+          selectedUserId: saved.id,
+        }));
+      } else {
+        setAdminState((prev) => ({ ...prev, pending: false }));
+      }
+      setMessage(`Forced Essential for ${saved?.email || ''}.`);
+      await refreshStatus();
+    } catch (error) {
+      setAdminState((prev) => ({ ...prev, pending: false }));
+      setMessage(error.message || 'Unable to force Essential.');
     }
   };
 
@@ -620,6 +811,186 @@ export default function Account() {
             {pendingAction === 'cancel' ? 'Canceling...' : 'Cancel at period end'}
           </button>
         </section>
+
+        {adminState.checked && adminState.isAdmin && (
+          <section className="account-section" id="admin">
+            <div className="account-admin-header">
+              <h2>System admin</h2>
+              <p>Search users, adjust plan, credits, and account controls without billing flow.</p>
+            </div>
+            <div className="account-admin-search">
+              <input
+                type="text"
+                placeholder="Search by email or name"
+                value={adminState.query}
+                onChange={(e) => setAdminState((prev) => ({ ...prev, query: e.target.value }))}
+              />
+              <button
+                type="button"
+                className="account-secondary-btn"
+                onClick={() => refreshAdminUsers(adminState.query)}
+                disabled={adminState.loading}
+              >
+                {adminState.loading ? 'Searching...' : 'Search'}
+              </button>
+            </div>
+            <div className="account-admin-layout">
+              <div className="account-admin-user-list">
+                {(adminState.users || []).map((user) => {
+                  const selected = adminState.selectedUserId === user.id;
+                  return (
+                    <button
+                      type="button"
+                      key={user.id}
+                      className={`account-admin-user ${selected ? 'is-selected' : ''}`}
+                      onClick={() => setAdminState((prev) => ({
+                        ...prev,
+                        selectedUserId: user.id,
+                        draft: toAdminDraft(user),
+                      }))}
+                    >
+                      <strong>{user.email}</strong>
+                      <span>{user.name}</span>
+                      <span>{user.subscription_plan}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="account-admin-editor">
+                {adminState.draft ? (
+                  <>
+                    <div className="account-admin-grid">
+                      <label>
+                        Email
+                        <input type="text" value={adminState.draft.email} disabled />
+                      </label>
+                      <label>
+                        Name
+                        <input
+                          type="text"
+                          value={adminState.draft.name}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, name: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        Plan
+                        <select
+                          value={adminState.draft.subscription_plan}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, subscription_plan: e.target.value },
+                          }))}
+                        >
+                          {PLAN_ORDER.map((key) => <option key={key} value={key}>{key}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        Credits
+                        <input
+                          type="number"
+                          value={adminState.draft.credits_remaining}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, credits_remaining: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        Seat limit
+                        <input
+                          type="number"
+                          value={adminState.draft.seat_limit}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, seat_limit: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        Max seats
+                        <input
+                          type="number"
+                          value={adminState.draft.max_seats}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, max_seats: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        Max concurrent sessions
+                        <input
+                          type="number"
+                          value={adminState.draft.max_concurrent_sessions}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, max_concurrent_sessions: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        Stripe customer id
+                        <input
+                          type="text"
+                          value={adminState.draft.stripe_customer_id}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, stripe_customer_id: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label>
+                        Stripe subscription id
+                        <input
+                          type="text"
+                          value={adminState.draft.stripe_subscription_id}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, stripe_subscription_id: e.target.value },
+                          }))}
+                        />
+                      </label>
+                      <label className="account-admin-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(adminState.draft.unlimited_analysis)}
+                          onChange={(e) => setAdminState((prev) => ({
+                            ...prev,
+                            draft: { ...prev.draft, unlimited_analysis: e.target.checked },
+                          }))}
+                        />
+                        Unlimited analysis
+                      </label>
+                    </div>
+                    <div className="account-admin-actions">
+                      <button
+                        type="button"
+                        className="account-primary-btn"
+                        onClick={saveAdminUser}
+                        disabled={adminState.pending}
+                      >
+                        {adminState.pending ? 'Saving...' : 'Save user settings'}
+                      </button>
+                      <button
+                        type="button"
+                        className="account-secondary-btn"
+                        onClick={forceEssential}
+                        disabled={adminState.pending}
+                      >
+                        Force Essential + reset credits
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p>Select a user to edit.</p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

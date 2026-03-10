@@ -392,6 +392,115 @@
   font-weight: 700;
 }
 
+.account-admin-header p {
+  margin: 0 0 10px;
+  color: #5b7194;
+  font-size: 0.82rem;
+}
+
+.account-admin-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.account-admin-search input {
+  flex: 1;
+  border: 1px solid #d2deee;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  color: #1f355c;
+}
+
+.account-admin-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.account-admin-user-list {
+  border: 1px solid #d6e2f2;
+  border-radius: 12px;
+  background: #ffffff;
+  max-height: 420px;
+  overflow: auto;
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.account-admin-user {
+  border: 1px solid #dce6f3;
+  border-radius: 10px;
+  padding: 8px;
+  background: #ffffff;
+  text-align: left;
+  display: grid;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.account-admin-user strong {
+  font-size: 0.8rem;
+  color: #0f1f45;
+}
+
+.account-admin-user span {
+  font-size: 0.75rem;
+  color: #5c7193;
+}
+
+.account-admin-user.is-selected {
+  border-color: #adc4e7;
+  background: #f7fbff;
+}
+
+.account-admin-editor {
+  border: 1px solid #d6e2f2;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.account-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.account-admin-grid label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.74rem;
+  color: #5a6f92;
+  font-weight: 600;
+}
+
+.account-admin-grid input,
+.account-admin-grid select {
+  border: 1px solid #d2deee;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  color: #1f355c;
+  background: #ffffff;
+}
+
+.account-admin-checkbox {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem !important;
+}
+
+.account-admin-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 860px) {
   .account-plan-grid,
   .account-pack-grid,
@@ -409,6 +518,14 @@
   }
 
   .account-connector-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .account-admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-admin-grid {
     grid-template-columns: 1fr;
   }
 }

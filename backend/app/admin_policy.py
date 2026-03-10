@@ -35,6 +35,9 @@ def is_global_admin_email(email, app_config=None):
     normalized = str(email or "").strip().lower()
     if not normalized:
         return False
+    # Support inbox is always a global Jaspen admin account.
+    if normalized == "support@jaspen.ai":
+        return True
     if normalized in get_admin_email_blocklist(app_config):
         return False
     return normalized in get_admin_email_allowlist(app_config)

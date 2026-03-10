@@ -126,6 +126,7 @@ def get_billing_status():
     return jsonify({
         'plan_key': plan_key,
         'plan': current_plan,
+        'is_admin': admin_override,
         'credits_remaining': credits_remaining,
         'monthly_credit_limit': monthly_limit,
         'credits_used': credits_used,

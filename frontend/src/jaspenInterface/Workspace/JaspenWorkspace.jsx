@@ -729,6 +729,7 @@ const refreshBundle = async (tid) => {
     () => connectorCatalog.filter((item) => item.connected).length,
     [connectorCatalog]
   );
+  const isGlobalAdmin = Boolean(billingStatus?.is_admin);
   const monthlyCreditLimit = billingStatus?.monthly_credit_limit;
   const creditsRemaining = billingStatus?.credits_remaining;
   const monthlyCreditsUsed = billingStatus?.credits_used;
@@ -1544,6 +1545,11 @@ const refreshBundle = async (tid) => {
           <button type="button" onClick={() => { setBillingModalOpen(true); setAccountQuickMenuOpen(false); }}>
             Upgrade plan
           </button>
+          {isGlobalAdmin && (
+            <button type="button" onClick={() => { navigate('/jaspen-admin'); setAccountQuickMenuOpen(false); }}>
+              Jaspen Admin
+            </button>
+          )}
           <button type="button" onClick={() => { openExternal('/login'); setAccountQuickMenuOpen(false); }}>
             Gift Jaspen
           </button>
@@ -1634,6 +1640,13 @@ const refreshBundle = async (tid) => {
               {connectedConnectorCount > 0 ? `${connectedConnectorCount} connected` : currentPlanLabel}
             </span>
           </button>
+          {isGlobalAdmin && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/jaspen-admin'); }}>
+              <FontAwesomeIcon icon={faUser} />
+              <span className="jas-ud-item-label">Jaspen Admin</span>
+              <span className="jas-ud-item-badge">Global</span>
+            </button>
+          )}
         </div>
 
         <div className="jas-ud-section">

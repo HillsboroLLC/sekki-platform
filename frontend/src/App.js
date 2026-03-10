@@ -32,6 +32,7 @@ import Dashboard     from './jaspenInterface/Jaspen Cleanup/Dashboard/Dashboard'
 import Sessions      from './jaspenInterface/Sessions/Sessions';
 import Account       from './jaspenInterface/Account/Account';
 import PaymentPage   from './jaspenInterface/PaymentPage/PaymentPage';
+import JaspenAdmin   from './jaspenInterface/Admin/JaspenAdmin';
 
 // Jaspen.ai Workspace
 import JaspenWorkspace from './jaspenInterface/Workspace/JaspenWorkspace';
@@ -106,6 +107,19 @@ export default function App() {
             <ProtectedRoute>
               {withShell(<Account />, {
                 title: 'Account and billing',
+                showHeader: false,
+                fullBleed: true,
+                noPadding: true,
+              })}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/jaspen-admin"
+          element={
+            <ProtectedRoute>
+              {withShell(<JaspenAdmin />, {
+                title: 'Jaspen Admin',
                 showHeader: false,
                 fullBleed: true,
                 noPadding: true,

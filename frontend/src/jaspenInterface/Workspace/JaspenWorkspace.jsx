@@ -757,7 +757,9 @@ const refreshBundle = async (tid) => {
   }, [creditsRemaining, monthlyCreditLimit]);
   const intakeCreditsLabel = billingLoading
     ? '...'
-    : intakeCreditsValue == null
+    : (creditsRemaining == null && monthlyCreditLimit == null)
+      ? '∞'
+      : intakeCreditsValue == null
       ? '--'
       : Number(intakeCreditsValue).toLocaleString();
   const creditsBadge = creditsRemaining == null ? 'Contracted' : Number(creditsRemaining || 0).toLocaleString();

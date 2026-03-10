@@ -546,9 +546,16 @@ export default function Account() {
               Manage plan access, credit usage, and available connectors for your workspace.
             </p>
           </div>
-          <button type="button" onClick={() => navigate('/new')} className="account-secondary-btn">
-            Back to Jaspen
-          </button>
+          <div className="account-header-actions">
+            {adminState.checked && adminState.isAdmin && (
+              <button type="button" onClick={() => navigate('/jaspen-admin')} className="account-secondary-btn">
+                Jaspen Admin
+              </button>
+            )}
+            <button type="button" onClick={() => navigate('/new')} className="account-secondary-btn">
+              Back to Jaspen
+            </button>
+          </div>
         </div>
 
         <div className="account-inline-status">

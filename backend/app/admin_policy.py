@@ -19,7 +19,7 @@ def get_admin_email_allowlist(app_config=None):
         configured = app_config.get("ADMIN_EMAILS") or ""
     configured = configured or os.getenv("ADMIN_EMAILS") or ""
     emails = _normalized_set(configured)
-    return emails or set(DEFAULT_ADMIN_EMAILS)
+    return set(DEFAULT_ADMIN_EMAILS).union(emails)
 
 
 def get_admin_email_blocklist(app_config=None):
@@ -28,7 +28,7 @@ def get_admin_email_blocklist(app_config=None):
         configured = app_config.get("ADMIN_BLOCKED_EMAILS") or ""
     configured = configured or os.getenv("ADMIN_BLOCKED_EMAILS") or ""
     emails = _normalized_set(configured)
-    return emails or set(DEFAULT_ADMIN_BLOCKLIST)
+    return set(DEFAULT_ADMIN_BLOCKLIST).union(emails)
 
 
 def is_global_admin_email(email, app_config=None):
@@ -38,4 +38,3 @@ def is_global_admin_email(email, app_config=None):
     if normalized in get_admin_email_blocklist(app_config):
         return False
     return normalized in get_admin_email_allowlist(app_config)
-

@@ -29,6 +29,12 @@
   min-width: 0;
 }
 
+.account-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .account-eyebrow {
   margin: 0 0 6px;
   color: #5f7396;

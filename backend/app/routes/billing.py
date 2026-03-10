@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 import stripe
 
 from app import db
+from app.admin_policy import is_global_admin_email
 from app.models import User
 from app.billing_config import (
     apply_plan_to_user,
@@ -78,13 +79,30 @@ def get_billing_status():
     if bootstrap_legacy_credits(user, current_app.config):
         db.session.commit()
 
+    admin_override = is_global_admin_email(user.email, current_app.config)
+    if admin_override:
+        changed = False
+        # Global Jaspen admins should always have enterprise internal access.
+        if to_public_plan(user.subscription_plan) != 'enterprise' or user.credits_remaining is not None:
+            apply_plan_to_user(user, 'enterprise', current_app.config, reset_credits=True)
+            changed = True
+        if not bool(user.unlimited_analysis):
+            user.unlimited_analysis = True
+            changed = True
+        if user.max_concurrent_sessions is not None:
+            user.max_concurrent_sessions = None
+            changed = True
+        if changed:
+            db.session.commit()
+
     plan_key = to_public_plan(user.subscription_plan)
     plan_catalog = get_plan_catalog(current_app.config)
     current_plan = plan_catalog.get(plan_key) or {}
     monthly_limit = get_monthly_credit_limit(plan_key, current_app.config)
-    credits_used = None
-    if monthly_limit is not None and user.credits_remaining is not None:
-        credits_used = max(0, int(monthly_limit) - int(user.credits_remaining))
+    credits_remaining = user.credits_remaining
+    credits_used = 0 if admin_override else None
+    if not admin_override and monthly_limit is not None and credits_remaining is not None:
+        credits_used = max(0, int(monthly_limit) - int(credits_remaining))
     allowed_model_types = get_allowed_model_types(plan_key, current_app.config)
     default_model_type = get_default_model_type(plan_key, current_app.config)
     tool_entitlements = get_tool_entitlements(plan_key)
@@ -108,7 +126,7 @@ def get_billing_status():
     return jsonify({
         'plan_key': plan_key,
         'plan': current_plan,
-        'credits_remaining': user.credits_remaining,
+        'credits_remaining': credits_remaining,
         'monthly_credit_limit': monthly_limit,
         'credits_used': credits_used,
         'allowed_model_types': allowed_model_types,

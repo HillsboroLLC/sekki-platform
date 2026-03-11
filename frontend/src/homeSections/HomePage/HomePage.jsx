@@ -108,7 +108,7 @@ const NAV_MENUS = [
       {
         title: 'Learn',
         items: [
-          { label: 'Docs', path: '/docs' },
+          { label: 'Docs', path: '/pages/resources/tutorials#docs' },
           { label: 'Demos', path: '/pages/resources/demos' },
           { label: 'Tutorials', path: '/pages/resources/tutorials' },
         ],

@@ -1571,7 +1571,7 @@ const refreshBundle = async (tid) => {
           <button
             className="jas-ud-item"
             onClick={() => {
-              navigate('/docs');
+              navigate('/pages/resources/tutorials#docs');
               setAccountQuickMenuOpen(false);
               setKnowledgeMenuOpen(false);
             }}
@@ -1683,7 +1683,7 @@ const refreshBundle = async (tid) => {
         </div>
 
         <div className="jas-ud-section">
-          <button className="jas-ud-item" onClick={() => { openExternal('/docs'); setAccountQuickMenuOpen(false); }}>
+          <button className="jas-ud-item" onClick={() => { openExternal('/pages/resources/tutorials#docs'); setAccountQuickMenuOpen(false); }}>
             <FontAwesomeIcon icon={faQuestionCircle} />
             <span className="jas-ud-item-label">Docs</span>
             <span className="jas-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>

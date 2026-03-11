@@ -1706,6 +1706,39 @@
   background: #fff;
 }
 
+.tutorial-docs-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--marketing-gray-200);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.tutorial-docs-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.tutorial-docs-table th,
+.tutorial-docs-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 12px;
+  border-bottom: 1px solid var(--marketing-gray-100);
+  color: var(--marketing-gray-700);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.tutorial-docs-table th {
+  background: rgba(160, 3, 108, 0.08);
+  color: var(--marketing-navy-deep);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
 .connector-matrix {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

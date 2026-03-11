@@ -838,7 +838,11 @@ export default function Account() {
             {adminState.checked && adminState.isAdmin && (
               <a className="account-sidebar-link" href="#admin">System admin</a>
             )}
-            <button type="button" className="account-sidebar-docs-btn" onClick={() => navigate('/docs')}>
+            <button
+              type="button"
+              className="account-sidebar-docs-btn"
+              onClick={() => navigate('/pages/resources/tutorials#docs')}
+            >
               Open docs
             </button>
           </aside>

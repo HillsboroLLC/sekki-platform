@@ -29,7 +29,7 @@ from app.jira_sync import sync_wbs_to_jira
 from app.connector_store import get_thread_sync_profile
 from .sessions import load_user_sessions, save_user_sessions
 
-market_iq_bp = Blueprint('market_iq', __name__)
+strategy_bp = Blueprint('strategy', __name__)
 
 # Set OpenAI API key from config
 def get_openai_client():
@@ -56,7 +56,7 @@ def _load_thread_conversation(user_id, thread_id):
     try:
         sessions = load_user_sessions(user_id) or {}
     except Exception as e:
-        print(f"[market_iq.analyze] failed reading sessions for user {user_id}: {e}")
+        print(f"[strategy.analyze] failed reading sessions for user {user_id}: {e}")
         return []
 
     if not isinstance(sessions, dict):
@@ -191,7 +191,7 @@ def _require_tool_access(user_id, tool_id, access='read'):
     return user, plan_key, None
 
 
-def _generate_market_iq_scorecard(client, project_description, llm_model):
+def _generate_jaspen_scorecard(client, project_description, llm_model):
     """Run the existing LLM scoring flow and return parsed scorecard JSON."""
     analysis_prompt = f"""
 You are a Jaspen strategy analyst specializing in commercialization strategy and financial impact assessment. Analyze the following project and provide a comprehensive strategy score and breakdown.
@@ -201,7 +201,7 @@ Project Description: {project_description}
 Please provide your analysis in the following JSON format:
 
 {{
-    "market_iq_score": <number between 0-100>,
+    "jaspen_score": <number between 0-100>,
     "score_category": "<Excellent/Good/Needs Improvement>",
     "component_scores": {{
         "financial_health": <0-100>,
@@ -262,7 +262,7 @@ Provide specific, actionable insights with quantified financial impacts where po
     return _extract_json_object(analysis_text)
 
 
-@market_iq_bp.route('/analyze', methods=['POST'])
+@strategy_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze_project():
     try:
@@ -326,7 +326,7 @@ def analyze_project():
             return jsonify(model_error), 403
 
         client = get_openai_client()
-        analysis_result = _generate_market_iq_scorecard(
+        analysis_result = _generate_jaspen_scorecard(
             client,
             effective_description,
             llm_model=model_selection['llm_model'],
@@ -378,7 +378,7 @@ def analyze_project():
             session = {
                 'session_id': resolved_thread_id,
                 'name': project_name or 'Jaspen Intake',
-                'document_type': 'market_iq',
+                'document_type': 'strategy',
                 'model_type': model_selection['model_type'],
                 'current_phase': 1,
                 'chat_history': conversation_history if isinstance(conversation_history, list) else [],
@@ -409,7 +409,7 @@ def analyze_project():
 
         session['session_id'] = resolved_thread_id
         session['name'] = project_name or session.get('name') or 'Jaspen Intake'
-        session['document_type'] = session.get('document_type') or 'market_iq'
+        session['document_type'] = session.get('document_type') or 'strategy'
         session['model_type'] = model_selection['model_type']
         session['result'] = analysis
         session['analysis_history'] = history
@@ -462,7 +462,7 @@ def analyze_project():
         print(f"Error in Jaspen analysis: {str(e)}")
         return jsonify({'error': 'Analysis failed. Please try again.'}), 500
 
-@market_iq_bp.route('/chat', methods=['POST'])
+@strategy_bp.route('/chat', methods=['POST'])
 @jwt_required()
 def chat_with_analysis():
     try:
@@ -495,7 +495,7 @@ def chat_with_analysis():
         context_prompt = f"""
 You are a Jaspen strategy assistant. The user has received the following analysis:
 
-Jaspen Score: {analysis_context.get('market_iq_score', 'N/A')}
+Jaspen Score: {analysis_context.get('jaspen_score', 'N/A')}
 Component Scores: {json.dumps(analysis_context.get('component_scores', {}), indent=2)}
 Financial Impact: {json.dumps(analysis_context.get('financial_impact', {}), indent=2)}
 
@@ -534,7 +534,7 @@ Keep responses concise but comprehensive (2-3 paragraphs maximum).
         print(f"Error in Jaspen chat: {str(e)}")
         return jsonify({'error': 'Chat failed. Please try again.'}), 500
 
-@market_iq_bp.route('/history', methods=['GET'])
+@strategy_bp.route('/history', methods=['GET'])
 @jwt_required()
 def get_analysis_history():
     try:
@@ -730,7 +730,7 @@ _COMPONENT_WEIGHTS = {
 
 # Fields that are outputs, not editable inputs
 _OUTPUT_FIELDS = {
-    'market_iq_score', 'score_category', 'component_scores', 'financial_impact',
+    'jaspen_score', 'score_category', 'component_scores', 'financial_impact',
     'analysis_id', 'user_id', 'timestamp', 'project_description',
     'key_insights', 'top_risks', 'recommendations', 'project_name',
     'risks', 'compat', 'inputs', 'id', 'label', 'thread_id', 'scenario_id',
@@ -905,7 +905,7 @@ def _compute_scenario_scorecard(baseline, deltas, baseline_inputs):
 
     # Build result, preserving narrative fields from baseline
     result = {
-        'market_iq_score': overall_int,
+        'jaspen_score': overall_int,
         'score_category': category,
         'component_scores': components,
         'financial_impact': adj_fin,
@@ -922,7 +922,7 @@ def _compute_scenario_scorecard(baseline, deltas, baseline_inputs):
 # SCENARIO CRUD ROUTES
 # ============================================================
 
-@market_iq_bp.route('/threads/<thread_id>/scenarios', methods=['POST'])
+@strategy_bp.route('/threads/<thread_id>/scenarios', methods=['POST'])
 @jwt_required()
 def create_scenario(thread_id):
     """Create a scenario. Stores baseline on first call for this thread."""
@@ -980,7 +980,7 @@ def create_scenario(thread_id):
         return jsonify({'error': str(e)}), 500
 
 
-@market_iq_bp.route('/threads/<thread_id>/scenarios', methods=['GET'])
+@strategy_bp.route('/threads/<thread_id>/scenarios', methods=['GET'])
 @jwt_required()
 def list_scenarios(thread_id):
     """List scenarios for a thread, with pagination."""
@@ -1007,7 +1007,7 @@ def list_scenarios(thread_id):
         return jsonify({'error': str(e)}), 500
 
 
-@market_iq_bp.route('/scenarios/<scenario_id>', methods=['PATCH'])
+@strategy_bp.route('/scenarios/<scenario_id>', methods=['PATCH'])
 @jwt_required()
 def update_scenario(scenario_id):
     """Update label / deltas. Invalidates cached result if deltas change."""
@@ -1043,7 +1043,7 @@ def update_scenario(scenario_id):
         return jsonify({'error': str(e)}), 500
 
 
-@market_iq_bp.route('/scenarios/<scenario_id>', methods=['DELETE'])
+@strategy_bp.route('/scenarios/<scenario_id>', methods=['DELETE'])
 @jwt_required()
 def delete_scenario(scenario_id):
     """Delete a scenario. Clears adoption if it was the adopted one."""
@@ -1078,7 +1078,7 @@ def delete_scenario(scenario_id):
 # SCENARIO APPLY / ADOPT
 # ============================================================
 
-@market_iq_bp.route('/scenarios/<scenario_id>/apply', methods=['POST'])
+@strategy_bp.route('/scenarios/<scenario_id>/apply', methods=['POST'])
 @jwt_required()
 def apply_scenario(scenario_id):
     """
@@ -1124,7 +1124,7 @@ def apply_scenario(scenario_id):
                 'scenario_id': scenario_id,
                 'label': scenario['label'],
             },
-            'market_iq_score': result['market_iq_score'],
+            'jaspen_score': result['jaspen_score'],
             'component_scores': result['component_scores'],
             'financial_impact': result['financial_impact'],
             'analysis_id': scenario_id,
@@ -1136,7 +1136,7 @@ def apply_scenario(scenario_id):
         return jsonify({'error': str(e)}), 500
 
 
-@market_iq_bp.route('/scenarios/<scenario_id>/adopt', methods=['POST'])
+@strategy_bp.route('/scenarios/<scenario_id>/adopt', methods=['POST'])
 @jwt_required()
 def adopt_scenario(scenario_id):
     """Mark a scenario as the adopted (current) analysis for its thread."""
@@ -1179,7 +1179,7 @@ def adopt_scenario(scenario_id):
 # WBS ROUTES
 # ============================================================
 
-@market_iq_bp.route('/threads/<thread_id>/wbs', methods=['GET'])
+@strategy_bp.route('/threads/<thread_id>/wbs', methods=['GET'])
 @jwt_required()
 def get_thread_wbs(thread_id):
     try:
@@ -1202,7 +1202,7 @@ def get_thread_wbs(thread_id):
         return jsonify({'error': str(e)}), 500
 
 
-@market_iq_bp.route('/threads/<thread_id>/wbs', methods=['PUT', 'PATCH'])
+@strategy_bp.route('/threads/<thread_id>/wbs', methods=['PUT', 'PATCH'])
 @jwt_required()
 def upsert_thread_wbs(thread_id):
     try:
@@ -1287,7 +1287,7 @@ def upsert_thread_wbs(thread_id):
 # THREAD BUNDLE  (hydrates the Scenarios tab + ScoreDashboard)
 # ============================================================
 
-@market_iq_bp.route('/threads/<thread_id>/bundle', methods=['GET'])
+@strategy_bp.route('/threads/<thread_id>/bundle', methods=['GET'])
 @jwt_required()
 def get_thread_bundle(thread_id):
     """
@@ -1374,7 +1374,7 @@ def get_thread_bundle(thread_id):
 # THREAD-LEVEL ADOPT  (used by ThreadEditModal)
 # ============================================================
 
-@market_iq_bp.route('/threads/<thread_id>/adopt', methods=['POST'])
+@strategy_bp.route('/threads/<thread_id>/adopt', methods=['POST'])
 @jwt_required()
 def adopt_analysis_for_thread(thread_id):
     """

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useLocation, Navigate } from "react-router-dom";
 import { API_BASE } from "../../config/apiBase";
 
-const SOFT_GATED_PREFIXES = ["/market-iq"]; // render page; block server actions
+const SOFT_GATED_PREFIXES = ["/strategy"]; // render page; block server actions
 
 export default function RequireAuth({ children }) {
   const loc = useLocation();

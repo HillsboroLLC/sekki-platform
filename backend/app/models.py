@@ -116,7 +116,7 @@ class UserSession(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     session_id = db.Column(db.String(255), nullable=False)
     name = db.Column(db.String(255), nullable=False, default='Jaspen Intake')
-    document_type = db.Column(db.String(100), nullable=False, default='market_iq')
+    document_type = db.Column(db.String(100), nullable=False, default='strategy')
     status = db.Column(db.String(50), nullable=False, default='in_progress')
     payload = db.Column(db.JSON, nullable=False, default=dict)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

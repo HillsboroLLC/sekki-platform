@@ -100,7 +100,7 @@ export default function App() {
           path="/new"
           element={withShell(<JaspenWorkspace />, { title: 'Jaspen', showHeader: false, fullBleed: true, noPadding: true })}
         />
-        <Route path="/market-iq" element={<Navigate to="/new" replace />} />
+        <Route path="/strategy" element={<Navigate to="/new" replace />} />
         <Route path="/sessions"  element={<ProtectedRoute>{withShell(<Sessions />)}</ProtectedRoute>} />
         <Route
           path="/account"

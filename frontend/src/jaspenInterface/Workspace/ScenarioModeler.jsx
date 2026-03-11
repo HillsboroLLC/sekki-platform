@@ -1,12 +1,12 @@
 // ============================================================================
-// File: src/pages/MarketIQ/ScenarioModeler.jsx
+// File: src/pages/Jaspen/ScenarioModeler.jsx
 // Purpose: DYNAMIC - Extracts fields from baseline, displays in 3 columns
 //          NOW WIRED to backend scenario endpoints (no mockResult / no delays)
 // ============================================================================
 import React, { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faPlay, faCheck } from '@fortawesome/free-solid-svg-icons';
-import { MarketIQ } from './JaspenClient';
+import { Jaspen } from './JaspenClient';
 import Button from './workspaceUi/components/Button';
 
 // ============================================================================
@@ -21,7 +21,7 @@ function extractLevers(baseAnalysis) {
 
   // Fields to exclude (calculated outputs, not inputs)
   const EXCLUDED = [
-    'market_iq_score',
+    'jaspen_score',
     'npv', 'irr', 'roi',
     'revenue_y1', 'revenue_after', 'revenue_before',
     'ebitda_after', 'ebitda_before',
@@ -392,7 +392,7 @@ function ScenarioColumn({
             <div className="result-score">
               <div className="result-score-label">Jaspen Score</div>
               <div className="result-score-value">
-                {result?.overall_score ?? result?.market_iq_score ?? '—'}
+                {result?.overall_score ?? result?.jaspen_score ?? '—'}
               </div>
               <div className="result-score-change">
                 {typeof result?.overall_score === 'number' &&
@@ -401,10 +401,10 @@ function ScenarioColumn({
                       const delta = result.overall_score - baselineValues.overall_score;
                       return `${delta > 0 ? '+' : ''}${delta} points`;
                     })()
-                  : typeof result?.market_iq_score === 'number' &&
-                    typeof baselineValues?.market_iq_score === 'number'
+                  : typeof result?.jaspen_score === 'number' &&
+                    typeof baselineValues?.jaspen_score === 'number'
                   ? (() => {
-                      const delta = result.market_iq_score - baselineValues.market_iq_score;
+                      const delta = result.jaspen_score - baselineValues.jaspen_score;
                       return `${delta > 0 ? '+' : ''}${delta} points`;
                     })()
                   : 'New Score'}
@@ -502,8 +502,8 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
 
     async function fetchLevers() {
       try {
-        console.log('[ScenarioModeler.fetchLevers] calling MarketIQ.getLevers for threadId:', threadId);
-        const response = await MarketIQ.getLevers(threadId);
+        console.log('[ScenarioModeler.fetchLevers] calling Jaspen.getLevers for threadId:', threadId);
+        const response = await Jaspen.getLevers(threadId);
         console.log('[ScenarioModeler.fetchLevers] response:', response);
         console.log('[ScenarioModeler.fetchLevers] response.levers?', response?.levers);
         if (response?.levers && Array.isArray(response.levers)) {
@@ -607,9 +607,9 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
     // Extract scores
     const overall_score = 
       scorecard.overall_score ?? 
-      scorecard.market_iq_score ?? 
+      scorecard.jaspen_score ?? 
       res?.overall_score ?? 
-      res?.market_iq_score ?? 
+      res?.jaspen_score ?? 
       0;
     
     const scores = scorecard.scores || res?.scores || {};
@@ -626,7 +626,7 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
       id,
       analysis_id: id,
       overall_score,
-      market_iq_score: overall_score,
+      jaspen_score: overall_score,
       scores,
       financial_analysis,
     };
@@ -672,7 +672,7 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
     });
     let created;
     try {
-      created = await MarketIQ.createScenario(threadId, {
+      created = await Jaspen.createScenario(threadId, {
         deltas,
         label,
         session_id: threadId,
@@ -695,7 +695,7 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
     }
 
     // 2) Apply scenario -> derived scorecard snapshot
-    const applied = await MarketIQ.applyScenario(scenarioId, threadId);
+    const applied = await Jaspen.applyScenario(scenarioId, threadId);
     const normalized = normalizeApplied(applied);
     const snapshot = normalized && typeof normalized === 'object'
       ? {

@@ -56,13 +56,13 @@ export default function ThreadEditModal({
         if (!res.ok) throw new Error(data?.error || data?.msg || `HTTP ${res.status}`);
 
         // Expected shapes we can tolerate:
-        // data.analysis_history = [{analysis_id, created_at, result:{project_name, score_category, market_iq_score}}]
+        // data.analysis_history = [{analysis_id, created_at, result:{project_name, score_category, jaspen_score}}]
         const hist = Array.isArray(data?.analysis_history) ? data.analysis_history : [];
         const opts = hist
           .map((h) => {
             const id = h?.analysis_id || h?.analysis_key || '';
             const created = h?.created_at || '';
-            const score = h?.result?.market_iq_score ?? h?.market_iq_score ?? null;
+            const score = h?.result?.jaspen_score ?? h?.jaspen_score ?? null;
             const labelBase =
               h?.result?.project_name ||
               h?.result?.compat?.title ||
@@ -112,9 +112,9 @@ export default function ThreadEditModal({
 
       // 2) Adopt analysis for AI context
       // You likely already have thread_id. If not, backend can derive from session.
-      // Expected: POST /api/market-iq/threads/:threadId/adopt { analysis_id }
+      // Expected: POST /api/strategy/threads/:threadId/adopt { analysis_id }
       if (threadId && adoptedAnalysisId) {
-        const r2 = await authFetch(`/api/market-iq/threads/${encodeURIComponent(threadId)}/adopt`, {
+        const r2 = await authFetch(`/api/strategy/threads/${encodeURIComponent(threadId)}/adopt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ analysis_id: adoptedAnalysisId }),

@@ -1,4 +1,4 @@
-// src/pages/MarketIQ/AnalysisHistory.jsx
+// src/pages/Jaspen/AnalysisHistory.jsx
 import React from 'react';
 import { storage } from './JaspenClient';
 
@@ -32,7 +32,7 @@ function ScoreCircleSmall({ score }) {
 
 const AnalysisHistory = ({ onClose, onSelectAnalysis, onDelete, fullPage = false }) => {
   const items = storage.getHistory().map((entry) => {
-    const score = Number(entry?.result?.market_iq_score ?? entry?.result?.score ?? 0);
+    const score = Number(entry?.result?.jaspen_score ?? entry?.result?.score ?? 0);
     return {
       id: entry.id,
       name: entry?.result?.project_name || entry?.result?.title || `Analysis ${entry.id}`,

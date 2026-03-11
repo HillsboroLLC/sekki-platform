@@ -75,7 +75,7 @@ export const jasApi = {
   // Bundle = source of truth
   getThreadBundle(threadId, { msgLimit = 50, scnLimit = 50 } = {}) {
     return httpJson(
-      `/api/market-iq/threads/${encodeURIComponent(
+      `/api/strategy/threads/${encodeURIComponent(
         threadId
       )}/bundle?msg_limit=${msgLimit}&scn_limit=${scnLimit}`
     );
@@ -84,7 +84,7 @@ export const jasApi = {
   // Messages
   createMessage(threadId, { role = 'user', text }) {
     return httpJson(
-      `/api/market-iq/threads/${encodeURIComponent(threadId)}/messages`,
+      `/api/strategy/threads/${encodeURIComponent(threadId)}/messages`,
       {
         method: 'POST',
         body: { role, content: { text } },
@@ -94,7 +94,7 @@ export const jasApi = {
 
   // Analyze
   analyze(payload) {
-    return httpJson(`/api/market-iq/analyze`, {
+    return httpJson(`/api/strategy/analyze`, {
       method: 'POST',
       body: payload,
     });
@@ -103,7 +103,7 @@ export const jasApi = {
   // Scenarios
   createScenario(threadId, { deltas, label, session_id }) {
     return httpJson(
-      `/api/market-iq/threads/${encodeURIComponent(threadId)}/scenarios`,
+      `/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
       {
         method: 'POST',
         body: { deltas, label, session_id },
@@ -113,7 +113,7 @@ export const jasApi = {
 
   updateScenario(threadId, scenarioId, { deltas, label }) {
     return httpJson(
-      `/api/market-iq/scenarios/${encodeURIComponent(
+      `/api/strategy/scenarios/${encodeURIComponent(
         scenarioId
       )}?thread_id=${encodeURIComponent(threadId)}`,
       {

@@ -28,7 +28,7 @@ export default function ScoreDashboard({
   }, [scorecardSnapshots, selectedScorecardId]);
 
   const result = selectedSnapshot || analysisResult || {};
-  const score = result.market_iq_score || 0;
+  const score = result.jaspen_score || 0;
   const componentScores = result.component_scores || {};
   const financialImpact = result.financial_impact || {};
   const risks = result.top_risks || result.risks || [];

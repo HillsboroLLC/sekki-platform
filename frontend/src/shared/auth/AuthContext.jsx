@@ -124,10 +124,10 @@ const clearLegacySessionCaches = () => {
     'jas_last_session_id',
     'jas_sid',
     'jaspen_last_email',
-    'miq_history',
-    'miq_projects',
-    'miq_last_session_id',
-    'miq_sid',
+    'jaspen_history',
+    'jaspen_projects',
+    'jaspen_last_session_id',
+    'jaspen_sid',
   ];
   fixedKeys.forEach((key) => localStorage.removeItem(key));
 
@@ -155,7 +155,7 @@ const syncSelfServeStorageOwnership = (user) => {
   }
 
   // Always remove obsolete legacy keys for self-serve sessions.
-  ['miq_last_session_id', 'miq_sid', 'miq_history', 'miq_projects'].forEach((key) => localStorage.removeItem(key));
+  ['jaspen_last_session_id', 'jaspen_sid', 'jaspen_history', 'jaspen_projects'].forEach((key) => localStorage.removeItem(key));
 
   const ownerId = String(user?.id || user?.email || '').trim();
   if (!ownerId) {

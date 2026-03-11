@@ -1,5 +1,5 @@
 // ============================================================================
-// File: frontend/src/Market/MarketIQ/workspace/MarketIQWorkspace.jsx
+// File: frontend/src/Market/Jaspen/workspace/JaspenWorkspace.jsx
 // Purpose: Keep original drawer behavior, FIX readiness "snap" issue,
 //          and show tabs AFTER Finish & Analyze.
 // ============================================================================
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 // Data / storage
-import { MarketIQ, storage } from './JaspenClient';
+import { Jaspen, storage } from './JaspenClient';
 
 // Tab components
 import ScoreDashboard   from './ScoreDashboard';
@@ -193,14 +193,14 @@ function normalizeAnalysis(raw = {}) {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const score = toInt(raw.market_iq_score ?? raw.score ?? compat.score);
+  const score = toInt(raw.jaspen_score ?? raw.score ?? compat.score);
   const score_category =
     raw.score_category ||
     (score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'At Risk');
 
 return {
   ...raw,  // Keep all original fields
-  market_iq_score: score,
+  jaspen_score: score,
   score_category,
   component_scores: {
     financial_health:       toInt(comps.financial_health       ?? comps.financialHealth       ?? comps.financial   ?? comps.economics),
@@ -280,7 +280,7 @@ const CONNECTOR_IDS = Object.keys(CONNECTOR_DEFINITIONS);
 const PLAN_ORDER = ['free', 'essential', 'team', 'enterprise'];
 const PLAN_RANK = { free: 0, essential: 1, team: 2, enterprise: 3 };
 
-export default function MarketIQWorkspace() {
+export default function JaspenWorkspace() {
   // View states: intake | summary | scenario | comparison | chat
   const [view, setView] = useState('intake');
   const [activeTab, setActiveTab] = useState('summary');
@@ -456,7 +456,7 @@ const baselineRef = useRef(null);
 const refreshBundle = async (tid) => {
   if (!tid) return;
   try {
-    const bundle = await MarketIQ.getThreadBundle(tid, { msg_limit: 50, scn_limit: 50 });
+    const bundle = await Jaspen.getThreadBundle(tid, { msg_limit: 50, scn_limit: 50 });
 
     // scenarios -> normalize to local shape used by ComparisonView / list
     const serverScenarios = Array.isArray(bundle.scenarios) ? bundle.scenarios : [];
@@ -891,7 +891,7 @@ const refreshBundle = async (tid) => {
 
   useEffect(() => {
     try {
-      ['miq_last_session_id', 'miq_sid', 'miq_history', 'miq_projects'].forEach((key) => localStorage.removeItem(key));
+      ['jaspen_last_session_id', 'jaspen_sid', 'jaspen_history', 'jaspen_projects'].forEach((key) => localStorage.removeItem(key));
     } catch {}
   }, []);
 
@@ -1983,7 +1983,7 @@ return {
                 ...full,
                 analysis_id: full.analysis_id ?? session.session_id,
                 project_name: full.project_name ?? session.name ?? 'Untitled Idea',
-                market_iq_score: full.market_iq_score ?? session.score,
+                jaspen_score: full.jaspen_score ?? session.score,
                 status: full.status ?? session.status,
                 chat_history: full.chat_history ?? session.chat_history,
                 readiness: normalizeReadiness(full.readiness ?? session.readiness),
@@ -2055,7 +2055,7 @@ async function loadSessionById(id) {
         status: latestAnalysis ? 'completed' : 'in_progress',
 result: latestAnalysis ? {
   ...latestAnalysis,
-  market_iq_score: latestAnalysis.overall_score,
+  jaspen_score: latestAnalysis.overall_score,
   component_scores: latestAnalysis.scores || {}
 } : null,
       };
@@ -2132,7 +2132,7 @@ result: latestAnalysis ? {
       dispatchSidebar({ type: 'NEW_SESSION' });
     }
   }, [sessionId]);
-// Persist last active MarketIQ session so refresh can restore it
+// Persist last active Jaspen session so refresh can restore it
 useEffect(() => {
   if (!sessionId) return;
   setLastSessionId(sessionId);
@@ -2226,7 +2226,7 @@ useEffect(() => {
       // Fallback: if session detail is blocked by auth on refresh, restore via thread bundle
       if (!session) {
         try {
-          const bundle = await MarketIQ.getThreadBundle(sid, { msg_limit: 50, scn_limit: 50 });
+          const bundle = await Jaspen.getThreadBundle(sid, { msg_limit: 50, scn_limit: 50 });
 
           // Normalize bundle messages into the same chat_history shape your UI expects
           const bundleMsgs = Array.isArray(bundle?.messages) ? bundle.messages : [];
@@ -2615,7 +2615,7 @@ useEffect(() => {
   };
 
   // === Conversation Start ===
-  // Flow: Call MarketIQ.convoStart → set session → await audit → append message → save
+  // Flow: Call Jaspen.convoStart → set session → await audit → append message → save
   async function startConversation(description) {
     console.log('[startConversation] ENTRY', { description: description?.substring(0, 50) });
     setBusy(true); setError(null);
@@ -2624,8 +2624,8 @@ useEffect(() => {
     setReadinessAudit(null);
 
     try {
-      // Step 1: Call MarketIQ.convoStart (client wrapper)
-      const data = await MarketIQ.convoStart({
+      // Step 1: Call Jaspen.convoStart (client wrapper)
+      const data = await Jaspen.convoStart({
         description,
         system_prompt: null,
         model_type: selectedModelType,
@@ -2689,7 +2689,7 @@ useEffect(() => {
   }
 
   // === Conversation Continue ===
-  // Flow: Call MarketIQ.convoContinue → append message → await audit → persist using returned payload
+  // Flow: Call Jaspen.convoContinue → append message → await audit → persist using returned payload
 async function continueConversation(userText) {
   console.log('[continueConversation] ENTRY', {
     sessionId,
@@ -2711,10 +2711,10 @@ async function continueConversation(userText) {
       { role: "user", content: userText },
     ];
 
-    console.log('[continueConversation] calling MarketIQ.convoContinue with session_id:', sessionId);
+    console.log('[continueConversation] calling Jaspen.convoContinue with session_id:', sessionId);
 
-    // Step 1: Call MarketIQ.convoContinue (client wrapper)
-    const data = await MarketIQ.convoContinue({
+    // Step 1: Call Jaspen.convoContinue (client wrapper)
+    const data = await Jaspen.convoContinue({
       session_id: sessionId,
       user_message: userText,
       conversation_history,
@@ -2933,7 +2933,7 @@ async function onBeginProject() {
       const scenarioId = adoptedScenario.id || adoptedScenario.analysis_id;
       
       // 1) Persist adoption to backend
-      await MarketIQ.adoptScenario(scenarioId, tid);
+      await Jaspen.adoptScenario(scenarioId, tid);
 
       // 2) Create snapshot for adopted scenario
       const adoptedSnapshot = {
@@ -2942,7 +2942,7 @@ async function onBeginProject() {
         label: label || adoptedScenario.label || 'Adopted Scenario',
         isBaseline: false,
         adoptedAt: Date.now(),
-        market_iq_score: adoptedScenario.overall_score || adoptedScenario.market_iq_score || 0,
+        jaspen_score: adoptedScenario.overall_score || adoptedScenario.jaspen_score || 0,
       };
 
       // 3) Update snapshots - PRESERVE BASELINE
@@ -2992,7 +2992,7 @@ async function onBeginProject() {
       const comps  = r.component_scores || compat.components || {};
       const fin    = r.financial_impact || compat.financials || {};
 
-      let score = Number.parseInt(Number(r.market_iq_score ?? compat.score ?? 0), 10);
+      let score = Number.parseInt(Number(r.jaspen_score ?? compat.score ?? 0), 10);
       if (!Number.isFinite(score)) score = 0;
       const score_category =
         r.score_category ||
@@ -3016,7 +3016,7 @@ async function onBeginProject() {
 
       return {
         ...r,
-        market_iq_score: score,
+        jaspen_score: score,
         score_category,
         component_scores,
         financial_impact: {
@@ -3039,7 +3039,7 @@ async function onBeginProject() {
       const sid  = currentSessionId || sessionId;
       const seed = Number(String(sid).replace(/\D/g, '')) % 2147483647 || 123456;
 
-const data = await MarketIQ.analyzeFromConversation({
+const data = await Jaspen.analyzeFromConversation({
   session_id: sid,
   transcript,
   deterministic: true,
@@ -3061,7 +3061,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
       // Map backend fields to frontend expectations
       const mapped = {
         ...raw,
-        market_iq_score: raw.overall_score || raw.market_iq_score || 0,
+        jaspen_score: raw.overall_score || raw.jaspen_score || 0,
         component_scores: raw.scores || raw.component_scores || {},
         project_name: raw.name || raw.project_name || deriveIdeaTitle({ messages, fallback: 'Untitled Idea' }),
         inputs: raw.inputs || raw.analysis_result?.inputs || null,
@@ -3186,7 +3186,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
   const renderMiniScorecard = (result) => {
     if (!result) return null;
     const comps = result.component_scores || result.scores || result.compat?.components || {};
-    const score = result.market_iq_score ?? result.overall_score ?? result.score ?? result.compat?.score ?? 0;
+    const score = result.jaspen_score ?? result.overall_score ?? result.score ?? result.compat?.score ?? 0;
     const category = result.score_category ||
       (Number(score) >= 80 ? 'Excellent' : Number(score) >= 60 ? 'Good' : Number(score) >= 40 ? 'Fair' : 'At Risk');
     const items = [
@@ -3483,7 +3483,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
       }
 
       try {
-        const wbsResp = await MarketIQ.getThreadWbs(tid);
+        const wbsResp = await Jaspen.getThreadWbs(tid);
         const currentWbs = (wbsResp?.project_wbs && typeof wbsResp.project_wbs === 'object')
           ? wbsResp.project_wbs
           : { name: 'Execution WBS', tasks: [] };
@@ -3498,7 +3498,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
           depends_on: Array.isArray(payload?.depends_on) ? payload.depends_on : [],
         });
 
-        await MarketIQ.upsertThreadWbs(tid, { ...currentWbs, tasks });
+        await Jaspen.upsertThreadWbs(tid, { ...currentWbs, tasks });
         showToast('Task added to WBS', 'success');
       } catch (e) {
         console.error('[WBS_ADD_TASK] failed', e);
@@ -3526,7 +3526,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
       }
 
       try {
-        const wbsResp = await MarketIQ.getThreadWbs(tid);
+        const wbsResp = await Jaspen.getThreadWbs(tid);
         const currentWbs = (wbsResp?.project_wbs && typeof wbsResp.project_wbs === 'object')
           ? wbsResp.project_wbs
           : { name: 'Execution WBS', tasks: [] };
@@ -3545,7 +3545,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
           ...(payload?.due_date != null ? { due_date: payload.due_date } : {}),
         };
 
-        await MarketIQ.upsertThreadWbs(tid, { ...currentWbs, tasks });
+        await Jaspen.upsertThreadWbs(tid, { ...currentWbs, tasks });
         showToast('WBS task updated', 'success');
       } catch (e) {
         console.error('[WBS_UPDATE_TASK] failed', e);
@@ -3574,7 +3574,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
       }
 
       try {
-        const wbsResp = await MarketIQ.getThreadWbs(tid);
+        const wbsResp = await Jaspen.getThreadWbs(tid);
         const currentWbs = (wbsResp?.project_wbs && typeof wbsResp.project_wbs === 'object')
           ? wbsResp.project_wbs
           : { name: 'Execution WBS', tasks: [] };
@@ -3589,7 +3589,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
         if (!deps.includes(dependsOn) && dependsOn !== taskId) deps.push(dependsOn);
         tasks[idx] = { ...tasks[idx], depends_on: deps };
 
-        await MarketIQ.upsertThreadWbs(tid, { ...currentWbs, tasks });
+        await Jaspen.upsertThreadWbs(tid, { ...currentWbs, tasks });
         showToast('WBS dependency added', 'success');
       } catch (e) {
         console.error('[WBS_ADD_DEPENDENCY] failed', e);
@@ -3608,7 +3608,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
       
       try {
         // Call the beginProject flow
-        const projectData = await MarketIQ.beginProject({
+        const projectData = await Jaspen.beginProject({
           threadBundleId: sessionId,
           scorecardId: scorecardId,
           projectName: deriveIdeaTitle({ result: activeScorecard || analysisResult, messages, fallback: 'Untitled Idea' })
@@ -3758,7 +3758,7 @@ const uiActions = parseUIActions(actionEnvelope);
         status: full.status ?? result.status,
         analysis_id: full.session_id ?? result.analysis_id,
         project_name: full.name ?? result.project_name,
-        market_iq_score: (full.score ?? result.market_iq_score),
+        jaspen_score: (full.score ?? result.jaspen_score),
       }
     : result;
 
@@ -3810,7 +3810,7 @@ try {
 const full =
   (merged?.result && typeof merged.result === 'object' && Object.keys(merged.result).length > 0)
     ? merged.result
-    : (merged && typeof merged === 'object' && merged.market_iq_score)
+    : (merged && typeof merged === 'object' && merged.jaspen_score)
       ? merged
       : null;
 
@@ -3919,7 +3919,7 @@ async function persistScenario(label, values) {
 
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     const res = await fetch(
-      `${apiBase}/api/market-iq/threads/${encodeURIComponent(threadId)}/scenarios`,
+      `${apiBase}/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
       {
         method: 'POST',
         credentials: 'include',
@@ -4465,7 +4465,7 @@ setView(id === 'chat' ? 'intake' : id);
                       .map(s => (
                         <option key={s.id} value={s.id}>
                           {(s.result?.project_name || 'Analysis').slice(0, 32)}
-                          {s.result?.market_iq_score != null ? ` — ${s.result.market_iq_score}` : ''}
+                          {s.result?.jaspen_score != null ? ` — ${s.result.jaspen_score}` : ''}
                         </option>
                       ))}
                   </select>
@@ -4940,7 +4940,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
                   </div>
                   <div className="hi-meta">
                     <span>{new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                    {item.result?.market_iq_score && (<span className="hi-score">Score: {item.result.market_iq_score}</span>)}
+                    {item.result?.jaspen_score && (<span className="hi-score">Score: {item.result.jaspen_score}</span>)}
                   </div>
                 </div>
                 <button

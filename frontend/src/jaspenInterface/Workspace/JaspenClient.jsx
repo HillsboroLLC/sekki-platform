@@ -1,5 +1,5 @@
 // ============================================================================
-// File: src/lib/MarketIQClient.jsx
+// File: src/lib/JaspenClient.jsx
 // Purpose: Robust client incl. scenarios, unified chat, and stable session SID
 //          + NEW endpoints: analyses, scenarios (CRUD), bundle
 //          (keeps legacy shapes; falls back where needed)
@@ -30,18 +30,18 @@ export const endpoints = {
   
   // KEEP OLD ENDPOINTS for backward compat during migration
   threadBundle:   (threadId, msg = 50, scn = 50 ) =>
-    `${API_BASE}/api/market-iq/threads/${encodeURIComponent(threadId)}/bundle?msg_limit=${msg}&scn_limit=${scn}`,
+    `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/bundle?msg_limit=${msg}&scn_limit=${scn}`,
   scenario:   `${API_BASE}/api/ai-agent/scenario`,
 
   // Scenario CRUD
-  createScenario:   (threadId) => `${API_BASE}/api/market-iq/threads/${encodeURIComponent(threadId)}/scenarios`,
-  listScenarios:    (threadId) => `${API_BASE}/api/market-iq/threads/${encodeURIComponent(threadId)}/scenarios`,
+  createScenario:   (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
+  listScenarios:    (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
   getLevers:        (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}/levers`,
-  updateScenario:   (scenarioId, threadId) => `${API_BASE}/api/market-iq/scenarios/${encodeURIComponent(scenarioId)}?thread_id=${encodeURIComponent(threadId)}`,
-  applyScenario:    (scenarioId, threadId) => `${API_BASE}/api/market-iq/scenarios/${encodeURIComponent(scenarioId)}/apply?thread_id=${encodeURIComponent(threadId)}`,
-  adoptScenario:    (scenarioId, threadId) => `${API_BASE}/api/market-iq/scenarios/${encodeURIComponent(scenarioId)}/adopt${threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''}`,
-  threadWbs:        (threadId) => `${API_BASE}/api/market-iq/threads/${encodeURIComponent(threadId)}/wbs`,
-  deleteAnalysis:   (analysisId) => `${API_BASE}/api/market-iq/analyses/${encodeURIComponent(analysisId)}`,
+  updateScenario:   (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}?thread_id=${encodeURIComponent(threadId)}`,
+  applyScenario:    (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}/apply?thread_id=${encodeURIComponent(threadId)}`,
+  adoptScenario:    (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}/adopt${threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''}`,
+  threadWbs:        (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/wbs`,
+  deleteAnalysis:   (analysisId) => `${API_BASE}/api/strategy/analyses/${encodeURIComponent(analysisId)}`,
   // Connector settings and PM sync profile
   connectorStatus: `${API_BASE}/api/connectors/status`,
   connectorUpdate: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}`,
@@ -133,7 +133,7 @@ You conduct a natural business discovery chat.
 - Keep it friendly, crisp, and progress toward building a Jaspen scorecard.
 `.trim();
 
-export const MarketIQ = {
+export const Jaspen = {
 
   // PROMPT ALIGNMENT: `adoptScenario` is handled by this existing `scenario` function.
   // It now correctly returns the result of the `applyScenario` call, which is the adopted snapshot.
@@ -144,7 +144,7 @@ export const MarketIQ = {
       payload?.analysis_id;
 
     if (!threadId) {
-      throw new Error('MarketIQ.scenario: thread_id/session_id is required');
+      throw new Error('Jaspen.scenario: thread_id/session_id is required');
     }
 
     if (payload?.scenario_id) {
@@ -183,7 +183,7 @@ export const MarketIQ = {
       created?.scenario?.scenario_id;
 
     if (!scenarioId) {
-      throw new Error('MarketIQ.scenario: failed to create scenario (no scenario_id)');
+      throw new Error('Jaspen.scenario: failed to create scenario (no scenario_id)');
     }
 
     // Apply the scenario and return the resulting analysis snapshot
@@ -201,7 +201,7 @@ export const MarketIQ = {
       {
         message,
         conversation_history,
-        docType: 'market_iq',
+        docType: 'strategy',
         detailed: true,
         phase: 3,
         systemPrompt:
@@ -216,7 +216,7 @@ export const MarketIQ = {
 
   // ---------- Conversational intake (Claude via /api/chat) ----------
 async convoStart({ description, project_id, model_type }) {
-    console.log('[MarketIQClient.convoStart] ENTRY', {
+    console.log('[JaspenClient.convoStart] ENTRY', {
       description: description?.substring(0, 50),
       project_id,
     });
@@ -235,7 +235,7 @@ async convoStart({ description, project_id, model_type }) {
       { withSid: true }
     );
 
-    console.log('[MarketIQClient.convoStart] RESPONSE', {
+    console.log('[JaspenClient.convoStart] RESPONSE', {
       thread_id: data.thread_id,
       session_id: data.session_id,
       readiness: data.readiness,
@@ -252,7 +252,7 @@ async convoStart({ description, project_id, model_type }) {
     };
   },
 async convoContinue({ session_id, user_message, conversation_history, model_type }) {
-    console.log('[MarketIQClient.convoContinue] ENTRY', {
+    console.log('[JaspenClient.convoContinue] ENTRY', {
       session_id,
       user_message: user_message?.substring(0, 50),
       hasHistory: Boolean(conversation_history?.length),
@@ -268,7 +268,7 @@ async convoContinue({ session_id, user_message, conversation_history, model_type
       { withSid: true }
     );
 
-    console.log('[MarketIQClient.convoContinue] RESPONSE', {
+    console.log('[JaspenClient.convoContinue] RESPONSE', {
       thread_id_sent: session_id,
       response_thread_id: data?.thread_id,
       response_session_id: data?.session_id,
@@ -296,9 +296,9 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
     );
 
     // DEBUG: Log full /analyze response to trace meta.extracted_levers
-    console.log('[MarketIQClient.analyzeFromConversation] raw response:', JSON.stringify(data, null, 2));
-    console.log('[MarketIQClient.analyzeFromConversation] has meta?', Boolean(data?.analysis?.meta || data?.meta));
-    console.log('[MarketIQClient.analyzeFromConversation] extracted_levers?', data?.analysis?.meta?.extracted_levers || data?.meta?.extracted_levers || null);
+    console.log('[JaspenClient.analyzeFromConversation] raw response:', JSON.stringify(data, null, 2));
+    console.log('[JaspenClient.analyzeFromConversation] has meta?', Boolean(data?.analysis?.meta || data?.meta));
+    console.log('[JaspenClient.analyzeFromConversation] extracted_levers?', data?.analysis?.meta?.extracted_levers || data?.meta?.extracted_levers || null);
 
     return {
       analysis_result: data.analysis || data,
@@ -308,7 +308,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
   },
     // ---------- Thread bundle (messages + latest analysis + scenarios) ----------
   async fetchBundle(threadId, { msgLimit = 50, scnLimit = 50 } = {}) {
-    if (!threadId) throw new Error('MarketIQ.fetchBundle: threadId required');
+    if (!threadId) throw new Error('Jaspen.fetchBundle: threadId required');
 
     const url = endpoints.threadBundle(threadId, msgLimit, scnLimit);
     const token = getToken();
@@ -365,7 +365,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
         dry_run: false,
         persist: true,
         mode: 'replace',
-        commit_message: `begin-project from MarketIQ (scorecard: ${scorecardId})`
+        commit_message: `begin-project from Jaspen (scorecard: ${scorecardId})`
       },
       { withSid: true }
     );
@@ -379,7 +379,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
     const token = getToken();
 
     const res = await fetch(
-      `${apiBase}/api/market-iq/threads/${encodeURIComponent(threadId)}/adopt`,
+      `${apiBase}/api/strategy/threads/${encodeURIComponent(threadId)}/adopt`,
       {
         method: 'POST',
         credentials: 'include',

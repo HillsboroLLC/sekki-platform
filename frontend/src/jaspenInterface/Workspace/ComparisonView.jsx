@@ -22,7 +22,7 @@ export default function ComparisonView({
     'Untitled Idea';
 
   const overallScore = Number(
-    normalized.market_iq_score ??
+    normalized.jaspen_score ??
     normalized.score ??
     normalized.compat?.score ??
     0

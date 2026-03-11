@@ -12,8 +12,8 @@ const parseDateValue = (value) => {
 const extractSessionScore = (session) => {
   const candidates = [
     session?.score,
-    session?.market_iq_score,
-    session?.result?.market_iq_score,
+    session?.jaspen_score,
+    session?.result?.jaspen_score,
     session?.result?.score,
     session?.result?.compat?.score,
     session?.result?.metrics?.overall_score

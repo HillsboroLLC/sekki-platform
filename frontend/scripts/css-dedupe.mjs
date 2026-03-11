@@ -1,8 +1,8 @@
 import fs from 'fs';
 import postcss from 'postcss';
 
-const INPUT = 'src/Market/styles/MarketIQ.css';
-const OUTPUT = 'src/Market/styles/MarketIQ.cleaned.css';
+const INPUT = 'src/jaspenInterface/Workspace/JaspenWorkspace.css';
+const OUTPUT = 'src/jaspenInterface/Workspace/JaspenWorkspace.cleaned.css';
 
 const css = fs.readFileSync(INPUT, 'utf8');
 const root = postcss.parse(css, { from: INPUT });

@@ -186,7 +186,7 @@ def create_app():
     from .routes.connectors import connectors_bp
     from .routes.dashboard import dashboard_bp
     from .routes.ai_agent  import ai_agent_bp
-    from .routes.market_iq import market_iq_bp, analyze_project
+    from .routes.strategy import strategy_bp, analyze_project
 
     app.register_blueprint(auth_bp,      url_prefix='/api/auth')
     app.register_blueprint(admin_bp,     url_prefix='/api/admin')
@@ -195,7 +195,7 @@ def create_app():
     app.register_blueprint(connectors_bp, url_prefix='/api/connectors')
     app.register_blueprint(dashboard_bp)  # includes its own /api/dashboard path
     app.register_blueprint(ai_agent_bp,  url_prefix='/api/ai-agent')
-    app.register_blueprint(market_iq_bp, url_prefix='/api/market-iq')
+    app.register_blueprint(strategy_bp, url_prefix='/api/strategy')
     app.add_url_rule(
         '/api/ai-agent/analyze',
         endpoint='ai_agent_analyze',
@@ -211,7 +211,7 @@ def create_app():
         print("Warning: sessions blueprint not found. Session saving will not work.")
 
     # Jaspen strategy blueprint
-    print("DEBUG: Jaspen strategy API registered successfully at /api/market-iq")
+    print("DEBUG: Jaspen strategy API registered successfully at /api/strategy")
 
     # Statistical Analysis blueprint
     print("DEBUG: About to register statistical analysis blueprint")

@@ -189,7 +189,7 @@ BASELINE_TERMS = ["baseline", "current", "target", "goal", "today", "starting po
 DATA_SOURCE_TERMS = ["dashboard", "crm", "erp", "finance", "system", "report", "spreadsheet"]
 
 SCENARIO_OUTPUT_FIELDS = {
-    "market_iq_score", "score_category", "component_scores", "financial_impact",
+    "jaspen_score", "score_category", "component_scores", "financial_impact",
     "analysis_id", "user_id", "timestamp", "project_description",
     "key_insights", "top_risks", "recommendations", "project_name",
     "risks", "compat", "inputs", "id", "label", "thread_id", "scenario_id",
@@ -321,7 +321,7 @@ def _new_session(user_id, thread_id, name, model_type=None):
     return {
         "session_id": thread_id,
         "name": name or "Jaspen Intake",
-        "document_type": "market_iq",
+        "document_type": "strategy",
         "model_type": normalize_model_type(model_type) or None,
         "current_phase": 1,
         "chat_history": [],

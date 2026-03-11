@@ -5,13 +5,13 @@ import { getPlanConnectorSentence } from '../../shared/billing/planConnectors';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBookOpen,
+  faBars,
   faBolt,
-  faChevronLeft,
-  faChevronRight,
   faChartLine,
   faGear,
   faLayerGroup,
   faPlug,
+  faTimes,
 } from '@fortawesome/free-solid-svg-icons';
 import './Account.css';
 
@@ -819,7 +819,7 @@ export default function Account() {
   return (
     <div className="account-page">
       <div className="account-panel">
-        <div className="account-content-layout">
+        <div className={`account-content-layout ${sidebarCollapsed ? 'is-sidebar-collapsed' : ''}`}>
           <aside className={`account-sidebar ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
             <div className="account-sidebar-head">
               {!sidebarCollapsed && <p className="account-sidebar-title">Billing menu</p>}
@@ -830,7 +830,7 @@ export default function Account() {
                 aria-expanded={!sidebarCollapsed}
                 aria-label={sidebarCollapsed ? 'Expand billing menu' : 'Collapse billing menu'}
               >
-                <FontAwesomeIcon icon={sidebarCollapsed ? faChevronRight : faChevronLeft} />
+                <FontAwesomeIcon icon={sidebarCollapsed ? faBars : faTimes} />
               </button>
             </div>
             <nav className="account-sidebar-nav" aria-label="Billing sections">

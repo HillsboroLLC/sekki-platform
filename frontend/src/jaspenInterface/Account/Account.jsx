@@ -827,7 +827,24 @@ export default function Account() {
 
         {message && <p className="account-message">{message}</p>}
 
-        <section className="account-section">
+        <div className="account-content-layout">
+          <aside className="account-sidebar">
+            <p className="account-sidebar-title">Billing menu</p>
+            <a className="account-sidebar-link" href="#overview">Overview</a>
+            <a className="account-sidebar-link" href="#plans">Plans</a>
+            <a className="account-sidebar-link" href="#connectors">Connectors</a>
+            <a className="account-sidebar-link" href="#packs">Credit packs</a>
+            <a className="account-sidebar-link" href="#models">Models</a>
+            {adminState.checked && adminState.isAdmin && (
+              <a className="account-sidebar-link" href="#admin">System admin</a>
+            )}
+            <button type="button" className="account-sidebar-docs-btn" onClick={() => navigate('/docs')}>
+              Open docs
+            </button>
+          </aside>
+
+          <div className="account-main-content" id="overview">
+        <section className="account-section" id="plans">
           <h2>Plans</h2>
           <div className="account-plan-grid">
             {PLAN_ORDER.map((key) => {
@@ -1136,7 +1153,7 @@ export default function Account() {
           </div>
         )}
 
-        <section className="account-section">
+        <section className="account-section" id="packs">
           <h2>One-time credit packs</h2>
           <div className="account-pack-grid">
             {PACK_ORDER.map((key) => {
@@ -1161,7 +1178,7 @@ export default function Account() {
           </div>
         </section>
 
-        <section className="account-section">
+        <section className="account-section" id="models">
           <h2>Model access by plan</h2>
           <div className="account-model-table-wrap">
             <table className="account-model-table">
@@ -1393,6 +1410,8 @@ export default function Account() {
             </div>
           </section>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

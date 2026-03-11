@@ -1568,6 +1568,18 @@ const refreshBundle = async (tid) => {
               {connectedConnectorCount > 0 ? `${connectedConnectorCount} connected` : currentPlanLabel}
             </span>
           </button>
+          <button
+            className="jas-ud-item"
+            onClick={() => {
+              navigate('/docs');
+              setAccountQuickMenuOpen(false);
+              setKnowledgeMenuOpen(false);
+            }}
+          >
+            <FontAwesomeIcon icon={faQuestionCircle} />
+            <span className="jas-ud-item-label">Docs</span>
+            <span className="jas-ud-item-badge">Guides</span>
+          </button>
           {isGlobalAdmin && (
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/jaspen-admin'); }}>
               <FontAwesomeIcon icon={faUser} />
@@ -1671,6 +1683,11 @@ const refreshBundle = async (tid) => {
         </div>
 
         <div className="jas-ud-section">
+          <button className="jas-ud-item" onClick={() => { openExternal('/docs'); setAccountQuickMenuOpen(false); }}>
+            <FontAwesomeIcon icon={faQuestionCircle} />
+            <span className="jas-ud-item-label">Docs</span>
+            <span className="jas-ud-item-ext"><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></span>
+          </button>
           <button className="jas-ud-item" onClick={() => { openExternal('/pages/support'); setAccountQuickMenuOpen(false); }}>
             <FontAwesomeIcon icon={faQuestionCircle} />
             <span className="jas-ud-item-label">Get help</span>

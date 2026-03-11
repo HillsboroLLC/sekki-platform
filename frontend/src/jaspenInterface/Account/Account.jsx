@@ -47,6 +47,18 @@ const SYNC_MODE_LABELS = {
   push: 'Jaspen -> External',
   two_way: 'Two-way',
 };
+const CONFLICT_POLICY_LABELS = {
+  latest_wins: 'Most recent update wins',
+  prefer_external: 'Prefer external system',
+  prefer_jaspen: 'Prefer Jaspen',
+  manual_review: 'Manual review required',
+};
+const CONFLICT_POLICY_HELP = {
+  latest_wins: 'When both systems update the same field, the newest timestamp wins.',
+  prefer_external: 'If values conflict, keep the external system value.',
+  prefer_jaspen: 'If values conflict, keep the Jaspen value.',
+  manual_review: 'Flag the conflict for manual review before applying.',
+};
 const DEFAULT_JIRA_ISSUE_TYPE = 'Task';
 
 function emptyJiraModalState() {
@@ -133,6 +145,7 @@ export default function Account() {
     items: [],
   });
   const [connectorDrafts, setConnectorDrafts] = useState({});
+  const [connectorSettingsOpen, setConnectorSettingsOpen] = useState({});
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState('');
   const [connectorPendingId, setConnectorPendingId] = useState('');
@@ -203,6 +216,13 @@ export default function Account() {
             items: connectorItems,
           });
           setConnectorDrafts(buildConnectorDraftMap(connectorItems));
+          setConnectorSettingsOpen((prev) => {
+            const next = {};
+            connectorItems.forEach((item) => {
+              if (item?.id && prev[item.id]) next[item.id] = true;
+            });
+            return next;
+          });
           const isAdmin = Boolean(adminCapsRes.ok && adminCapsData?.is_admin);
           setAdminState((prev) => ({
             ...prev,
@@ -266,6 +286,13 @@ export default function Account() {
         items: connectorItems,
       });
       setConnectorDrafts(buildConnectorDraftMap(connectorItems));
+      setConnectorSettingsOpen((prev) => {
+        const next = {};
+        connectorItems.forEach((item) => {
+          if (item?.id && prev[item.id]) next[item.id] = true;
+        });
+        return next;
+      });
     } else if (res.status === 401) {
       navigate('/?auth=1', { replace: true });
     }
@@ -462,6 +489,14 @@ export default function Account() {
         ...(prev[connectorId] || {}),
         ...(updates || {}),
       },
+    }));
+  };
+
+  const toggleConnectorSettings = (connectorId) => {
+    if (!connectorId) return;
+    setConnectorSettingsOpen((prev) => ({
+      ...prev,
+      [connectorId]: !prev[connectorId],
     }));
   };
 
@@ -841,12 +876,12 @@ export default function Account() {
         <section className="account-section" id="connectors">
           <h2>Connectors & PM Sync</h2>
           <p className="account-connectors-subtext">
-            Compact controls for connector access and sync settings. Toggle, adjust settings, and save per connector.
+            Start connector setup here. Toggle on, open settings if needed, and save per connector.
           </p>
           {connectorState.loading ? (
             <p className="account-connectors-loading">Loading connector settings...</p>
           ) : (
-            <div className="account-connector-grid">
+            <div className="account-connector-stack">
               {(connectorState.items || []).map((connector) => {
                 const locked = connector?.status === 'locked' || !connector?.enabled;
                 const requiredTier = String(connector?.required_min_tier || 'team').trim().toLowerCase();
@@ -864,12 +899,20 @@ export default function Account() {
                 const isDirty = connectorDraftIsDirty(connector, draft);
                 const jiraTokenConfigured =
                   Boolean(connector?.jira?.has_api_token) || Boolean(String(draft.jira_api_token || '').trim());
+                const settingsOpen = Boolean(connectorSettingsOpen[connector.id]);
 
                 return (
-                  <article className={`account-connector-card account-connector-card-compact ${isOn ? 'is-connected' : ''} ${locked ? 'is-locked' : ''}`} key={connector.id}>
-                    <div className="account-connector-head account-connector-head-compact">
-                      <h3>{connector.label}</h3>
-                      <div className="account-connector-actions-inline">
+                  <article className={`account-connector-item ${isOn ? 'is-connected' : ''} ${locked ? 'is-locked' : ''}`} key={connector.id}>
+                    <div className="account-connector-main-row">
+                      <div className="account-connector-main-copy">
+                        <div className="account-connector-title-row">
+                          <h3>{connector.label}</h3>
+                          <p className="account-connector-group">{connector.group}</p>
+                        </div>
+                        <p className="account-connector-description">{connector.description}</p>
+                        <p className="account-connector-toggle-note">{connectorToggleMeaning(connector)}</p>
+                      </div>
+                      <div className="account-connector-actions">
                         <span className={`account-connector-badge ${locked ? 'is-locked' : isOn ? 'is-connected' : 'is-available'}`}>
                           {locked ? `${requiredTier}+` : isOn ? 'On' : 'Off'}
                         </span>
@@ -895,6 +938,14 @@ export default function Account() {
                         </label>
                         <button
                           type="button"
+                          className="account-secondary-btn account-connector-settings-btn"
+                          onClick={() => toggleConnectorSettings(connector.id)}
+                          disabled={locked || pending}
+                        >
+                          {settingsOpen ? 'Hide settings' : 'Settings'}
+                        </button>
+                        <button
+                          type="button"
                           className="account-primary-btn account-save-btn"
                           onClick={() => saveConnectorDraft(connector)}
                           disabled={locked || pending || !isDirty}
@@ -903,68 +954,76 @@ export default function Account() {
                         </button>
                       </div>
                     </div>
-                    <p className="account-connector-group">{connector.group}</p>
-                    <p className="account-connector-description">{connector.description}</p>
-                    <p className="account-connector-toggle-note">{connectorToggleMeaning(connector)}</p>
 
-                    <div className="account-connector-controls account-connector-controls-compact">
-                      <label>
-                        Sync
-                        <select
-                          value={draft.sync_mode || ''}
-                          disabled={locked || pending}
-                          onChange={(e) => updateConnectorDraft(connector.id, { sync_mode: e.target.value })}
-                        >
-                          {syncModes.map((mode) => (
-                            <option key={mode} value={mode}>
-                              {SYNC_MODE_LABELS[mode] || mode}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Conflict
-                        <select
-                          value={draft.conflict_policy || ''}
-                          disabled={locked || pending}
-                          onChange={(e) => updateConnectorDraft(connector.id, { conflict_policy: e.target.value })}
-                        >
-                          {conflictPolicies.map((policy) => (
-                            <option key={policy} value={policy}>
-                              {policy.replace(/_/g, ' ')}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        External workspace
-                        <input
-                          type="text"
-                          value={draft.external_workspace || ''}
-                          placeholder="Workspace or account id"
-                          disabled={locked || pending}
-                          onChange={(e) => updateConnectorDraft(connector.id, { external_workspace: e.target.value })}
-                        />
-                      </label>
-                    </div>
+                    {settingsOpen && (
+                      <div className="account-connector-settings-panel">
+                        <div className="account-connector-controls account-connector-controls-compact">
+                          <label>
+                            Sync
+                            <select
+                              value={draft.sync_mode || ''}
+                              disabled={locked || pending}
+                              onChange={(e) => updateConnectorDraft(connector.id, { sync_mode: e.target.value })}
+                            >
+                              {syncModes.map((mode) => (
+                                <option key={mode} value={mode}>
+                                  {SYNC_MODE_LABELS[mode] || mode}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Conflict
+                            <select
+                              value={draft.conflict_policy || ''}
+                              disabled={locked || pending}
+                              onChange={(e) => updateConnectorDraft(connector.id, { conflict_policy: e.target.value })}
+                            >
+                              {conflictPolicies.map((policy) => (
+                                <option key={policy} value={policy}>
+                                  {CONFLICT_POLICY_LABELS[policy] || policy.replace(/_/g, ' ')}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="account-field-help">
+                              {CONFLICT_POLICY_HELP[draft.conflict_policy] || ''}
+                            </span>
+                          </label>
+                          <label>
+                            External workspace
+                            <input
+                              type="text"
+                              value={draft.external_workspace || ''}
+                              placeholder="Workspace or account id"
+                              disabled={locked || pending}
+                              onChange={(e) => updateConnectorDraft(connector.id, { external_workspace: e.target.value })}
+                            />
+                          </label>
+                        </div>
 
-                    {connector.id === 'jira_sync' && (
-                      <div className="account-jira-settings-row">
-                        <button
-                          type="button"
-                          className="account-secondary-btn account-jira-settings-btn"
-                          onClick={() => openJiraConfigModal(connector, {
-                            intentEnable: false,
-                            revertStatus: draft.connection_status,
-                          })}
-                          disabled={locked || pending}
-                        >
-                          Jira API settings
-                        </button>
-                        <span className={`account-jira-settings-state ${jiraTokenConfigured ? 'is-ready' : 'is-missing'}`}>
-                          {jiraTokenConfigured ? 'API token configured' : 'API token required'}
-                        </span>
+                        {connector.id === 'jira_sync' && (
+                          <div className="account-jira-settings-row">
+                            <button
+                              type="button"
+                              className="account-secondary-btn account-jira-settings-btn"
+                              onClick={() => openJiraConfigModal(connector, {
+                                intentEnable: false,
+                                revertStatus: draft.connection_status,
+                              })}
+                              disabled={locked || pending}
+                            >
+                              Jira API settings
+                            </button>
+                            <span className={`account-jira-settings-state ${jiraTokenConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {jiraTokenConfigured ? 'API token configured' : 'API token required'}
+                            </span>
+                          </div>
+                        )}
                       </div>
+                    )}
+
+                    {!settingsOpen && connector.id === 'jira_sync' && !jiraTokenConfigured && !locked && (
+                      <p className="account-connector-locked-note">Jira API token required before enabling.</p>
                     )}
 
                     {locked && (

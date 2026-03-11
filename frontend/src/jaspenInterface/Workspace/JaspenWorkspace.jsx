@@ -628,7 +628,6 @@ const refreshBundle = async (tid) => {
   const [billingMessage, setBillingMessage] = useState('');
   const [billingActionLoading, setBillingActionLoading] = useState('');
   const [billingModalOpen, setBillingModalOpen] = useState(false);
-  const [connectorsModalOpen, setConnectorsModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsMode, setNotificationsMode] = useState('bell');
   const [notificationFeed, setNotificationFeed] = useState(() => buildDefaultNotifications());
@@ -1337,78 +1336,6 @@ const refreshBundle = async (tid) => {
     );
   };
 
-  const renderConnectorsModal = () => {
-    if (!connectorsModalOpen) return null;
-    return (
-      <div className="jas-modal-backdrop" role="presentation" onClick={() => setConnectorsModalOpen(false)}>
-        <div
-          className="jas-account-modal jas-connectors-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Connectors"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="jas-account-modal-header">
-            <h3>Connectors</h3>
-            <button
-              type="button"
-              className="jas-account-modal-close"
-              onClick={() => setConnectorsModalOpen(false)}
-              aria-label="Close"
-            >
-              <FontAwesomeIcon icon={faTimes} />
-            </button>
-          </div>
-
-          <p className="jas-apps-intro">
-            Connect your execution systems and data platforms. Availability depends on your current plan.
-          </p>
-
-          <div className="jas-connectors-grid">
-            {connectorCatalog.map((connector) => {
-              const locked = connector.status === 'locked';
-              const connected = connector.status === 'connected';
-              const available = connector.status === 'available';
-              return (
-                <article key={connector.id} className={`jas-connector-card ${connected ? 'is-connected' : ''}`}>
-                  <div className="jas-connector-head">
-                    <h4>{connector.label}</h4>
-                    <span className={`jas-connector-badge ${locked ? 'is-locked' : connected ? 'is-connected' : 'is-available'}`}>
-                      {connected ? 'Connected' : available ? 'Available' : `${connector.requiredMinTier}+`}
-                    </span>
-                  </div>
-                  <p className="jas-connector-group">{connector.group}</p>
-                  <p>{connector.description}</p>
-                  {locked ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConnectorsModalOpen(false);
-                        setBillingModalOpen(true);
-                      }}
-                    >
-                      Upgrade to unlock
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConnectorsModalOpen(false);
-                        navigate('/account#connectors');
-                      }}
-                    >
-                      {connected ? 'Manage connector' : 'Connect'}
-                    </button>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderNotificationsModal = () => {
     if (!notificationsOpen) return null;
     return (
@@ -1630,8 +1557,9 @@ const refreshBundle = async (tid) => {
           <button
             className="jas-ud-item"
             onClick={() => {
-              setConnectorsModalOpen(true);
+              navigate('/account#connectors');
               setAccountQuickMenuOpen(false);
+              setKnowledgeMenuOpen(false);
             }}
           >
             <FontAwesomeIcon icon={faLayerGroup} />
@@ -4263,7 +4191,6 @@ setView(id === 'chat' ? 'intake' : id);
 
       {renderNameModal()}
       {renderBillingModal()}
-      {renderConnectorsModal()}
 
 {/* Assistant Vertical Tab (Score + Scenarios only) */}
 {activeTab !== 'chat' && !aiDrawerOpen && (
@@ -5010,7 +4937,6 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
       {renderNotificationsModal()}
       {renderNameModal()}
       {renderBillingModal()}
-      {renderConnectorsModal()}
 
       {/* Content */}
       <div className="jas-chat-content">

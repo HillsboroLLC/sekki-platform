@@ -849,6 +849,22 @@ export default function Account() {
                 </button>
               ))}
             </nav>
+            {!sidebarCollapsed && (
+              <div className="account-sidebar-footer">
+                <section className="account-sidebar-footer-group">
+                  <p className="account-sidebar-footer-label">Account usage (this month)</p>
+                  <p className="account-sidebar-footer-value">
+                    {status?.monthly_credit_limit == null
+                      ? 'Contracted pooled credits'
+                      : `${Number(status.monthly_credit_limit || 0).toLocaleString()} credit limit`}
+                  </p>
+                </section>
+                <section className="account-sidebar-footer-group">
+                  <p className="account-sidebar-footer-label">Current thread usage</p>
+                  <p className="account-sidebar-footer-value">Open a thread to see usage details.</p>
+                </section>
+              </div>
+            )}
           </aside>
 
           <div className="account-main-content">

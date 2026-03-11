@@ -540,6 +540,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  overflow: visible;
 }
 
 .jas-settings-sidebar {
@@ -554,6 +555,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: visible;
 }
 
 .jas-ud-scroll {
@@ -814,6 +816,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  overflow: visible;
 }
 
 .jas-ud-footer-profile {
@@ -958,14 +961,23 @@
 .jas-ud-submenu {
   position: absolute;
   top: 0;
-  left: calc(100% - 2px);
-  width: 240px;
+  left: calc(100% + 8px);
+  width: 260px;
   border: 1px solid var(--gray-300);
   border-radius: 12px;
   background: var(--white);
   box-shadow: 0 16px 28px rgba(22, 31, 59, 0.16);
   overflow: hidden;
-  z-index: 31;
+  z-index: 260;
+}
+
+.jas-ud-submenu.jas-ud-submenu-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2200;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .jas-ud-submenu button {
@@ -2921,6 +2933,7 @@
   flex-direction: column;
   transition: left 0.3s ease;
   box-shadow: 4px 0 12px rgba(22, 31, 59, 0.08);
+  overflow: visible;
 }
 .jas-left-sidebar.sidebar-open {
   left: 0;

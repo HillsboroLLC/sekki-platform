@@ -5,6 +5,7 @@
 // ============================================================================
 
 import React, { useEffect, useRef, useState, useMemo, useReducer, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../config/apiBase';
 import { useChatCommands, parseUIActions, ChatActionTypes } from "../../shared/hooks/useChatCommands"
@@ -639,6 +640,9 @@ const refreshBundle = async (tid) => {
   const [threadUsageError, setThreadUsageError] = useState('');
   const [accountQuickMenuOpen, setAccountQuickMenuOpen] = useState(false);
   const [knowledgeMenuOpen, setKnowledgeMenuOpen] = useState(false);
+  const [knowledgeMenuStyle, setKnowledgeMenuStyle] = useState(null);
+  const knowledgeSubmenuWrapRef = useRef(null);
+  const knowledgeSubmenuRef = useRef(null);
   const savedEmail = (() => {
     try { return localStorage.getItem('jaspen_last_email'); } catch { return null; }
   })();
@@ -1103,6 +1107,7 @@ const refreshBundle = async (tid) => {
     if (!accountQuickMenuOpen) return;
     const onPointerDown = (event) => {
       if (!(event.target instanceof Element)) return;
+      if (event.target.closest('.jas-ud-submenu-portal')) return;
       if (!event.target.closest('.jas-ud-footer')) {
         setAccountQuickMenuOpen(false);
         setKnowledgeMenuOpen(false);
@@ -1125,6 +1130,7 @@ const refreshBundle = async (tid) => {
 
     const onPointerDown = (event) => {
       if (!(event.target instanceof Element)) return;
+      if (event.target.closest('.jas-ud-submenu-portal')) return;
       if (event.target.closest('.jas-left-sidebar')) return;
       if (event.target.closest('.jas-sidebar-tab')) return;
       if (event.target.closest('.jas-drawer-tab')) return;
@@ -1134,6 +1140,43 @@ const refreshBundle = async (tid) => {
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [anySidebarOpen, dismissSidebars]);
+
+  const updateKnowledgeMenuPosition = useCallback(() => {
+    if (!knowledgeSubmenuWrapRef.current) return;
+    const rect = knowledgeSubmenuWrapRef.current.getBoundingClientRect();
+    const menuWidth = 260;
+    const viewportPadding = 8;
+    const estimatedHeight = 360;
+    const left = Math.min(
+      Math.max(viewportPadding, rect.right + 8),
+      window.innerWidth - menuWidth - viewportPadding
+    );
+    const top = Math.min(
+      Math.max(viewportPadding, rect.top - 2),
+      Math.max(viewportPadding, window.innerHeight - estimatedHeight - viewportPadding)
+    );
+    const maxHeight = Math.max(180, window.innerHeight - top - viewportPadding);
+    setKnowledgeMenuStyle({
+      left: `${left}px`,
+      top: `${top}px`,
+      maxHeight: `${maxHeight}px`,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!knowledgeMenuOpen || !accountQuickMenuOpen) {
+      setKnowledgeMenuStyle(null);
+      return;
+    }
+    updateKnowledgeMenuPosition();
+    const onReposition = () => updateKnowledgeMenuPosition();
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [knowledgeMenuOpen, accountQuickMenuOpen, updateKnowledgeMenuPosition]);
 
   const startPlanChange = async (planKey) => {
     const token = getAuthToken();
@@ -1482,8 +1525,13 @@ const refreshBundle = async (tid) => {
           </button>
           <div
             className="jas-ud-submenu-wrap"
+            ref={knowledgeSubmenuWrapRef}
             onMouseEnter={() => setKnowledgeMenuOpen(true)}
-            onMouseLeave={() => setKnowledgeMenuOpen(false)}
+            onMouseLeave={(event) => {
+              const nextTarget = event.relatedTarget;
+              if (nextTarget instanceof Node && knowledgeSubmenuRef.current?.contains(nextTarget)) return;
+              setKnowledgeMenuOpen(false);
+            }}
           >
             <button
               type="button"
@@ -1497,8 +1545,18 @@ const refreshBundle = async (tid) => {
               <span>Knowledge</span>
               <span className="jas-ud-submenu-caret">›</span>
             </button>
-            {knowledgeMenuOpen && (
-              <div className="jas-ud-submenu">
+            {knowledgeMenuOpen && accountQuickMenuOpen && knowledgeMenuStyle && createPortal(
+              <div
+                className="jas-ud-submenu jas-ud-submenu-portal"
+                ref={knowledgeSubmenuRef}
+                style={knowledgeMenuStyle}
+                onMouseEnter={() => setKnowledgeMenuOpen(true)}
+                onMouseLeave={(event) => {
+                  const nextTarget = event.relatedTarget;
+                  if (nextTarget instanceof Node && knowledgeSubmenuWrapRef.current?.contains(nextTarget)) return;
+                  setKnowledgeMenuOpen(false);
+                }}
+              >
                 <button type="button" onClick={() => { navigate('/knowledge'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Knowledge home</button>
                 <button type="button" onClick={() => { openExternal('/pages/api'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>API console</button>
                 <button type="button" onClick={() => { openExternal('/#about'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>About Jaspen</button>
@@ -1508,7 +1566,8 @@ const refreshBundle = async (tid) => {
                 <button type="button" onClick={() => { openExternal('/pages/privacy'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Privacy policy</button>
                 <button type="button" onClick={() => { openExternal('/pages/privacy#choices'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Your privacy choices</button>
                 <button type="button" onClick={() => { showToast('Keyboard shortcuts coming soon.', 'info'); setAccountQuickMenuOpen(false); setKnowledgeMenuOpen(false); }}>Keyboard shortcuts</button>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           <button type="button" onClick={() => { openExternal('/pages/support'); setAccountQuickMenuOpen(false); }}>

@@ -2,6 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../config/apiBase';
 import { getPlanConnectorSentence } from '../../shared/billing/planConnectors';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBookOpen,
+  faBolt,
+  faChevronLeft,
+  faChevronRight,
+  faChartLine,
+  faGear,
+  faLayerGroup,
+  faPlug,
+} from '@fortawesome/free-solid-svg-icons';
 import './Account.css';
 
 function getToken() {
@@ -154,6 +165,7 @@ export default function Account() {
   const [jiraConfigSaving, setJiraConfigSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   const [adminState, setAdminState] = useState({
     checked: false,
     isAdmin: false,
@@ -262,6 +274,12 @@ export default function Account() {
       mounted = false;
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (activeTab === 'admin' && !(adminState.checked && adminState.isAdmin)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, adminState.checked, adminState.isAdmin]);
 
   const refreshStatus = async () => {
     const token = getToken();
@@ -787,6 +805,16 @@ export default function Account() {
     const planRank = PLAN_RANK[String(planKey || 'free').toLowerCase()] ?? 0;
     return planRank >= requiredRank;
   };
+  const isAdminUser = adminState.checked && adminState.isAdmin;
+  const sidebarItems = [
+    { key: 'overview', label: 'Overview', icon: faChartLine },
+    { key: 'plans', label: 'Plans', icon: faLayerGroup },
+    { key: 'connectors', label: 'Connectors', icon: faPlug },
+    { key: 'packs', label: 'Credit packs', icon: faBolt },
+    { key: 'models', label: 'Models', icon: faLayerGroup },
+    ...(isAdminUser ? [{ key: 'admin', label: 'System admin', icon: faGear }] : []),
+    { key: 'knowledge', label: 'Knowledge', icon: faBookOpen },
+  ];
 
   return (
     <div className="account-page">
@@ -800,7 +828,7 @@ export default function Account() {
             </p>
           </div>
           <div className="account-header-actions">
-            {adminState.checked && adminState.isAdmin && (
+            {isAdminUser && (
               <button type="button" onClick={() => navigate('/jaspen-admin')} className="account-secondary-btn">
                 Jaspen Admin
               </button>
@@ -831,36 +859,59 @@ export default function Account() {
         <div className="account-content-layout">
           <aside className={`account-sidebar ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
             <div className="account-sidebar-head">
-              <p className="account-sidebar-title">Billing menu</p>
+              {!sidebarCollapsed && <p className="account-sidebar-title">Billing menu</p>}
               <button
                 type="button"
                 className="account-sidebar-toggle"
                 onClick={() => setSidebarCollapsed((prev) => !prev)}
                 aria-expanded={!sidebarCollapsed}
+                aria-label={sidebarCollapsed ? 'Expand billing menu' : 'Collapse billing menu'}
               >
-                {sidebarCollapsed ? 'Expand' : 'Collapse'}
+                <FontAwesomeIcon icon={sidebarCollapsed ? faChevronRight : faChevronLeft} />
               </button>
             </div>
-            {!sidebarCollapsed && (
-              <>
-                <a className="account-sidebar-link" href="#overview">Overview</a>
-                <a className="account-sidebar-link" href="#plans">Plans</a>
-                <a className="account-sidebar-link" href="#connectors">Connectors</a>
-                <a className="account-sidebar-link" href="#packs">Credit packs</a>
-                <a className="account-sidebar-link" href="#models">Models</a>
-                {adminState.checked && adminState.isAdmin && (
-                  <a className="account-sidebar-link" href="#admin">System admin</a>
-                )}
-                <a className="account-sidebar-link account-sidebar-knowledge" href="/knowledge">
-                  Knowledge
-                </a>
-              </>
-            )}
+            <nav className="account-sidebar-nav" aria-label="Billing sections">
+              {sidebarItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`account-sidebar-item ${activeTab === item.key ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab(item.key)}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <span className="account-sidebar-icon">
+                    <FontAwesomeIcon icon={item.icon} />
+                  </span>
+                  {!sidebarCollapsed && <span className="account-sidebar-label">{item.label}</span>}
+                </button>
+              ))}
+            </nav>
           </aside>
 
-          <div className="account-main-content" id="overview">
-        <section className="account-section" id="plans">
-          <h2>Plans</h2>
+          <div className="account-main-content">
+        {activeTab === 'overview' && (
+        <section className="account-section">
+          <h2 className="account-tab-title">Overview</h2>
+          <div className="account-overview-grid">
+            <article className="account-overview-card">
+              <h3>Current plan</h3>
+              <p>{(plans[currentPlan]?.label || currentPlan).toString()}</p>
+            </article>
+            <article className="account-overview-card">
+              <h3>Credits remaining</h3>
+              <p>{creditsRemainingLabel}</p>
+            </article>
+            <article className="account-overview-card">
+              <h3>Monthly limit</h3>
+              <p>{monthlyLimitLabel}</p>
+            </article>
+          </div>
+        </section>
+        )}
+
+        {activeTab === 'plans' && (
+        <section className="account-section">
+          <h2 className="account-tab-title">Plans</h2>
           <div className="account-plan-grid">
             {PLAN_ORDER.map((key) => {
               const plan = plans[key];
@@ -911,9 +962,11 @@ export default function Account() {
             })}
           </div>
         </section>
+        )}
 
-        <section className="account-section" id="connectors">
-          <h2>Connectors & PM Sync</h2>
+        {activeTab === 'connectors' && (
+        <section className="account-section">
+          <h2 className="account-tab-title">Connectors & PM Sync</h2>
           <p className="account-connectors-subtext">
             Start connector setup here. Toggle on, open settings if needed, and save per connector.
           </p>
@@ -1076,6 +1129,7 @@ export default function Account() {
             </div>
           )}
         </section>
+        )}
 
         {jiraConfigModal.open && (
           <div className="account-jira-modal-backdrop" role="presentation" onClick={() => closeJiraConfigModal(true)}>
@@ -1175,8 +1229,9 @@ export default function Account() {
           </div>
         )}
 
-        <section className="account-section" id="packs">
-          <h2>One-time credit packs</h2>
+        {activeTab === 'packs' && (
+        <section className="account-section">
+          <h2 className="account-tab-title">One-time credit packs</h2>
           <div className="account-pack-grid">
             {PACK_ORDER.map((key) => {
               const pack = packs[key];
@@ -1199,9 +1254,11 @@ export default function Account() {
             })}
           </div>
         </section>
+        )}
 
-        <section className="account-section" id="models">
-          <h2>Model access by plan</h2>
+        {activeTab === 'models' && (
+        <section className="account-section">
+          <h2 className="account-tab-title">Model access by plan</h2>
           <div className="account-model-table-wrap">
             <table className="account-model-table">
               <thead>
@@ -1233,7 +1290,9 @@ export default function Account() {
             </table>
           </div>
         </section>
+        )}
 
+        {activeTab === 'overview' && (
         <section className="account-section account-actions-row">
           <button
             type="button"
@@ -1252,11 +1311,12 @@ export default function Account() {
             {pendingAction === 'cancel' ? 'Canceling...' : 'Cancel at period end'}
           </button>
         </section>
+        )}
 
-        {adminState.checked && adminState.isAdmin && (
-          <section className="account-section" id="admin">
+        {activeTab === 'admin' && isAdminUser && (
+          <section className="account-section">
             <div className="account-admin-header">
-              <h2>System admin</h2>
+              <h2 className="account-tab-title">System admin</h2>
               <p>Search users, adjust plan, credits, and account controls without billing flow.</p>
             </div>
             <div className="account-admin-search">
@@ -1429,6 +1489,17 @@ export default function Account() {
                   <p>Select a user to edit.</p>
                 )}
               </div>
+            </div>
+          </section>
+        )}
+        {activeTab === 'knowledge' && (
+          <section className="account-section">
+            <h2 className="account-tab-title">Knowledge</h2>
+            <div className="account-section-card account-knowledge-panel">
+              <p>Connector setup, API patterns, and agent component docs are available in your internal Knowledge hub.</p>
+              <button type="button" className="account-primary-btn" onClick={() => navigate('/knowledge')}>
+                Open Knowledge
+              </button>
             </div>
           </section>
         )}

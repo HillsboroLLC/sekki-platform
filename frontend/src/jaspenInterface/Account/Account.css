@@ -6,7 +6,7 @@
   --account-muted: #5e6a84;
   min-height: calc(100vh - 120px);
   padding: 20px 20px 36px;
-  background: #f6f7fb;
+  background: #f8fafc;
 }
 
 .account-panel {
@@ -97,8 +97,8 @@
 .account-content-layout {
   margin-top: 8px;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
   align-items: stretch;
   min-height: calc(100vh - 140px);
 }
@@ -113,15 +113,16 @@
 .account-sidebar {
   position: sticky;
   top: 8px;
-  width: 240px;
+  width: 300px;
   height: calc(100vh - 120px);
-  border: 1px solid var(--account-border);
-  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
   background: #ffffff;
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: hidden;
 }
 
 .account-sidebar-head {
@@ -155,7 +156,9 @@
 
 .account-sidebar-nav {
   display: grid;
-  gap: 4px;
+  gap: 3px;
+  align-content: start;
+  grid-auto-rows: min-content;
   flex: 1;
   overflow-y: auto;
   padding-right: 2px;
@@ -167,7 +170,7 @@
   color: rgba(22, 31, 59, 0.9);
   border-left: 2px solid transparent;
   border-radius: 6px;
-  padding: 8px 8px 8px 10px;
+  padding: 9px 8px 9px 10px;
   text-align: left;
   display: flex;
   align-items: center;
@@ -195,8 +198,8 @@
 }
 
 .account-sidebar-label {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 500;
 }
 
 .account-sidebar.is-collapsed {

@@ -181,6 +181,62 @@ def _runtime_fields(connector_id, settings):
             "snowflake_private_key": _text(settings.get("snowflake_private_key") or os.getenv("SNOWFLAKE_PRIVATE_KEY")),
         }
 
+    if connector_id == "oracle_fusion_insights":
+        return {
+            "oracle_fusion_base_url": _text(
+                settings.get("oracle_fusion_base_url")
+                or os.getenv("ORACLE_FUSION_BASE_URL")
+            ),
+            "oracle_fusion_username": _text(
+                settings.get("oracle_fusion_username")
+                or os.getenv("ORACLE_FUSION_USERNAME")
+            ),
+            "oracle_fusion_password": _text(
+                settings.get("oracle_fusion_password")
+                or os.getenv("ORACLE_FUSION_PASSWORD")
+            ),
+        }
+
+    if connector_id == "servicenow_insights":
+        return {
+            "servicenow_instance_url": _text(
+                settings.get("servicenow_instance_url")
+                or os.getenv("SERVICENOW_INSTANCE_URL")
+            ),
+            "servicenow_username": _text(
+                settings.get("servicenow_username")
+                or os.getenv("SERVICENOW_USERNAME")
+            ),
+            "servicenow_password": _text(
+                settings.get("servicenow_password")
+                or os.getenv("SERVICENOW_PASSWORD")
+            ),
+        }
+
+    if connector_id == "netsuite_insights":
+        return {
+            "netsuite_account_id": _text(
+                settings.get("netsuite_account_id")
+                or os.getenv("NETSUITE_ACCOUNT_ID")
+            ),
+            "netsuite_consumer_key": _text(
+                settings.get("netsuite_consumer_key")
+                or os.getenv("NETSUITE_CONSUMER_KEY")
+            ),
+            "netsuite_consumer_secret": _text(
+                settings.get("netsuite_consumer_secret")
+                or os.getenv("NETSUITE_CONSUMER_SECRET")
+            ),
+            "netsuite_token_id": _text(
+                settings.get("netsuite_token_id")
+                or os.getenv("NETSUITE_TOKEN_ID")
+            ),
+            "netsuite_token_secret": _text(
+                settings.get("netsuite_token_secret")
+                or os.getenv("NETSUITE_TOKEN_SECRET")
+            ),
+        }
+
     return {}
 
 
@@ -219,6 +275,7 @@ def _merge_connector_view(connector_id, entitlement, settings):
         "label": meta.get("label") or connector_id,
         "group": meta.get("group") or "data",
         "description": meta.get("description") or entitlement.get("purpose") or "",
+        "implementation_status": meta.get("implementation_status") or "implemented",
         "supports_pm_sync": bool(meta.get("supports_pm_sync")),
         "status": status,
         "enabled": enabled,
@@ -305,6 +362,38 @@ def _merge_connector_view(connector_id, entitlement, settings):
             "has_password": bool(settings.get("snowflake_password")),
             "has_private_key": bool(settings.get("snowflake_private_key")),
             "table_allowlist": settings.get("snowflake_table_allowlist") if isinstance(settings.get("snowflake_table_allowlist"), list) else [],
+            "configuration_complete": len(missing_fields) == 0,
+            "missing_required_fields": missing_fields,
+        }
+    elif connector_id == "oracle_fusion_insights":
+        missing_fields = _missing_required_fields(connector_id, settings)
+        payload["oracle_fusion"] = {
+            "base_url": settings.get("oracle_fusion_base_url") or "",
+            "username": settings.get("oracle_fusion_username") or "",
+            "has_password": bool(settings.get("oracle_fusion_password")),
+            "business_unit": settings.get("oracle_fusion_business_unit") or "",
+            "configuration_complete": len(missing_fields) == 0,
+            "missing_required_fields": missing_fields,
+        }
+    elif connector_id == "servicenow_insights":
+        missing_fields = _missing_required_fields(connector_id, settings)
+        payload["servicenow"] = {
+            "instance_url": settings.get("servicenow_instance_url") or "",
+            "username": settings.get("servicenow_username") or "",
+            "has_password": bool(settings.get("servicenow_password")),
+            "table_allowlist": settings.get("servicenow_table_allowlist") if isinstance(settings.get("servicenow_table_allowlist"), list) else [],
+            "configuration_complete": len(missing_fields) == 0,
+            "missing_required_fields": missing_fields,
+        }
+    elif connector_id == "netsuite_insights":
+        missing_fields = _missing_required_fields(connector_id, settings)
+        payload["netsuite"] = {
+            "account_id": settings.get("netsuite_account_id") or "",
+            "consumer_key": settings.get("netsuite_consumer_key") or "",
+            "has_consumer_secret": bool(settings.get("netsuite_consumer_secret")),
+            "token_id": settings.get("netsuite_token_id") or "",
+            "has_token_secret": bool(settings.get("netsuite_token_secret")),
+            "rest_base_url": settings.get("netsuite_rest_base_url") or "",
             "configuration_complete": len(missing_fields) == 0,
             "missing_required_fields": missing_fields,
         }
@@ -592,6 +681,37 @@ def update_connector(connector_id):
                 updates[secret_field] = _text(payload.get(secret_field))
         if "snowflake_table_allowlist" in payload:
             updates["snowflake_table_allowlist"] = _coerce_allowlist(payload.get("snowflake_table_allowlist"))
+    elif connector_id == "oracle_fusion_insights":
+        for field in (
+            "oracle_fusion_base_url",
+            "oracle_fusion_username",
+            "oracle_fusion_business_unit",
+        ):
+            _apply_field_update(updates, payload, persisted_settings, field)
+        if "oracle_fusion_password" in payload:
+            updates["oracle_fusion_password"] = _text(payload.get("oracle_fusion_password"))
+    elif connector_id == "servicenow_insights":
+        for field in (
+            "servicenow_instance_url",
+            "servicenow_username",
+        ):
+            _apply_field_update(updates, payload, persisted_settings, field)
+        if "servicenow_password" in payload:
+            updates["servicenow_password"] = _text(payload.get("servicenow_password"))
+        if "servicenow_table_allowlist" in payload:
+            updates["servicenow_table_allowlist"] = _coerce_allowlist(payload.get("servicenow_table_allowlist"))
+    elif connector_id == "netsuite_insights":
+        for field in (
+            "netsuite_account_id",
+            "netsuite_consumer_key",
+            "netsuite_token_id",
+            "netsuite_rest_base_url",
+        ):
+            _apply_field_update(updates, payload, persisted_settings, field)
+        if "netsuite_consumer_secret" in payload:
+            updates["netsuite_consumer_secret"] = _text(payload.get("netsuite_consumer_secret"))
+        if "netsuite_token_secret" in payload:
+            updates["netsuite_token_secret"] = _text(payload.get("netsuite_token_secret"))
 
     candidate_settings = dict(persisted_settings)
     candidate_settings.update(updates)

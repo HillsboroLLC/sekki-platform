@@ -73,7 +73,19 @@ const CONFLICT_POLICY_HELP = {
 const DEFAULT_JIRA_ISSUE_TYPE = 'Task';
 const DEFAULT_WORKFRONT_BASE_URL = 'https://yourdomain.my.workfront.com';
 const DEFAULT_SMARTSHEET_BASE_URL = 'https://api.smartsheet.com';
-const MODAL_CONNECTOR_IDS = ['jira_sync', 'workfront_sync', 'smartsheet_sync'];
+const DEFAULT_ORACLE_FUSION_BASE_URL = 'https://your-company.fa.us2.oraclecloud.com';
+const DEFAULT_SERVICENOW_INSTANCE_URL = 'https://your-instance.service-now.com';
+const DEFAULT_NETSUITE_REST_BASE_URL = 'https://<account>.suitetalk.api.netsuite.com';
+const MODAL_CONNECTOR_IDS = [
+  'jira_sync',
+  'workfront_sync',
+  'smartsheet_sync',
+  'salesforce_insights',
+  'snowflake_insights',
+  'oracle_fusion_insights',
+  'servicenow_insights',
+  'netsuite_insights',
+];
 
 function connectorUsesApiModal(connectorId) {
   return MODAL_CONNECTOR_IDS.includes(String(connectorId || '').trim());
@@ -83,6 +95,11 @@ function connectorApiLabel(connectorId) {
   if (connectorId === 'jira_sync') return 'Jira';
   if (connectorId === 'workfront_sync') return 'Workfront';
   if (connectorId === 'smartsheet_sync') return 'Smartsheet';
+  if (connectorId === 'salesforce_insights') return 'Salesforce';
+  if (connectorId === 'snowflake_insights') return 'Snowflake';
+  if (connectorId === 'oracle_fusion_insights') return 'Oracle Fusion';
+  if (connectorId === 'servicenow_insights') return 'ServiceNow';
+  if (connectorId === 'netsuite_insights') return 'NetSuite';
   return 'Connector';
 }
 
@@ -93,6 +110,7 @@ function emptyJiraModalState() {
     intentEnable: false,
     revertStatus: 'disconnected',
     hasStoredToken: false,
+    storedFlags: {},
     data: {
       jira_base_url: '',
       jira_project_key: '',
@@ -105,6 +123,34 @@ function emptyJiraModalState() {
       smartsheet_base_url: DEFAULT_SMARTSHEET_BASE_URL,
       smartsheet_sheet_id: '',
       smartsheet_api_token: '',
+      salesforce_auth_base_url: '',
+      salesforce_instance_url: '',
+      salesforce_client_id: '',
+      salesforce_client_secret: '',
+      salesforce_refresh_token: '',
+      snowflake_account: '',
+      snowflake_warehouse: '',
+      snowflake_database: '',
+      snowflake_schema: '',
+      snowflake_role: '',
+      snowflake_user: '',
+      snowflake_password: '',
+      snowflake_private_key: '',
+      snowflake_table_allowlist: '',
+      oracle_fusion_base_url: DEFAULT_ORACLE_FUSION_BASE_URL,
+      oracle_fusion_username: '',
+      oracle_fusion_password: '',
+      oracle_fusion_business_unit: '',
+      servicenow_instance_url: DEFAULT_SERVICENOW_INSTANCE_URL,
+      servicenow_username: '',
+      servicenow_password: '',
+      servicenow_table_allowlist: '',
+      netsuite_account_id: '',
+      netsuite_consumer_key: '',
+      netsuite_consumer_secret: '',
+      netsuite_token_id: '',
+      netsuite_token_secret: '',
+      netsuite_rest_base_url: DEFAULT_NETSUITE_REST_BASE_URL,
     },
   };
 }
@@ -160,6 +206,28 @@ function buildConnectorDraft(connector) {
     snowflake_table_allowlist: Array.isArray(connector?.snowflake?.table_allowlist)
       ? connector.snowflake.table_allowlist.join(', ')
       : '',
+
+    // Oracle Fusion
+    oracle_fusion_base_url: String(connector?.oracle_fusion?.base_url || DEFAULT_ORACLE_FUSION_BASE_URL),
+    oracle_fusion_username: String(connector?.oracle_fusion?.username || ''),
+    oracle_fusion_password: '',
+    oracle_fusion_business_unit: String(connector?.oracle_fusion?.business_unit || ''),
+
+    // ServiceNow
+    servicenow_instance_url: String(connector?.servicenow?.instance_url || DEFAULT_SERVICENOW_INSTANCE_URL),
+    servicenow_username: String(connector?.servicenow?.username || ''),
+    servicenow_password: '',
+    servicenow_table_allowlist: Array.isArray(connector?.servicenow?.table_allowlist)
+      ? connector.servicenow.table_allowlist.join(', ')
+      : '',
+
+    // NetSuite
+    netsuite_account_id: String(connector?.netsuite?.account_id || ''),
+    netsuite_consumer_key: String(connector?.netsuite?.consumer_key || ''),
+    netsuite_consumer_secret: '',
+    netsuite_token_id: String(connector?.netsuite?.token_id || ''),
+    netsuite_token_secret: '',
+    netsuite_rest_base_url: String(connector?.netsuite?.rest_base_url || DEFAULT_NETSUITE_REST_BASE_URL),
   };
 }
 
@@ -199,6 +267,16 @@ function connectorDraftIsDirty(connector, draft) {
     'snowflake_role',
     'snowflake_user',
     'snowflake_table_allowlist',
+    'oracle_fusion_base_url',
+    'oracle_fusion_username',
+    'oracle_fusion_business_unit',
+    'servicenow_instance_url',
+    'servicenow_username',
+    'servicenow_table_allowlist',
+    'netsuite_account_id',
+    'netsuite_consumer_key',
+    'netsuite_token_id',
+    'netsuite_rest_base_url',
   ];
   const hasFieldDiff = fields.some((field) => trim(base[field]) !== trim(current[field]));
   const hasNewToken = [
@@ -209,6 +287,10 @@ function connectorDraftIsDirty(connector, draft) {
     'salesforce_refresh_token',
     'snowflake_password',
     'snowflake_private_key',
+    'oracle_fusion_password',
+    'servicenow_password',
+    'netsuite_consumer_secret',
+    'netsuite_token_secret',
   ].some((field) => trim(current[field]).length > 0);
   return hasFieldDiff || hasNewToken;
 }
@@ -756,6 +838,34 @@ export default function Account() {
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean);
+    } else if (connector.id === 'oracle_fusion_insights') {
+      payload.oracle_fusion_base_url = String(draft.oracle_fusion_base_url || '').trim();
+      payload.oracle_fusion_username = String(draft.oracle_fusion_username || '').trim();
+      payload.oracle_fusion_business_unit = String(draft.oracle_fusion_business_unit || '').trim();
+      if (String(draft.oracle_fusion_password || '').trim()) {
+        payload.oracle_fusion_password = String(draft.oracle_fusion_password || '').trim();
+      }
+    } else if (connector.id === 'servicenow_insights') {
+      payload.servicenow_instance_url = String(draft.servicenow_instance_url || '').trim();
+      payload.servicenow_username = String(draft.servicenow_username || '').trim();
+      if (String(draft.servicenow_password || '').trim()) {
+        payload.servicenow_password = String(draft.servicenow_password || '').trim();
+      }
+      payload.servicenow_table_allowlist = String(draft.servicenow_table_allowlist || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    } else if (connector.id === 'netsuite_insights') {
+      payload.netsuite_account_id = String(draft.netsuite_account_id || '').trim();
+      payload.netsuite_consumer_key = String(draft.netsuite_consumer_key || '').trim();
+      payload.netsuite_token_id = String(draft.netsuite_token_id || '').trim();
+      payload.netsuite_rest_base_url = String(draft.netsuite_rest_base_url || '').trim();
+      if (String(draft.netsuite_consumer_secret || '').trim()) {
+        payload.netsuite_consumer_secret = String(draft.netsuite_consumer_secret || '').trim();
+      }
+      if (String(draft.netsuite_token_secret || '').trim()) {
+        payload.netsuite_token_secret = String(draft.netsuite_token_secret || '').trim();
+      }
     }
     return updateConnector(connector.id, payload);
   };
@@ -788,25 +898,66 @@ export default function Account() {
     const nextStatus = intentEnable ? 'connected' : (baseDraft.connection_status || 'disconnected');
     const baseData = emptyJiraModalState().data;
     const modalData = {};
-    let hasStoredToken = false;
+    const storedFlags = {};
 
     if (connector.id === 'jira_sync') {
-      hasStoredToken = Boolean(connector?.jira?.has_api_token);
+      storedFlags.jira_api_token = Boolean(connector?.jira?.has_api_token);
       modalData.jira_base_url = String(baseDraft.jira_base_url || connector?.jira?.base_url || '');
       modalData.jira_project_key = String(baseDraft.jira_project_key || connector?.jira?.project_key || '');
       modalData.jira_email = String(baseDraft.jira_email || connector?.jira?.email || '');
       modalData.jira_api_token = '';
       modalData.jira_issue_type = String(baseDraft.jira_issue_type || connector?.jira?.issue_type || DEFAULT_JIRA_ISSUE_TYPE);
     } else if (connector.id === 'workfront_sync') {
-      hasStoredToken = Boolean(connector?.workfront?.has_api_token);
+      storedFlags.workfront_api_token = Boolean(connector?.workfront?.has_api_token);
       modalData.workfront_base_url = String(baseDraft.workfront_base_url || connector?.workfront?.base_url || '');
       modalData.workfront_project_id = String(baseDraft.workfront_project_id || connector?.workfront?.project_id || '');
       modalData.workfront_api_token = '';
     } else if (connector.id === 'smartsheet_sync') {
-      hasStoredToken = Boolean(connector?.smartsheet?.has_api_token);
+      storedFlags.smartsheet_api_token = Boolean(connector?.smartsheet?.has_api_token);
       modalData.smartsheet_base_url = String(baseDraft.smartsheet_base_url || connector?.smartsheet?.base_url || DEFAULT_SMARTSHEET_BASE_URL);
       modalData.smartsheet_sheet_id = String(baseDraft.smartsheet_sheet_id || connector?.smartsheet?.sheet_id || '');
       modalData.smartsheet_api_token = '';
+    } else if (connector.id === 'salesforce_insights') {
+      storedFlags.salesforce_client_secret = Boolean(connector?.salesforce?.has_client_secret);
+      storedFlags.salesforce_refresh_token = Boolean(connector?.salesforce?.has_refresh_token);
+      modalData.salesforce_auth_base_url = String(baseDraft.salesforce_auth_base_url || connector?.salesforce?.auth_base_url || '');
+      modalData.salesforce_instance_url = String(baseDraft.salesforce_instance_url || connector?.salesforce?.instance_url || '');
+      modalData.salesforce_client_id = String(baseDraft.salesforce_client_id || connector?.salesforce?.client_id || '');
+      modalData.salesforce_client_secret = '';
+      modalData.salesforce_refresh_token = '';
+    } else if (connector.id === 'snowflake_insights') {
+      storedFlags.snowflake_password = Boolean(connector?.snowflake?.has_password);
+      storedFlags.snowflake_private_key = Boolean(connector?.snowflake?.has_private_key);
+      modalData.snowflake_account = String(baseDraft.snowflake_account || connector?.snowflake?.account || '');
+      modalData.snowflake_warehouse = String(baseDraft.snowflake_warehouse || connector?.snowflake?.warehouse || '');
+      modalData.snowflake_database = String(baseDraft.snowflake_database || connector?.snowflake?.database || '');
+      modalData.snowflake_schema = String(baseDraft.snowflake_schema || connector?.snowflake?.schema || '');
+      modalData.snowflake_role = String(baseDraft.snowflake_role || connector?.snowflake?.role || '');
+      modalData.snowflake_user = String(baseDraft.snowflake_user || connector?.snowflake?.user || '');
+      modalData.snowflake_password = '';
+      modalData.snowflake_private_key = '';
+      modalData.snowflake_table_allowlist = String(baseDraft.snowflake_table_allowlist || '');
+    } else if (connector.id === 'oracle_fusion_insights') {
+      storedFlags.oracle_fusion_password = Boolean(connector?.oracle_fusion?.has_password);
+      modalData.oracle_fusion_base_url = String(baseDraft.oracle_fusion_base_url || connector?.oracle_fusion?.base_url || DEFAULT_ORACLE_FUSION_BASE_URL);
+      modalData.oracle_fusion_username = String(baseDraft.oracle_fusion_username || connector?.oracle_fusion?.username || '');
+      modalData.oracle_fusion_password = '';
+      modalData.oracle_fusion_business_unit = String(baseDraft.oracle_fusion_business_unit || connector?.oracle_fusion?.business_unit || '');
+    } else if (connector.id === 'servicenow_insights') {
+      storedFlags.servicenow_password = Boolean(connector?.servicenow?.has_password);
+      modalData.servicenow_instance_url = String(baseDraft.servicenow_instance_url || connector?.servicenow?.instance_url || DEFAULT_SERVICENOW_INSTANCE_URL);
+      modalData.servicenow_username = String(baseDraft.servicenow_username || connector?.servicenow?.username || '');
+      modalData.servicenow_password = '';
+      modalData.servicenow_table_allowlist = String(baseDraft.servicenow_table_allowlist || '');
+    } else if (connector.id === 'netsuite_insights') {
+      storedFlags.netsuite_consumer_secret = Boolean(connector?.netsuite?.has_consumer_secret);
+      storedFlags.netsuite_token_secret = Boolean(connector?.netsuite?.has_token_secret);
+      modalData.netsuite_account_id = String(baseDraft.netsuite_account_id || connector?.netsuite?.account_id || '');
+      modalData.netsuite_consumer_key = String(baseDraft.netsuite_consumer_key || connector?.netsuite?.consumer_key || '');
+      modalData.netsuite_consumer_secret = '';
+      modalData.netsuite_token_id = String(baseDraft.netsuite_token_id || connector?.netsuite?.token_id || '');
+      modalData.netsuite_token_secret = '';
+      modalData.netsuite_rest_base_url = String(baseDraft.netsuite_rest_base_url || connector?.netsuite?.rest_base_url || DEFAULT_NETSUITE_REST_BASE_URL);
     }
 
     updateConnectorDraft(connector.id, { connection_status: nextStatus });
@@ -817,7 +968,8 @@ export default function Account() {
       connectorId: connector.id,
       intentEnable,
       revertStatus,
-      hasStoredToken,
+      hasStoredToken: Object.values(storedFlags).some(Boolean),
+      storedFlags,
       data: { ...baseData, ...modalData },
     });
   };
@@ -855,7 +1007,7 @@ export default function Account() {
         jira_api_token: String(modal.data.jira_api_token || '').trim(),
         jira_issue_type: String(modal.data.jira_issue_type || DEFAULT_JIRA_ISSUE_TYPE).trim() || DEFAULT_JIRA_ISSUE_TYPE,
       };
-      const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.jira_api_token);
+      const tokenAvailable = Boolean(modal.storedFlags?.jira_api_token) || Boolean(trimmed.jira_api_token);
       if (!trimmed.jira_base_url || !trimmed.jira_project_key || !trimmed.jira_email) {
         setJiraConfigError('Jira URL, project key, and Jira email are required.');
         return;
@@ -876,7 +1028,7 @@ export default function Account() {
         workfront_project_id: String(modal.data.workfront_project_id || '').trim(),
         workfront_api_token: String(modal.data.workfront_api_token || '').trim(),
       };
-      const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.workfront_api_token);
+      const tokenAvailable = Boolean(modal.storedFlags?.workfront_api_token) || Boolean(trimmed.workfront_api_token);
       if (!trimmed.workfront_base_url || !trimmed.workfront_project_id) {
         setJiraConfigError('Workfront URL and project id are required.');
         return;
@@ -895,7 +1047,7 @@ export default function Account() {
         smartsheet_sheet_id: String(modal.data.smartsheet_sheet_id || '').trim(),
         smartsheet_api_token: String(modal.data.smartsheet_api_token || '').trim(),
       };
-      const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.smartsheet_api_token);
+      const tokenAvailable = Boolean(modal.storedFlags?.smartsheet_api_token) || Boolean(trimmed.smartsheet_api_token);
       if (!trimmed.smartsheet_base_url || !trimmed.smartsheet_sheet_id) {
         setJiraConfigError('Smartsheet URL and sheet id are required.');
         return;
@@ -908,6 +1060,130 @@ export default function Account() {
       nextDraft.smartsheet_sheet_id = trimmed.smartsheet_sheet_id;
       nextDraft.external_workspace = trimmed.smartsheet_sheet_id;
       if (trimmed.smartsheet_api_token) nextDraft.smartsheet_api_token = trimmed.smartsheet_api_token;
+    } else if (modal.connectorId === 'salesforce_insights') {
+      const trimmed = {
+        salesforce_auth_base_url: String(modal.data.salesforce_auth_base_url || '').trim(),
+        salesforce_instance_url: String(modal.data.salesforce_instance_url || '').trim(),
+        salesforce_client_id: String(modal.data.salesforce_client_id || '').trim(),
+        salesforce_client_secret: String(modal.data.salesforce_client_secret || '').trim(),
+        salesforce_refresh_token: String(modal.data.salesforce_refresh_token || '').trim(),
+      };
+      const hasSecret = Boolean(modal.storedFlags?.salesforce_client_secret) || Boolean(trimmed.salesforce_client_secret);
+      const hasRefresh = Boolean(modal.storedFlags?.salesforce_refresh_token) || Boolean(trimmed.salesforce_refresh_token);
+      if (!trimmed.salesforce_auth_base_url || !trimmed.salesforce_instance_url || !trimmed.salesforce_client_id) {
+        setJiraConfigError('Salesforce auth base URL, instance URL, and client id are required.');
+        return;
+      }
+      if (!hasSecret || !hasRefresh) {
+        setJiraConfigError('Salesforce client secret and refresh token are required before enabling.');
+        return;
+      }
+      nextDraft.salesforce_auth_base_url = trimmed.salesforce_auth_base_url;
+      nextDraft.salesforce_instance_url = trimmed.salesforce_instance_url;
+      nextDraft.salesforce_client_id = trimmed.salesforce_client_id;
+      if (trimmed.salesforce_client_secret) nextDraft.salesforce_client_secret = trimmed.salesforce_client_secret;
+      if (trimmed.salesforce_refresh_token) nextDraft.salesforce_refresh_token = trimmed.salesforce_refresh_token;
+      nextDraft.external_workspace = trimmed.salesforce_instance_url;
+    } else if (modal.connectorId === 'snowflake_insights') {
+      const trimmed = {
+        snowflake_account: String(modal.data.snowflake_account || '').trim(),
+        snowflake_warehouse: String(modal.data.snowflake_warehouse || '').trim(),
+        snowflake_database: String(modal.data.snowflake_database || '').trim(),
+        snowflake_schema: String(modal.data.snowflake_schema || '').trim(),
+        snowflake_role: String(modal.data.snowflake_role || '').trim(),
+        snowflake_user: String(modal.data.snowflake_user || '').trim(),
+        snowflake_password: String(modal.data.snowflake_password || '').trim(),
+        snowflake_private_key: String(modal.data.snowflake_private_key || '').trim(),
+        snowflake_table_allowlist: String(modal.data.snowflake_table_allowlist || '').trim(),
+      };
+      const hasPassword = Boolean(modal.storedFlags?.snowflake_password) || Boolean(trimmed.snowflake_password);
+      const hasPrivateKey = Boolean(modal.storedFlags?.snowflake_private_key) || Boolean(trimmed.snowflake_private_key);
+      if (!trimmed.snowflake_account || !trimmed.snowflake_warehouse || !trimmed.snowflake_database || !trimmed.snowflake_schema || !trimmed.snowflake_user) {
+        setJiraConfigError('Snowflake account, warehouse, database, schema, and user are required.');
+        return;
+      }
+      if (!hasPassword && !hasPrivateKey) {
+        setJiraConfigError('Snowflake password or private key is required before enabling.');
+        return;
+      }
+      nextDraft.snowflake_account = trimmed.snowflake_account;
+      nextDraft.snowflake_warehouse = trimmed.snowflake_warehouse;
+      nextDraft.snowflake_database = trimmed.snowflake_database;
+      nextDraft.snowflake_schema = trimmed.snowflake_schema;
+      nextDraft.snowflake_role = trimmed.snowflake_role;
+      nextDraft.snowflake_user = trimmed.snowflake_user;
+      nextDraft.snowflake_table_allowlist = trimmed.snowflake_table_allowlist;
+      if (trimmed.snowflake_password) nextDraft.snowflake_password = trimmed.snowflake_password;
+      if (trimmed.snowflake_private_key) nextDraft.snowflake_private_key = trimmed.snowflake_private_key;
+      nextDraft.external_workspace = trimmed.snowflake_database;
+    } else if (modal.connectorId === 'oracle_fusion_insights') {
+      const trimmed = {
+        oracle_fusion_base_url: String(modal.data.oracle_fusion_base_url || '').trim(),
+        oracle_fusion_username: String(modal.data.oracle_fusion_username || '').trim(),
+        oracle_fusion_password: String(modal.data.oracle_fusion_password || '').trim(),
+        oracle_fusion_business_unit: String(modal.data.oracle_fusion_business_unit || '').trim(),
+      };
+      const hasPassword = Boolean(modal.storedFlags?.oracle_fusion_password) || Boolean(trimmed.oracle_fusion_password);
+      if (!trimmed.oracle_fusion_base_url || !trimmed.oracle_fusion_username) {
+        setJiraConfigError('Oracle Fusion URL and username are required.');
+        return;
+      }
+      if (!hasPassword) {
+        setJiraConfigError('Oracle Fusion password is required before enabling.');
+        return;
+      }
+      nextDraft.oracle_fusion_base_url = trimmed.oracle_fusion_base_url;
+      nextDraft.oracle_fusion_username = trimmed.oracle_fusion_username;
+      nextDraft.oracle_fusion_business_unit = trimmed.oracle_fusion_business_unit;
+      if (trimmed.oracle_fusion_password) nextDraft.oracle_fusion_password = trimmed.oracle_fusion_password;
+      nextDraft.external_workspace = trimmed.oracle_fusion_business_unit || trimmed.oracle_fusion_base_url;
+    } else if (modal.connectorId === 'servicenow_insights') {
+      const trimmed = {
+        servicenow_instance_url: String(modal.data.servicenow_instance_url || '').trim(),
+        servicenow_username: String(modal.data.servicenow_username || '').trim(),
+        servicenow_password: String(modal.data.servicenow_password || '').trim(),
+        servicenow_table_allowlist: String(modal.data.servicenow_table_allowlist || '').trim(),
+      };
+      const hasPassword = Boolean(modal.storedFlags?.servicenow_password) || Boolean(trimmed.servicenow_password);
+      if (!trimmed.servicenow_instance_url || !trimmed.servicenow_username) {
+        setJiraConfigError('ServiceNow instance URL and username are required.');
+        return;
+      }
+      if (!hasPassword) {
+        setJiraConfigError('ServiceNow password is required before enabling.');
+        return;
+      }
+      nextDraft.servicenow_instance_url = trimmed.servicenow_instance_url;
+      nextDraft.servicenow_username = trimmed.servicenow_username;
+      nextDraft.servicenow_table_allowlist = trimmed.servicenow_table_allowlist;
+      if (trimmed.servicenow_password) nextDraft.servicenow_password = trimmed.servicenow_password;
+      nextDraft.external_workspace = trimmed.servicenow_instance_url;
+    } else if (modal.connectorId === 'netsuite_insights') {
+      const trimmed = {
+        netsuite_account_id: String(modal.data.netsuite_account_id || '').trim(),
+        netsuite_consumer_key: String(modal.data.netsuite_consumer_key || '').trim(),
+        netsuite_consumer_secret: String(modal.data.netsuite_consumer_secret || '').trim(),
+        netsuite_token_id: String(modal.data.netsuite_token_id || '').trim(),
+        netsuite_token_secret: String(modal.data.netsuite_token_secret || '').trim(),
+        netsuite_rest_base_url: String(modal.data.netsuite_rest_base_url || '').trim(),
+      };
+      const hasConsumerSecret = Boolean(modal.storedFlags?.netsuite_consumer_secret) || Boolean(trimmed.netsuite_consumer_secret);
+      const hasTokenSecret = Boolean(modal.storedFlags?.netsuite_token_secret) || Boolean(trimmed.netsuite_token_secret);
+      if (!trimmed.netsuite_account_id || !trimmed.netsuite_consumer_key || !trimmed.netsuite_token_id) {
+        setJiraConfigError('NetSuite account id, consumer key, and token id are required.');
+        return;
+      }
+      if (!hasConsumerSecret || !hasTokenSecret) {
+        setJiraConfigError('NetSuite consumer secret and token secret are required before enabling.');
+        return;
+      }
+      nextDraft.netsuite_account_id = trimmed.netsuite_account_id;
+      nextDraft.netsuite_consumer_key = trimmed.netsuite_consumer_key;
+      nextDraft.netsuite_token_id = trimmed.netsuite_token_id;
+      nextDraft.netsuite_rest_base_url = trimmed.netsuite_rest_base_url || DEFAULT_NETSUITE_REST_BASE_URL;
+      if (trimmed.netsuite_consumer_secret) nextDraft.netsuite_consumer_secret = trimmed.netsuite_consumer_secret;
+      if (trimmed.netsuite_token_secret) nextDraft.netsuite_token_secret = trimmed.netsuite_token_secret;
+      nextDraft.external_workspace = trimmed.netsuite_account_id;
     } else {
       setJiraConfigError('Unsupported connector for modal settings.');
       return;
@@ -1117,6 +1393,11 @@ export default function Account() {
   const isJiraModal = jiraConfigModal.connectorId === 'jira_sync';
   const isWorkfrontModal = jiraConfigModal.connectorId === 'workfront_sync';
   const isSmartsheetModal = jiraConfigModal.connectorId === 'smartsheet_sync';
+  const isSalesforceModal = jiraConfigModal.connectorId === 'salesforce_insights';
+  const isSnowflakeModal = jiraConfigModal.connectorId === 'snowflake_insights';
+  const isOracleFusionModal = jiraConfigModal.connectorId === 'oracle_fusion_insights';
+  const isServiceNowModal = jiraConfigModal.connectorId === 'servicenow_insights';
+  const isNetSuiteModal = jiraConfigModal.connectorId === 'netsuite_insights';
   const modalSaveLabel = jiraConfigModal.intentEnable
     ? `Save & enable ${modalConnectorLabel}`
     : `Save ${modalConnectorLabel} settings`;
@@ -1331,6 +1612,13 @@ export default function Account() {
                   || Boolean(connector?.snowflake?.has_private_key)
                   || Boolean(String(draft.snowflake_password || '').trim())
                   || Boolean(String(draft.snowflake_private_key || '').trim());
+                const oracleFusionPasswordConfigured =
+                  Boolean(connector?.oracle_fusion?.has_password) || Boolean(String(draft.oracle_fusion_password || '').trim());
+                const serviceNowPasswordConfigured =
+                  Boolean(connector?.servicenow?.has_password) || Boolean(String(draft.servicenow_password || '').trim());
+                const netSuiteSecretsConfigured =
+                  (Boolean(connector?.netsuite?.has_consumer_secret) || Boolean(String(draft.netsuite_consumer_secret || '').trim()))
+                  && (Boolean(connector?.netsuite?.has_token_secret) || Boolean(String(draft.netsuite_token_secret || '').trim()));
                 const healthStatus = String(connector?.health?.status || 'unknown').toLowerCase();
                 const settingsOpen = Boolean(connectorSettingsOpen[connector.id]);
 
@@ -1487,60 +1775,23 @@ export default function Account() {
                         )}
 
                         {connector.id === 'salesforce_insights' && (
-                          <div className="account-connector-controls">
-                            <label>
-                              Auth Base URL
-                              <input
-                                type="text"
-                                value={draft.salesforce_auth_base_url || ''}
-                                placeholder="https://login.salesforce.com"
+                          <>
+                            <div className="account-jira-settings-row">
+                              <button
+                                type="button"
+                                className="account-secondary-btn account-jira-settings-btn"
+                                onClick={() => openJiraConfigModal(connector, {
+                                  intentEnable: false,
+                                  revertStatus: draft.connection_status,
+                                })}
                                 disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_auth_base_url: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Instance URL
-                              <input
-                                type="text"
-                                value={draft.salesforce_instance_url || ''}
-                                placeholder="https://your-instance.salesforce.com"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_instance_url: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Client ID
-                              <input
-                                type="text"
-                                value={draft.salesforce_client_id || ''}
-                                placeholder="Connected app client id"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_client_id: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              Client secret
-                              <input
-                                type="password"
-                                value={draft.salesforce_client_secret || ''}
-                                placeholder={connector?.salesforce?.has_client_secret ? 'Secret exists. Enter to rotate.' : 'Enter client secret'}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_client_secret: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              Refresh token
-                              <input
-                                type="password"
-                                value={draft.salesforce_refresh_token || ''}
-                                placeholder={connector?.salesforce?.has_refresh_token ? 'Token exists. Enter to rotate.' : 'Enter refresh token'}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_refresh_token: e.target.value })}
-                              />
-                            </label>
-                            <p className={`account-jira-settings-state ${salesforceAuthConfigured ? 'is-ready' : 'is-missing'}`}>
-                              {salesforceAuthConfigured ? 'OAuth secrets configured' : 'OAuth secrets required'}
-                            </p>
+                              >
+                                Salesforce API settings
+                              </button>
+                              <span className={`account-jira-settings-state ${salesforceAuthConfigured ? 'is-ready' : 'is-missing'}`}>
+                                {salesforceAuthConfigured ? 'OAuth secrets configured' : 'OAuth secrets required'}
+                              </span>
+                            </div>
                             <div className="account-jira-settings-row">
                               <button
                                 type="button"
@@ -1559,104 +1810,27 @@ export default function Account() {
                                 Test Pipeline Snapshot
                               </button>
                             </div>
-                          </div>
+                          </>
                         )}
 
                         {connector.id === 'snowflake_insights' && (
-                          <div className="account-connector-controls">
-                            <label>
-                              Account
-                              <input
-                                type="text"
-                                value={draft.snowflake_account || ''}
-                                placeholder="org-account.region.cloud"
+                          <>
+                            <div className="account-jira-settings-row">
+                              <button
+                                type="button"
+                                className="account-secondary-btn account-jira-settings-btn"
+                                onClick={() => openJiraConfigModal(connector, {
+                                  intentEnable: false,
+                                  revertStatus: draft.connection_status,
+                                })}
                                 disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_account: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Warehouse
-                              <input
-                                type="text"
-                                value={draft.snowflake_warehouse || ''}
-                                placeholder="ANALYTICS_WH"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_warehouse: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Database
-                              <input
-                                type="text"
-                                value={draft.snowflake_database || ''}
-                                placeholder="ANALYTICS"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_database: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Schema
-                              <input
-                                type="text"
-                                value={draft.snowflake_schema || ''}
-                                placeholder="PUBLIC"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_schema: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Role
-                              <input
-                                type="text"
-                                value={draft.snowflake_role || ''}
-                                placeholder="ANALYST_ROLE"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_role: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              User
-                              <input
-                                type="text"
-                                value={draft.snowflake_user || ''}
-                                placeholder="service_user"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_user: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              Password
-                              <input
-                                type="password"
-                                value={draft.snowflake_password || ''}
-                                placeholder={connector?.snowflake?.has_password ? 'Password exists. Enter to rotate.' : 'Optional if key is provided'}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_password: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              Private key
-                              <input
-                                type="password"
-                                value={draft.snowflake_private_key || ''}
-                                placeholder={connector?.snowflake?.has_private_key ? 'Key exists. Enter to rotate.' : 'Optional if password is provided'}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_private_key: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              Table allowlist
-                              <input
-                                type="text"
-                                value={draft.snowflake_table_allowlist || ''}
-                                placeholder="schema.table_a, schema.table_b"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_table_allowlist: e.target.value })}
-                              />
-                            </label>
-                            <p className={`account-jira-settings-state ${snowflakeAuthConfigured ? 'is-ready' : 'is-missing'}`}>
-                              {snowflakeAuthConfigured ? 'Authentication configured' : 'Password or private key required'}
-                            </p>
+                              >
+                                Snowflake API settings
+                              </button>
+                              <span className={`account-jira-settings-state ${snowflakeAuthConfigured ? 'is-ready' : 'is-missing'}`}>
+                                {snowflakeAuthConfigured ? 'Authentication configured' : 'Password or private key required'}
+                              </span>
+                            </div>
                             <div className="account-jira-settings-row">
                               <button
                                 type="button"
@@ -1667,6 +1841,63 @@ export default function Account() {
                                 Run Snowflake Test Query
                               </button>
                             </div>
+                          </>
+                        )}
+
+                        {connector.id === 'oracle_fusion_insights' && (
+                          <div className="account-jira-settings-row">
+                            <button
+                              type="button"
+                              className="account-secondary-btn account-jira-settings-btn"
+                              onClick={() => openJiraConfigModal(connector, {
+                                intentEnable: false,
+                                revertStatus: draft.connection_status,
+                              })}
+                              disabled={locked || pending}
+                            >
+                              Oracle Fusion API settings
+                            </button>
+                            <span className={`account-jira-settings-state ${oracleFusionPasswordConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {oracleFusionPasswordConfigured ? 'Password configured' : 'Password required'}
+                            </span>
+                          </div>
+                        )}
+
+                        {connector.id === 'servicenow_insights' && (
+                          <div className="account-jira-settings-row">
+                            <button
+                              type="button"
+                              className="account-secondary-btn account-jira-settings-btn"
+                              onClick={() => openJiraConfigModal(connector, {
+                                intentEnable: false,
+                                revertStatus: draft.connection_status,
+                              })}
+                              disabled={locked || pending}
+                            >
+                              ServiceNow API settings
+                            </button>
+                            <span className={`account-jira-settings-state ${serviceNowPasswordConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {serviceNowPasswordConfigured ? 'Password configured' : 'Password required'}
+                            </span>
+                          </div>
+                        )}
+
+                        {connector.id === 'netsuite_insights' && (
+                          <div className="account-jira-settings-row">
+                            <button
+                              type="button"
+                              className="account-secondary-btn account-jira-settings-btn"
+                              onClick={() => openJiraConfigModal(connector, {
+                                intentEnable: false,
+                                revertStatus: draft.connection_status,
+                              })}
+                              disabled={locked || pending}
+                            >
+                              NetSuite API settings
+                            </button>
+                            <span className={`account-jira-settings-state ${netSuiteSecretsConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {netSuiteSecretsConfigured ? 'Secrets configured' : 'Secrets required'}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -1682,6 +1913,26 @@ export default function Account() {
 
                     {!settingsOpen && connector.id === 'smartsheet_sync' && !smartsheetTokenConfigured && !locked && (
                       <p className="account-connector-locked-note">Smartsheet API token required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'salesforce_insights' && !salesforceAuthConfigured && !locked && (
+                      <p className="account-connector-locked-note">Salesforce OAuth secrets required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'snowflake_insights' && !snowflakeAuthConfigured && !locked && (
+                      <p className="account-connector-locked-note">Snowflake password or private key required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'oracle_fusion_insights' && !oracleFusionPasswordConfigured && !locked && (
+                      <p className="account-connector-locked-note">Oracle Fusion password required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'servicenow_insights' && !serviceNowPasswordConfigured && !locked && (
+                      <p className="account-connector-locked-note">ServiceNow password required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'netsuite_insights' && !netSuiteSecretsConfigured && !locked && (
+                      <p className="account-connector-locked-note">NetSuite consumer and token secrets required before enabling.</p>
                     )}
 
                     {locked && (
@@ -1716,6 +1967,11 @@ export default function Account() {
                 {isJiraModal && 'Enter Jira credentials and mapping details, then save. Required: URL, project key, Jira email, API token.'}
                 {isWorkfrontModal && 'Enter Workfront credentials and mapping details, then save. Required: URL, project id, API token.'}
                 {isSmartsheetModal && 'Enter Smartsheet credentials and mapping details, then save. Required: URL, sheet id, API token.'}
+                {isSalesforceModal && 'Enter Salesforce OAuth credentials and mapping details, then save. Required: auth base URL, instance URL, client id, client secret, refresh token.'}
+                {isSnowflakeModal && 'Enter Snowflake account configuration, then save. Required: account, warehouse, database, schema, user, and password or private key.'}
+                {isOracleFusionModal && 'Enter Oracle Fusion credentials and mapping details, then save. Required: base URL, username, password.'}
+                {isServiceNowModal && 'Enter ServiceNow credentials and mapping details, then save. Required: instance URL, username, password.'}
+                {isNetSuiteModal && 'Enter NetSuite token-based integration details, then save. Required: account id, consumer key/secret, token id/secret.'}
               </p>
               <div className="account-jira-modal-grid">
                 {isJiraModal && (
@@ -1777,7 +2033,7 @@ export default function Account() {
                       <input
                         type="password"
                         value={jiraConfigModal.data.jira_api_token}
-                        placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Jira API token'}
+                        placeholder={jiraConfigModal.storedFlags?.jira_api_token ? 'Token exists. Enter to rotate token.' : 'Enter Jira API token'}
                         onChange={(e) => setJiraConfigModal((prev) => ({
                           ...prev,
                           data: { ...prev.data, jira_api_token: e.target.value },
@@ -1820,7 +2076,7 @@ export default function Account() {
                       <input
                         type="password"
                         value={jiraConfigModal.data.workfront_api_token}
-                        placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Workfront API token'}
+                        placeholder={jiraConfigModal.storedFlags?.workfront_api_token ? 'Token exists. Enter to rotate token.' : 'Enter Workfront API token'}
                         onChange={(e) => setJiraConfigModal((prev) => ({
                           ...prev,
                           data: { ...prev.data, workfront_api_token: e.target.value },
@@ -1863,10 +2119,394 @@ export default function Account() {
                       <input
                         type="password"
                         value={jiraConfigModal.data.smartsheet_api_token}
-                        placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Smartsheet API token'}
+                        placeholder={jiraConfigModal.storedFlags?.smartsheet_api_token ? 'Token exists. Enter to rotate token.' : 'Enter Smartsheet API token'}
                         onChange={(e) => setJiraConfigModal((prev) => ({
                           ...prev,
                           data: { ...prev.data, smartsheet_api_token: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isSalesforceModal && (
+                  <>
+                    <label>
+                      Auth Base URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.salesforce_auth_base_url}
+                        placeholder="https://login.salesforce.com"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, salesforce_auth_base_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Instance URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.salesforce_instance_url}
+                        placeholder="https://your-instance.salesforce.com"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, salesforce_instance_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Client ID
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.salesforce_client_id}
+                        placeholder="Connected app client id"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, salesforce_client_id: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Client secret
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.salesforce_client_secret}
+                        placeholder={jiraConfigModal.storedFlags?.salesforce_client_secret ? 'Secret exists. Enter to rotate.' : 'Enter client secret'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, salesforce_client_secret: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Refresh token
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.salesforce_refresh_token}
+                        placeholder={jiraConfigModal.storedFlags?.salesforce_refresh_token ? 'Token exists. Enter to rotate.' : 'Enter refresh token'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, salesforce_refresh_token: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isSnowflakeModal && (
+                  <>
+                    <label>
+                      Account
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_account}
+                        placeholder="org-account.region.cloud"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_account: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Warehouse
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_warehouse}
+                        placeholder="ANALYTICS_WH"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_warehouse: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Database
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_database}
+                        placeholder="ANALYTICS"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_database: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Schema
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_schema}
+                        placeholder="PUBLIC"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_schema: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Role
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_role}
+                        placeholder="ANALYST_ROLE"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_role: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      User
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_user}
+                        placeholder="service_user"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_user: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Password
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.snowflake_password}
+                        placeholder={jiraConfigModal.storedFlags?.snowflake_password ? 'Password exists. Enter to rotate.' : 'Optional if key is provided'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_password: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Private key
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.snowflake_private_key}
+                        placeholder={jiraConfigModal.storedFlags?.snowflake_private_key ? 'Key exists. Enter to rotate.' : 'Optional if password is provided'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_private_key: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Table allowlist
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.snowflake_table_allowlist}
+                        placeholder="schema.table_a, schema.table_b"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, snowflake_table_allowlist: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isOracleFusionModal && (
+                  <>
+                    <label>
+                      Base URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.oracle_fusion_base_url}
+                        placeholder={DEFAULT_ORACLE_FUSION_BASE_URL}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, oracle_fusion_base_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Username
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.oracle_fusion_username}
+                        placeholder="integration.user@company.com"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, oracle_fusion_username: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Password
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.oracle_fusion_password}
+                        placeholder={jiraConfigModal.storedFlags?.oracle_fusion_password ? 'Password exists. Enter to rotate.' : 'Enter password'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, oracle_fusion_password: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Business unit
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.oracle_fusion_business_unit}
+                        placeholder="US Operations"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, oracle_fusion_business_unit: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isServiceNowModal && (
+                  <>
+                    <label>
+                      Instance URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.servicenow_instance_url}
+                        placeholder={DEFAULT_SERVICENOW_INSTANCE_URL}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, servicenow_instance_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Username
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.servicenow_username}
+                        placeholder="integration.user"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, servicenow_username: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Password
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.servicenow_password}
+                        placeholder={jiraConfigModal.storedFlags?.servicenow_password ? 'Password exists. Enter to rotate.' : 'Enter password'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, servicenow_password: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Table allowlist
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.servicenow_table_allowlist}
+                        placeholder="incident,change_request"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, servicenow_table_allowlist: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isNetSuiteModal && (
+                  <>
+                    <label>
+                      Account ID
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.netsuite_account_id}
+                        placeholder="123456_SB1"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, netsuite_account_id: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Consumer key
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.netsuite_consumer_key}
+                        placeholder="Integration consumer key"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, netsuite_consumer_key: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Consumer secret
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.netsuite_consumer_secret}
+                        placeholder={jiraConfigModal.storedFlags?.netsuite_consumer_secret ? 'Secret exists. Enter to rotate.' : 'Enter consumer secret'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, netsuite_consumer_secret: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Token ID
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.netsuite_token_id}
+                        placeholder="Token id"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, netsuite_token_id: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Token secret
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.netsuite_token_secret}
+                        placeholder={jiraConfigModal.storedFlags?.netsuite_token_secret ? 'Secret exists. Enter to rotate.' : 'Enter token secret'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, netsuite_token_secret: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      REST base URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.netsuite_rest_base_url}
+                        placeholder={DEFAULT_NETSUITE_REST_BASE_URL}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, netsuite_rest_base_url: e.target.value },
                         }))}
                         disabled={jiraConfigSaving}
                       />

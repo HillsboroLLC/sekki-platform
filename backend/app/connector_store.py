@@ -28,6 +28,9 @@ SENSITIVE_CONNECTOR_FIELDS = {
     "smartsheet_sync": ("smartsheet_api_token",),
     "salesforce_insights": ("salesforce_client_secret", "salesforce_refresh_token", "salesforce_access_token"),
     "snowflake_insights": ("snowflake_password", "snowflake_private_key"),
+    "oracle_fusion_insights": ("oracle_fusion_password",),
+    "servicenow_insights": ("servicenow_password",),
+    "netsuite_insights": ("netsuite_consumer_secret", "netsuite_token_secret"),
 }
 
 
@@ -120,6 +123,26 @@ def _default_connector_settings(connector_id):
         "snowflake_password": "",
         "snowflake_private_key": "",
         "snowflake_table_allowlist": [],
+
+        # Oracle Fusion (enterprise data)
+        "oracle_fusion_base_url": "",
+        "oracle_fusion_username": "",
+        "oracle_fusion_password": "",
+        "oracle_fusion_business_unit": "",
+
+        # ServiceNow (enterprise data)
+        "servicenow_instance_url": "",
+        "servicenow_username": "",
+        "servicenow_password": "",
+        "servicenow_table_allowlist": [],
+
+        # NetSuite (enterprise data)
+        "netsuite_account_id": "",
+        "netsuite_consumer_key": "",
+        "netsuite_consumer_secret": "",
+        "netsuite_token_id": "",
+        "netsuite_token_secret": "",
+        "netsuite_rest_base_url": "",
     }
 
 

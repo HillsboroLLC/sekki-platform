@@ -20,6 +20,7 @@ CONNECTOR_REGISTRY = {
         "group": "execution",
         "description": "Sync epics, stories, assignees, and sprint status with Jaspen WBS plans.",
         "supports_pm_sync": True,
+        "implementation_status": "implemented",
     },
     "workfront_sync": {
         "id": "workfront_sync",
@@ -27,6 +28,7 @@ CONNECTOR_REGISTRY = {
         "group": "execution",
         "description": "Sync milestones, owners, and schedule changes between Workfront and Jaspen.",
         "supports_pm_sync": True,
+        "implementation_status": "implemented",
     },
     "smartsheet_sync": {
         "id": "smartsheet_sync",
@@ -34,6 +36,7 @@ CONNECTOR_REGISTRY = {
         "group": "execution",
         "description": "Sync task rows, dates, and delivery statuses with Jaspen execution plans.",
         "supports_pm_sync": True,
+        "implementation_status": "implemented",
     },
     "salesforce_insights": {
         "id": "salesforce_insights",
@@ -41,6 +44,7 @@ CONNECTOR_REGISTRY = {
         "group": "data",
         "description": "Analyze customer and pipeline patterns for delivery and prioritization insights.",
         "supports_pm_sync": False,
+        "implementation_status": "implemented",
     },
     "snowflake_insights": {
         "id": "snowflake_insights",
@@ -48,6 +52,7 @@ CONNECTOR_REGISTRY = {
         "group": "data",
         "description": "Read governed KPI and financial trend tables to enrich Jaspen recommendations.",
         "supports_pm_sync": False,
+        "implementation_status": "implemented",
     },
     "oracle_fusion_insights": {
         "id": "oracle_fusion_insights",
@@ -55,6 +60,7 @@ CONNECTOR_REGISTRY = {
         "group": "data",
         "description": "Use ERP operational and finance signals to improve planning decisions.",
         "supports_pm_sync": False,
+        "implementation_status": "implemented",
     },
     "servicenow_insights": {
         "id": "servicenow_insights",
@@ -62,6 +68,7 @@ CONNECTOR_REGISTRY = {
         "group": "data",
         "description": "Use service and change metrics to identify execution risk and blockers.",
         "supports_pm_sync": False,
+        "implementation_status": "implemented",
     },
     "netsuite_insights": {
         "id": "netsuite_insights",
@@ -69,6 +76,7 @@ CONNECTOR_REGISTRY = {
         "group": "data",
         "description": "Monitor operating and finance trends for better execution tradeoff decisions.",
         "supports_pm_sync": False,
+        "implementation_status": "implemented",
     },
 }
 
@@ -89,6 +97,14 @@ def get_connector_definition(connector_id):
     key = str(connector_id or "").strip().lower()
     connector = CONNECTOR_REGISTRY.get(key)
     return deepcopy(connector) if connector else None
+
+
+def connector_is_implemented(connector_id):
+    connector = get_connector_definition(connector_id)
+    if not connector:
+        return False
+    status = str(connector.get("implementation_status") or "implemented").strip().lower()
+    return status == "implemented"
 
 
 def get_connector_catalog():

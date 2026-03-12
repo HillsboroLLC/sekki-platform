@@ -1619,6 +1619,10 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faLayerGroup} />
             <span className="jas-ud-item-label">In Queue</span>
           </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/scores'); }}>
+            <FontAwesomeIcon icon={faChartLine} />
+            <span className="jas-ud-item-label">Scores</span>
+          </button>
         </div>
 
         <div className="jas-ud-section">

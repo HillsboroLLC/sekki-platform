@@ -30,6 +30,7 @@ import PluginsPage from './pages/Resources/PluginsPage';
 import PricingResult from './jaspenInterface/PricingResult/PricingResult';
 import Dashboard     from './jaspenInterface/Jaspen Cleanup/Dashboard/Dashboard';
 import Sessions      from './jaspenInterface/Sessions/Sessions';
+import Scores        from './jaspenInterface/Scores/Scores';
 import Account       from './jaspenInterface/Account/Account';
 import PaymentPage   from './jaspenInterface/PaymentPage/PaymentPage';
 import JaspenAdmin   from './jaspenInterface/Admin/JaspenAdmin';
@@ -102,6 +103,7 @@ export default function App() {
         />
         <Route path="/strategy" element={<Navigate to="/new" replace />} />
         <Route path="/sessions"  element={<ProtectedRoute>{withShell(<Sessions />)}</ProtectedRoute>} />
+        <Route path="/scores"    element={<ProtectedRoute>{withShell(<Scores />)}</ProtectedRoute>} />
         <Route
           path="/account"
           element={

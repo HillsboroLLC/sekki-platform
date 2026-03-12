@@ -73,6 +73,18 @@ const CONFLICT_POLICY_HELP = {
 const DEFAULT_JIRA_ISSUE_TYPE = 'Task';
 const DEFAULT_WORKFRONT_BASE_URL = 'https://yourdomain.my.workfront.com';
 const DEFAULT_SMARTSHEET_BASE_URL = 'https://api.smartsheet.com';
+const MODAL_CONNECTOR_IDS = ['jira_sync', 'workfront_sync', 'smartsheet_sync'];
+
+function connectorUsesApiModal(connectorId) {
+  return MODAL_CONNECTOR_IDS.includes(String(connectorId || '').trim());
+}
+
+function connectorApiLabel(connectorId) {
+  if (connectorId === 'jira_sync') return 'Jira';
+  if (connectorId === 'workfront_sync') return 'Workfront';
+  if (connectorId === 'smartsheet_sync') return 'Smartsheet';
+  return 'Connector';
+}
 
 function emptyJiraModalState() {
   return {
@@ -87,6 +99,12 @@ function emptyJiraModalState() {
       jira_email: '',
       jira_api_token: '',
       jira_issue_type: DEFAULT_JIRA_ISSUE_TYPE,
+      workfront_base_url: '',
+      workfront_project_id: '',
+      workfront_api_token: '',
+      smartsheet_base_url: DEFAULT_SMARTSHEET_BASE_URL,
+      smartsheet_sheet_id: '',
+      smartsheet_api_token: '',
     },
   };
 }
@@ -742,43 +760,15 @@ export default function Account() {
     return updateConnector(connector.id, payload);
   };
 
-  const workfrontReadyForEnable = (connector, draft) => {
-    const baseUrl = String(draft?.workfront_base_url || '').trim();
-    const projectId = String(draft?.workfront_project_id || '').trim();
-    const token = String(draft?.workfront_api_token || '').trim();
-    const hasStored = Boolean(connector?.workfront?.has_api_token);
-    return Boolean(baseUrl && projectId && (token || hasStored));
-  };
-
-  const smartsheetReadyForEnable = (connector, draft) => {
-    const baseUrl = String(draft?.smartsheet_base_url || '').trim();
-    const sheetId = String(draft?.smartsheet_sheet_id || '').trim();
-    const token = String(draft?.smartsheet_api_token || '').trim();
-    const hasStored = Boolean(connector?.smartsheet?.has_api_token);
-    return Boolean(baseUrl && sheetId && (token || hasStored));
-  };
-
   const handleConnectorToggle = async (connector, checked) => {
     if (!connector?.id) return;
     const baseDraft = connectorDrafts[connector.id] || buildConnectorDraft(connector);
 
-    if (connector.id === 'jira_sync' && checked) {
+    if (checked && connectorUsesApiModal(connector.id)) {
       openJiraConfigModal(connector, {
         intentEnable: true,
         revertStatus: baseDraft.connection_status,
       });
-      return;
-    }
-
-    if (checked && connector.id === 'workfront_sync' && !workfrontReadyForEnable(connector, baseDraft)) {
-      setConnectorSettingsOpen((prev) => ({ ...prev, [connector.id]: true }));
-      setMessage('Configure Workfront URL, project id, and API token, then click Save.');
-      return;
-    }
-
-    if (checked && connector.id === 'smartsheet_sync' && !smartsheetReadyForEnable(connector, baseDraft)) {
-      setConnectorSettingsOpen((prev) => ({ ...prev, [connector.id]: true }));
-      setMessage('Configure Smartsheet URL, sheet id, and API token, then click Save.');
       return;
     }
 
@@ -791,10 +781,34 @@ export default function Account() {
   };
 
   const openJiraConfigModal = (connector, options = {}) => {
+    if (!connector?.id || !connectorUsesApiModal(connector.id)) return;
     const baseDraft = connectorDrafts[connector.id] || buildConnectorDraft(connector);
     const intentEnable = Boolean(options?.intentEnable);
     const revertStatus = options?.revertStatus || baseDraft.connection_status || 'disconnected';
     const nextStatus = intentEnable ? 'connected' : (baseDraft.connection_status || 'disconnected');
+    const baseData = emptyJiraModalState().data;
+    const modalData = {};
+    let hasStoredToken = false;
+
+    if (connector.id === 'jira_sync') {
+      hasStoredToken = Boolean(connector?.jira?.has_api_token);
+      modalData.jira_base_url = String(baseDraft.jira_base_url || connector?.jira?.base_url || '');
+      modalData.jira_project_key = String(baseDraft.jira_project_key || connector?.jira?.project_key || '');
+      modalData.jira_email = String(baseDraft.jira_email || connector?.jira?.email || '');
+      modalData.jira_api_token = '';
+      modalData.jira_issue_type = String(baseDraft.jira_issue_type || connector?.jira?.issue_type || DEFAULT_JIRA_ISSUE_TYPE);
+    } else if (connector.id === 'workfront_sync') {
+      hasStoredToken = Boolean(connector?.workfront?.has_api_token);
+      modalData.workfront_base_url = String(baseDraft.workfront_base_url || connector?.workfront?.base_url || '');
+      modalData.workfront_project_id = String(baseDraft.workfront_project_id || connector?.workfront?.project_id || '');
+      modalData.workfront_api_token = '';
+    } else if (connector.id === 'smartsheet_sync') {
+      hasStoredToken = Boolean(connector?.smartsheet?.has_api_token);
+      modalData.smartsheet_base_url = String(baseDraft.smartsheet_base_url || connector?.smartsheet?.base_url || DEFAULT_SMARTSHEET_BASE_URL);
+      modalData.smartsheet_sheet_id = String(baseDraft.smartsheet_sheet_id || connector?.smartsheet?.sheet_id || '');
+      modalData.smartsheet_api_token = '';
+    }
+
     updateConnectorDraft(connector.id, { connection_status: nextStatus });
     setJiraConfigError('');
     setJiraConfigSaving(false);
@@ -803,14 +817,8 @@ export default function Account() {
       connectorId: connector.id,
       intentEnable,
       revertStatus,
-      hasStoredToken: Boolean(connector?.jira?.has_api_token),
-      data: {
-        jira_base_url: String(baseDraft.jira_base_url || connector?.jira?.base_url || ''),
-        jira_project_key: String(baseDraft.jira_project_key || connector?.jira?.project_key || ''),
-        jira_email: String(baseDraft.jira_email || connector?.jira?.email || ''),
-        jira_api_token: '',
-        jira_issue_type: String(baseDraft.jira_issue_type || connector?.jira?.issue_type || DEFAULT_JIRA_ISSUE_TYPE),
-      },
+      hasStoredToken,
+      data: { ...baseData, ...modalData },
     });
   };
 
@@ -829,40 +837,80 @@ export default function Account() {
     const modal = jiraConfigModal;
     if (!modal?.open || !modal.connectorId) return;
     const connector = (connectorState.items || []).find((item) => item.id === modal.connectorId);
+    const connectorLabel = connectorApiLabel(modal.connectorId);
     if (!connector) {
-      setJiraConfigError('Unable to locate Jira connector state.');
+      setJiraConfigError(`Unable to locate ${connectorLabel} connector state.`);
       return;
     }
-
-    const trimmed = {
-      jira_base_url: String(modal.data.jira_base_url || '').trim(),
-      jira_project_key: String(modal.data.jira_project_key || '').trim(),
-      jira_email: String(modal.data.jira_email || '').trim(),
-      jira_api_token: String(modal.data.jira_api_token || '').trim(),
-      jira_issue_type: String(modal.data.jira_issue_type || DEFAULT_JIRA_ISSUE_TYPE).trim() || DEFAULT_JIRA_ISSUE_TYPE,
-    };
-    const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.jira_api_token);
-
-    if (!trimmed.jira_base_url || !trimmed.jira_project_key || !trimmed.jira_email) {
-      setJiraConfigError('Jira URL, project key, and Jira email are required.');
-      return;
-    }
-    if (!tokenAvailable) {
-      setJiraConfigError('Jira API token is required before enabling Jira sync.');
-      return;
-    }
-
     const nextDraft = {
       ...(connectorDrafts[connector.id] || buildConnectorDraft(connector)),
       connection_status: modal.intentEnable ? 'connected' : (connectorDrafts[connector.id]?.connection_status || 'disconnected'),
-      jira_base_url: trimmed.jira_base_url,
-      jira_project_key: trimmed.jira_project_key,
-      jira_email: trimmed.jira_email,
-      jira_issue_type: trimmed.jira_issue_type,
-      external_workspace: trimmed.jira_project_key,
     };
-    if (trimmed.jira_api_token) {
-      nextDraft.jira_api_token = trimmed.jira_api_token;
+
+    if (modal.connectorId === 'jira_sync') {
+      const trimmed = {
+        jira_base_url: String(modal.data.jira_base_url || '').trim(),
+        jira_project_key: String(modal.data.jira_project_key || '').trim(),
+        jira_email: String(modal.data.jira_email || '').trim(),
+        jira_api_token: String(modal.data.jira_api_token || '').trim(),
+        jira_issue_type: String(modal.data.jira_issue_type || DEFAULT_JIRA_ISSUE_TYPE).trim() || DEFAULT_JIRA_ISSUE_TYPE,
+      };
+      const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.jira_api_token);
+      if (!trimmed.jira_base_url || !trimmed.jira_project_key || !trimmed.jira_email) {
+        setJiraConfigError('Jira URL, project key, and Jira email are required.');
+        return;
+      }
+      if (!tokenAvailable) {
+        setJiraConfigError('Jira API token is required before enabling Jira sync.');
+        return;
+      }
+      nextDraft.jira_base_url = trimmed.jira_base_url;
+      nextDraft.jira_project_key = trimmed.jira_project_key;
+      nextDraft.jira_email = trimmed.jira_email;
+      nextDraft.jira_issue_type = trimmed.jira_issue_type;
+      nextDraft.external_workspace = trimmed.jira_project_key;
+      if (trimmed.jira_api_token) nextDraft.jira_api_token = trimmed.jira_api_token;
+    } else if (modal.connectorId === 'workfront_sync') {
+      const trimmed = {
+        workfront_base_url: String(modal.data.workfront_base_url || '').trim(),
+        workfront_project_id: String(modal.data.workfront_project_id || '').trim(),
+        workfront_api_token: String(modal.data.workfront_api_token || '').trim(),
+      };
+      const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.workfront_api_token);
+      if (!trimmed.workfront_base_url || !trimmed.workfront_project_id) {
+        setJiraConfigError('Workfront URL and project id are required.');
+        return;
+      }
+      if (!tokenAvailable) {
+        setJiraConfigError('Workfront API token is required before enabling Workfront sync.');
+        return;
+      }
+      nextDraft.workfront_base_url = trimmed.workfront_base_url;
+      nextDraft.workfront_project_id = trimmed.workfront_project_id;
+      nextDraft.external_workspace = trimmed.workfront_project_id;
+      if (trimmed.workfront_api_token) nextDraft.workfront_api_token = trimmed.workfront_api_token;
+    } else if (modal.connectorId === 'smartsheet_sync') {
+      const trimmed = {
+        smartsheet_base_url: String(modal.data.smartsheet_base_url || DEFAULT_SMARTSHEET_BASE_URL).trim(),
+        smartsheet_sheet_id: String(modal.data.smartsheet_sheet_id || '').trim(),
+        smartsheet_api_token: String(modal.data.smartsheet_api_token || '').trim(),
+      };
+      const tokenAvailable = modal.hasStoredToken || Boolean(trimmed.smartsheet_api_token);
+      if (!trimmed.smartsheet_base_url || !trimmed.smartsheet_sheet_id) {
+        setJiraConfigError('Smartsheet URL and sheet id are required.');
+        return;
+      }
+      if (!tokenAvailable) {
+        setJiraConfigError('Smartsheet API token is required before enabling Smartsheet sync.');
+        return;
+      }
+      nextDraft.smartsheet_base_url = trimmed.smartsheet_base_url;
+      nextDraft.smartsheet_sheet_id = trimmed.smartsheet_sheet_id;
+      nextDraft.external_workspace = trimmed.smartsheet_sheet_id;
+      if (trimmed.smartsheet_api_token) nextDraft.smartsheet_api_token = trimmed.smartsheet_api_token;
+    } else {
+      setJiraConfigError('Unsupported connector for modal settings.');
+      return;
     }
 
     updateConnectorDraft(connector.id, nextDraft);
@@ -1065,6 +1113,13 @@ export default function Account() {
     ...(isAdminUser ? [{ key: 'admin', label: 'System admin', icon: faGear }] : []),
     { key: 'knowledge', label: 'Knowledge', icon: faBookOpen },
   ];
+  const modalConnectorLabel = connectorApiLabel(jiraConfigModal.connectorId);
+  const isJiraModal = jiraConfigModal.connectorId === 'jira_sync';
+  const isWorkfrontModal = jiraConfigModal.connectorId === 'workfront_sync';
+  const isSmartsheetModal = jiraConfigModal.connectorId === 'smartsheet_sync';
+  const modalSaveLabel = jiraConfigModal.intentEnable
+    ? `Save & enable ${modalConnectorLabel}`
+    : `Save ${modalConnectorLabel} settings`;
 
   return (
     <div className="account-page">
@@ -1394,72 +1449,40 @@ export default function Account() {
                         )}
 
                         {connector.id === 'workfront_sync' && (
-                          <div className="account-connector-controls">
-                            <label>
-                              Workfront URL
-                              <input
-                                type="text"
-                                value={draft.workfront_base_url || ''}
-                                placeholder={DEFAULT_WORKFRONT_BASE_URL}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { workfront_base_url: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Project ID
-                              <input
-                                type="text"
-                                value={draft.workfront_project_id || ''}
-                                placeholder="Project or portfolio id"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { workfront_project_id: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              API token
-                              <input
-                                type="password"
-                                value={draft.workfront_api_token || ''}
-                                placeholder={workfrontTokenConfigured ? 'Token exists. Enter to rotate token.' : 'Enter API token'}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { workfront_api_token: e.target.value })}
-                              />
-                            </label>
+                          <div className="account-jira-settings-row">
+                            <button
+                              type="button"
+                              className="account-secondary-btn account-jira-settings-btn"
+                              onClick={() => openJiraConfigModal(connector, {
+                                intentEnable: false,
+                                revertStatus: draft.connection_status,
+                              })}
+                              disabled={locked || pending}
+                            >
+                              Workfront API settings
+                            </button>
+                            <span className={`account-jira-settings-state ${workfrontTokenConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {workfrontTokenConfigured ? 'API token configured' : 'API token required'}
+                            </span>
                           </div>
                         )}
 
                         {connector.id === 'smartsheet_sync' && (
-                          <div className="account-connector-controls">
-                            <label>
-                              Smartsheet URL
-                              <input
-                                type="text"
-                                value={draft.smartsheet_base_url || DEFAULT_SMARTSHEET_BASE_URL}
-                                placeholder={DEFAULT_SMARTSHEET_BASE_URL}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { smartsheet_base_url: e.target.value })}
-                              />
-                            </label>
-                            <label>
-                              Sheet ID
-                              <input
-                                type="text"
-                                value={draft.smartsheet_sheet_id || ''}
-                                placeholder="Sheet id"
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { smartsheet_sheet_id: e.target.value })}
-                              />
-                            </label>
-                            <label className="account-connector-secret-field">
-                              API token
-                              <input
-                                type="password"
-                                value={draft.smartsheet_api_token || ''}
-                                placeholder={smartsheetTokenConfigured ? 'Token exists. Enter to rotate token.' : 'Enter API token'}
-                                disabled={locked || pending}
-                                onChange={(e) => updateConnectorDraft(connector.id, { smartsheet_api_token: e.target.value })}
-                              />
-                            </label>
+                          <div className="account-jira-settings-row">
+                            <button
+                              type="button"
+                              className="account-secondary-btn account-jira-settings-btn"
+                              onClick={() => openJiraConfigModal(connector, {
+                                intentEnable: false,
+                                revertStatus: draft.connection_status,
+                              })}
+                              disabled={locked || pending}
+                            >
+                              Smartsheet API settings
+                            </button>
+                            <span className={`account-jira-settings-state ${smartsheetTokenConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {smartsheetTokenConfigured ? 'API token configured' : 'API token required'}
+                            </span>
                           </div>
                         )}
 
@@ -1680,84 +1703,176 @@ export default function Account() {
               className="account-jira-modal"
               role="dialog"
               aria-modal="true"
-              aria-label="Jira API settings"
+              aria-label={`${modalConnectorLabel} API settings`}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="account-jira-modal-header">
-                <h3>Jira API settings</h3>
+                <h3>{modalConnectorLabel} API settings</h3>
                 <button type="button" className="account-jira-modal-close" onClick={() => closeJiraConfigModal(true)} aria-label="Close">
                   ×
                 </button>
               </div>
               <p className="account-jira-modal-subtext">
-                Enter Jira credentials and mapping details, then save. Required: URL, project key, Jira email, API token.
+                {isJiraModal && 'Enter Jira credentials and mapping details, then save. Required: URL, project key, Jira email, API token.'}
+                {isWorkfrontModal && 'Enter Workfront credentials and mapping details, then save. Required: URL, project id, API token.'}
+                {isSmartsheetModal && 'Enter Smartsheet credentials and mapping details, then save. Required: URL, sheet id, API token.'}
               </p>
               <div className="account-jira-modal-grid">
-                <label>
-                  Jira URL
-                  <input
-                    type="text"
-                    value={jiraConfigModal.data.jira_base_url}
-                    placeholder="https://your-company.atlassian.net"
-                    onChange={(e) => setJiraConfigModal((prev) => ({
-                      ...prev,
-                      data: { ...prev.data, jira_base_url: e.target.value },
-                    }))}
-                    disabled={jiraConfigSaving}
-                  />
-                </label>
-                <label>
-                  Jira project key
-                  <input
-                    type="text"
-                    value={jiraConfigModal.data.jira_project_key}
-                    placeholder="PROJ"
-                    onChange={(e) => setJiraConfigModal((prev) => ({
-                      ...prev,
-                      data: { ...prev.data, jira_project_key: e.target.value },
-                    }))}
-                    disabled={jiraConfigSaving}
-                  />
-                </label>
-                <label>
-                  Jira email
-                  <input
-                    type="email"
-                    value={jiraConfigModal.data.jira_email}
-                    placeholder="service-account@company.com"
-                    onChange={(e) => setJiraConfigModal((prev) => ({
-                      ...prev,
-                      data: { ...prev.data, jira_email: e.target.value },
-                    }))}
-                    disabled={jiraConfigSaving}
-                  />
-                </label>
-                <label>
-                  Jira issue type
-                  <input
-                    type="text"
-                    value={jiraConfigModal.data.jira_issue_type}
-                    placeholder="Task"
-                    onChange={(e) => setJiraConfigModal((prev) => ({
-                      ...prev,
-                      data: { ...prev.data, jira_issue_type: e.target.value },
-                    }))}
-                    disabled={jiraConfigSaving}
-                  />
-                </label>
-                <label className="account-jira-modal-token-field">
-                  Jira API token
-                  <input
-                    type="password"
-                    value={jiraConfigModal.data.jira_api_token}
-                    placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Jira API token'}
-                    onChange={(e) => setJiraConfigModal((prev) => ({
-                      ...prev,
-                      data: { ...prev.data, jira_api_token: e.target.value },
-                    }))}
-                    disabled={jiraConfigSaving}
-                  />
-                </label>
+                {isJiraModal && (
+                  <>
+                    <label>
+                      Jira URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.jira_base_url}
+                        placeholder="https://your-company.atlassian.net"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, jira_base_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Jira project key
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.jira_project_key}
+                        placeholder="PROJ"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, jira_project_key: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Jira email
+                      <input
+                        type="email"
+                        value={jiraConfigModal.data.jira_email}
+                        placeholder="service-account@company.com"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, jira_email: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Jira issue type
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.jira_issue_type}
+                        placeholder="Task"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, jira_issue_type: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Jira API token
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.jira_api_token}
+                        placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Jira API token'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, jira_api_token: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isWorkfrontModal && (
+                  <>
+                    <label>
+                      Workfront URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.workfront_base_url}
+                        placeholder={DEFAULT_WORKFRONT_BASE_URL}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, workfront_base_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Project ID
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.workfront_project_id}
+                        placeholder="Project or portfolio id"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, workfront_project_id: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Workfront API token
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.workfront_api_token}
+                        placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Workfront API token'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, workfront_api_token: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
+                {isSmartsheetModal && (
+                  <>
+                    <label>
+                      Smartsheet URL
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.smartsheet_base_url}
+                        placeholder={DEFAULT_SMARTSHEET_BASE_URL}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, smartsheet_base_url: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label>
+                      Sheet ID
+                      <input
+                        type="text"
+                        value={jiraConfigModal.data.smartsheet_sheet_id}
+                        placeholder="Sheet id"
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, smartsheet_sheet_id: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                    <label className="account-jira-modal-token-field">
+                      Smartsheet API token
+                      <input
+                        type="password"
+                        value={jiraConfigModal.data.smartsheet_api_token}
+                        placeholder={jiraConfigModal.hasStoredToken ? 'Token exists. Enter to rotate token.' : 'Enter Smartsheet API token'}
+                        onChange={(e) => setJiraConfigModal((prev) => ({
+                          ...prev,
+                          data: { ...prev.data, smartsheet_api_token: e.target.value },
+                        }))}
+                        disabled={jiraConfigSaving}
+                      />
+                    </label>
+                  </>
+                )}
               </div>
               {jiraConfigError && <p className="account-jira-modal-error">{jiraConfigError}</p>}
               <div className="account-jira-modal-actions">
@@ -1765,7 +1880,7 @@ export default function Account() {
                   Cancel
                 </button>
                 <button type="button" className="account-primary-btn" onClick={saveJiraConfigAndEnable} disabled={jiraConfigSaving}>
-                  {jiraConfigSaving ? 'Saving...' : (jiraConfigModal.intentEnable ? 'Save & enable Jira' : 'Save Jira settings')}
+                  {jiraConfigSaving ? 'Saving...' : modalSaveLabel}
                 </button>
               </div>
             </div>

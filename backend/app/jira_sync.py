@@ -2,8 +2,7 @@ import copy
 import os
 from datetime import datetime
 
-import requests
-
+from app.connector_runtime import request_json_with_backoff
 from app.connector_store import get_connector_settings, get_thread_sync_profile
 from app.scenarios_store import load_scenarios_data, save_scenarios_data
 
@@ -188,22 +187,15 @@ def _task_to_jira_fields(user_id, thread_id, task, wbs_to_jira_map):
 
 def _jira_request(config, method, path, payload=None, timeout=20):
     url = f"{config['base_url']}{path}"
-    response = requests.request(
-        method=method,
-        url=url,
-        json=payload,
+    result = request_json_with_backoff(
+        method,
+        url,
+        json_payload=payload,
         headers=_jira_headers(),
         auth=(config["email"], config["api_token"]),
         timeout=timeout,
     )
-    data = {}
-    try:
-        data = response.json() if response.text else {}
-    except Exception:
-        data = {"raw": response.text}
-    if response.status_code >= 400:
-        raise RuntimeError(f"Jira API {method} {path} failed ({response.status_code}): {data}")
-    return data
+    return result["data"], result
 
 
 def sync_wbs_to_jira(user_id, thread_id, project_wbs, thread_sync_profile=None):
@@ -230,6 +222,8 @@ def sync_wbs_to_jira(user_id, thread_id, project_wbs, thread_sync_profile=None):
     created = 0
     updated = 0
     errors = []
+    max_attempt_count = 1
+    total_duration_ms = 0
 
     for task in tasks:
         if not isinstance(task, dict):
@@ -243,7 +237,7 @@ def sync_wbs_to_jira(user_id, thread_id, project_wbs, thread_sync_profile=None):
         fields = _task_to_jira_fields(user_id, thread_id, task, wbs_to_jira_map)
         try:
             if issue_key:
-                _jira_request(
+                _, meta = _jira_request(
                     config,
                     "PUT",
                     f"/rest/api/3/issue/{issue_key}",
@@ -258,13 +252,15 @@ def sync_wbs_to_jira(user_id, thread_id, project_wbs, thread_sync_profile=None):
                         **fields,
                     }
                 }
-                created_issue = _jira_request(config, "POST", "/rest/api/3/issue", payload=create_payload)
+                created_issue, meta = _jira_request(config, "POST", "/rest/api/3/issue", payload=create_payload)
                 new_key = _text(created_issue.get("key"))
                 if new_key:
                     refs["jira_issue_key"] = new_key
                     task["external_refs"] = refs
                     updated += 1
                     created += 1
+            max_attempt_count = max(max_attempt_count, int(meta.get("attempt_count") or 1))
+            total_duration_ms += int(meta.get("duration_ms") or 0)
         except Exception as e:
             errors.append({"task_id": task_id, "error": str(e)})
 
@@ -275,6 +271,8 @@ def sync_wbs_to_jira(user_id, thread_id, project_wbs, thread_sync_profile=None):
         "created_issues": created,
         "updated_tasks": updated,
         "errors": errors,
+        "attempt_count": max_attempt_count,
+        "duration_ms": total_duration_ms,
         "project_wbs": updated_wbs,
     }
 

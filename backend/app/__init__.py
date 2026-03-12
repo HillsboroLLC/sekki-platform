@@ -139,6 +139,18 @@ def create_app():
     app.config['JIRA_DEFAULT_PROJECT_KEY'] = os.getenv('JIRA_DEFAULT_PROJECT_KEY', '')
     app.config['JIRA_DEFAULT_ISSUE_TYPE'] = os.getenv('JIRA_DEFAULT_ISSUE_TYPE', 'Task')
     app.config['JIRA_WEBHOOK_SECRET'] = os.getenv('JIRA_WEBHOOK_SECRET', '')
+    app.config['WORKFRONT_BASE_URL'] = os.getenv('WORKFRONT_BASE_URL', '')
+    app.config['WORKFRONT_PROJECT_ID'] = os.getenv('WORKFRONT_PROJECT_ID', '')
+    app.config['WORKFRONT_API_TOKEN'] = os.getenv('WORKFRONT_API_TOKEN', '')
+    app.config['WORKFRONT_WEBHOOK_SECRET'] = os.getenv('WORKFRONT_WEBHOOK_SECRET', '')
+    app.config['SMARTSHEET_BASE_URL'] = os.getenv('SMARTSHEET_BASE_URL', 'https://api.smartsheet.com')
+    app.config['SMARTSHEET_SHEET_ID'] = os.getenv('SMARTSHEET_SHEET_ID', '')
+    app.config['SMARTSHEET_API_TOKEN'] = os.getenv('SMARTSHEET_API_TOKEN', '')
+    app.config['SMARTSHEET_WEBHOOK_SECRET'] = os.getenv('SMARTSHEET_WEBHOOK_SECRET', '')
+    app.config['SALESFORCE_AUTH_BASE_URL'] = os.getenv('SALESFORCE_AUTH_BASE_URL', 'https://login.salesforce.com')
+    app.config['SALESFORCE_REDIRECT_URI'] = os.getenv('SALESFORCE_REDIRECT_URI', '')
+    app.config['SNOWFLAKE_PRIVATE_KEY_PASSPHRASE'] = os.getenv('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '')
+    app.config['CONNECTOR_CREDENTIALS_SECRET'] = os.getenv('CONNECTOR_CREDENTIALS_SECRET', '')
     # —— Frontend base URL for success/cancel links —— #
     app.config['FRONTEND_BASE_URL'] = frontend_base
 

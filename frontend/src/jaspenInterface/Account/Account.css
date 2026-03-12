@@ -588,6 +588,25 @@
   font-size: 0.74rem;
 }
 
+.account-connector-health {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.account-connector-health-healthy {
+  color: #1a6f4f;
+}
+
+.account-connector-health-degraded {
+  color: #8c4e06;
+}
+
+.account-connector-health-unknown {
+  color: #5d6880;
+}
+
 .account-connector-locked-note {
   margin: 0;
   color: rgba(22, 31, 59, 0.64);
@@ -692,6 +711,10 @@
   color: rgba(22, 31, 59, 0.72);
   font-size: 0.69rem;
   font-weight: 600;
+}
+
+.account-connector-secret-field {
+  grid-column: 1 / -1;
 }
 
 .account-connector-controls select {

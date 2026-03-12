@@ -51,6 +51,14 @@ export const endpoints = {
   connectorUpdate: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}`,
   threadPmSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/sync`,
   threadJiraSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/jira/sync`,
+  threadWorkfrontSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/workfront/sync`,
+  threadSmartsheetSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/smartsheet/sync`,
+  connectorHealth: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}/health`,
+  connectorAudit: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}/audit`,
+  salesforceOauthStart: `${API_BASE}/api/connectors/salesforce/oauth/start`,
+  salesforcePipelineSummary: `${API_BASE}/api/connectors/salesforce/pipeline/summary`,
+  snowflakeQuery: `${API_BASE}/api/connectors/snowflake/query`,
+  snowflakeKpis: `${API_BASE}/api/connectors/snowflake/kpis`,
 };
 // ---- Session ID for memory that survives Safari ITP ----
 const SID_KEY = 'jas_sid';

@@ -71,6 +71,8 @@ const CONFLICT_POLICY_HELP = {
   manual_review: 'Flag the conflict for manual review before applying.',
 };
 const DEFAULT_JIRA_ISSUE_TYPE = 'Task';
+const DEFAULT_WORKFRONT_BASE_URL = 'https://yourdomain.my.workfront.com';
+const DEFAULT_SMARTSHEET_BASE_URL = 'https://api.smartsheet.com';
 
 function emptyJiraModalState() {
   return {
@@ -103,11 +105,43 @@ function buildConnectorDraft(connector) {
     sync_mode: connector?.sync_mode || (syncModes.includes('import') ? 'import' : syncModes[0] || ''),
     conflict_policy: connector?.conflict_policy || conflictPolicies[0] || 'prefer_external',
     external_workspace: String(connector?.external_workspace || ''),
+
+    // Jira
     jira_base_url: String(connector?.jira?.base_url || ''),
     jira_project_key: String(connector?.jira?.project_key || ''),
     jira_email: String(connector?.jira?.email || ''),
     jira_issue_type: String(connector?.jira?.issue_type || DEFAULT_JIRA_ISSUE_TYPE),
     jira_api_token: '',
+
+    // Workfront
+    workfront_base_url: String(connector?.workfront?.base_url || ''),
+    workfront_project_id: String(connector?.workfront?.project_id || ''),
+    workfront_api_token: '',
+
+    // Smartsheet
+    smartsheet_base_url: String(connector?.smartsheet?.base_url || DEFAULT_SMARTSHEET_BASE_URL),
+    smartsheet_sheet_id: String(connector?.smartsheet?.sheet_id || ''),
+    smartsheet_api_token: '',
+
+    // Salesforce
+    salesforce_auth_base_url: String(connector?.salesforce?.auth_base_url || ''),
+    salesforce_instance_url: String(connector?.salesforce?.instance_url || ''),
+    salesforce_client_id: String(connector?.salesforce?.client_id || ''),
+    salesforce_client_secret: '',
+    salesforce_refresh_token: '',
+
+    // Snowflake
+    snowflake_account: String(connector?.snowflake?.account || ''),
+    snowflake_warehouse: String(connector?.snowflake?.warehouse || ''),
+    snowflake_database: String(connector?.snowflake?.database || ''),
+    snowflake_schema: String(connector?.snowflake?.schema || ''),
+    snowflake_role: String(connector?.snowflake?.role || ''),
+    snowflake_user: String(connector?.snowflake?.user || ''),
+    snowflake_password: '',
+    snowflake_private_key: '',
+    snowflake_table_allowlist: Array.isArray(connector?.snowflake?.table_allowlist)
+      ? connector.snowflake.table_allowlist.join(', ')
+      : '',
   };
 }
 
@@ -133,9 +167,31 @@ function connectorDraftIsDirty(connector, draft) {
     'jira_project_key',
     'jira_email',
     'jira_issue_type',
+    'workfront_base_url',
+    'workfront_project_id',
+    'smartsheet_base_url',
+    'smartsheet_sheet_id',
+    'salesforce_auth_base_url',
+    'salesforce_instance_url',
+    'salesforce_client_id',
+    'snowflake_account',
+    'snowflake_warehouse',
+    'snowflake_database',
+    'snowflake_schema',
+    'snowflake_role',
+    'snowflake_user',
+    'snowflake_table_allowlist',
   ];
   const hasFieldDiff = fields.some((field) => trim(base[field]) !== trim(current[field]));
-  const hasNewToken = trim(current.jira_api_token).length > 0;
+  const hasNewToken = [
+    'jira_api_token',
+    'workfront_api_token',
+    'smartsheet_api_token',
+    'salesforce_client_secret',
+    'salesforce_refresh_token',
+    'snowflake_password',
+    'snowflake_private_key',
+  ].some((field) => trim(current[field]).length > 0);
   return hasFieldDiff || hasNewToken;
 }
 
@@ -281,6 +337,24 @@ export default function Account() {
     }
   }, [activeTab, adminState.checked, adminState.isAdmin]);
 
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search || '');
+    const sfOauth = String(search.get('sf_oauth') || '').trim().toLowerCase();
+    const reason = String(search.get('reason') || '').trim();
+    if (!sfOauth) return;
+
+    if (sfOauth === 'success') {
+      setMessage('Salesforce OAuth connected successfully.');
+    } else if (sfOauth === 'error') {
+      setMessage(`Salesforce OAuth failed${reason ? ` (${reason})` : ''}.`);
+    }
+
+    search.delete('sf_oauth');
+    search.delete('reason');
+    const nextUrl = `${window.location.pathname}${search.toString() ? `?${search.toString()}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, document.title, nextUrl);
+  }, []);
+
   const refreshStatus = async () => {
     const token = getToken();
     const res = await fetch(`${API_BASE}/api/billing/status`, {
@@ -314,6 +388,95 @@ export default function Account() {
       });
     } else if (res.status === 401) {
       navigate('/?auth=1', { replace: true });
+    }
+  };
+
+  const startSalesforceOauth = async () => {
+    const token = getToken();
+    setConnectorPendingId('salesforce_insights');
+    setMessage('');
+    try {
+      const next = encodeURIComponent('/account?tab=connectors');
+      const response = await fetch(`${API_BASE}/api/connectors/salesforce/oauth/start?next=${next}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to start Salesforce OAuth.');
+      }
+      if (!data?.auth_url) {
+        throw new Error('Salesforce OAuth URL was not returned by the backend.');
+      }
+      window.location.href = data.auth_url;
+    } catch (error) {
+      setMessage(error.message || 'Unable to start Salesforce OAuth.');
+    } finally {
+      setConnectorPendingId('');
+    }
+  };
+
+  const runSalesforcePipelinePreview = async () => {
+    const token = getToken();
+    setConnectorPendingId('salesforce_insights');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/connectors/salesforce/pipeline/summary?days=90&limit=200`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to load Salesforce pipeline summary.');
+      }
+      const summary = data?.summary || {};
+      setMessage(
+        `Salesforce pipeline: ${summary.opportunity_count || 0} opportunities, `
+        + `$${Number(summary.total_amount || 0).toLocaleString()} total amount.`
+      );
+      refreshConnectors();
+    } catch (error) {
+      setMessage(error.message || 'Unable to load Salesforce pipeline summary.');
+    } finally {
+      setConnectorPendingId('');
+    }
+  };
+
+  const runSnowflakeQueryCheck = async (draft) => {
+    const token = getToken();
+    setConnectorPendingId('snowflake_insights');
+    setMessage('');
+    try {
+      const firstTable = String(draft?.snowflake_table_allowlist || '')
+        .split(',')
+        .map((item) => item.trim())
+        .find(Boolean);
+      if (!firstTable) {
+        throw new Error('Add at least one Snowflake table in the allowlist before testing.');
+      }
+      const response = await fetch(`${API_BASE}/api/connectors/snowflake/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          table: firstTable,
+          limit: 5,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to run Snowflake test query.');
+      }
+      const rowCount = Array.isArray(data?.rows) ? data.rows.length : 0;
+      setMessage(`Snowflake test query returned ${rowCount} row(s) from ${firstTable}.`);
+      refreshConnectors();
+    } catch (error) {
+      setMessage(error.message || 'Unable to run Snowflake test query.');
+    } finally {
+      setConnectorPendingId('');
     }
   };
 
@@ -536,6 +699,45 @@ export default function Account() {
       if (String(draft.jira_api_token || '').trim()) {
         payload.jira_api_token = String(draft.jira_api_token || '').trim();
       }
+    } else if (connector.id === 'workfront_sync') {
+      payload.workfront_base_url = String(draft.workfront_base_url || '').trim();
+      payload.workfront_project_id = String(draft.workfront_project_id || '').trim();
+      if (String(draft.workfront_api_token || '').trim()) {
+        payload.workfront_api_token = String(draft.workfront_api_token || '').trim();
+      }
+    } else if (connector.id === 'smartsheet_sync') {
+      payload.smartsheet_base_url = String(draft.smartsheet_base_url || DEFAULT_SMARTSHEET_BASE_URL).trim();
+      payload.smartsheet_sheet_id = String(draft.smartsheet_sheet_id || '').trim();
+      if (String(draft.smartsheet_api_token || '').trim()) {
+        payload.smartsheet_api_token = String(draft.smartsheet_api_token || '').trim();
+      }
+    } else if (connector.id === 'salesforce_insights') {
+      payload.salesforce_auth_base_url = String(draft.salesforce_auth_base_url || '').trim();
+      payload.salesforce_instance_url = String(draft.salesforce_instance_url || '').trim();
+      payload.salesforce_client_id = String(draft.salesforce_client_id || '').trim();
+      if (String(draft.salesforce_client_secret || '').trim()) {
+        payload.salesforce_client_secret = String(draft.salesforce_client_secret || '').trim();
+      }
+      if (String(draft.salesforce_refresh_token || '').trim()) {
+        payload.salesforce_refresh_token = String(draft.salesforce_refresh_token || '').trim();
+      }
+    } else if (connector.id === 'snowflake_insights') {
+      payload.snowflake_account = String(draft.snowflake_account || '').trim();
+      payload.snowflake_warehouse = String(draft.snowflake_warehouse || '').trim();
+      payload.snowflake_database = String(draft.snowflake_database || '').trim();
+      payload.snowflake_schema = String(draft.snowflake_schema || '').trim();
+      payload.snowflake_role = String(draft.snowflake_role || '').trim();
+      payload.snowflake_user = String(draft.snowflake_user || '').trim();
+      if (String(draft.snowflake_password || '').trim()) {
+        payload.snowflake_password = String(draft.snowflake_password || '').trim();
+      }
+      if (String(draft.snowflake_private_key || '').trim()) {
+        payload.snowflake_private_key = String(draft.snowflake_private_key || '').trim();
+      }
+      payload.snowflake_table_allowlist = String(draft.snowflake_table_allowlist || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
     }
     return updateConnector(connector.id, payload);
   };
@@ -1014,6 +1216,19 @@ export default function Account() {
                 const isDirty = connectorDraftIsDirty(connector, draft);
                 const jiraTokenConfigured =
                   Boolean(connector?.jira?.has_api_token) || Boolean(String(draft.jira_api_token || '').trim());
+                const workfrontTokenConfigured =
+                  Boolean(connector?.workfront?.has_api_token) || Boolean(String(draft.workfront_api_token || '').trim());
+                const smartsheetTokenConfigured =
+                  Boolean(connector?.smartsheet?.has_api_token) || Boolean(String(draft.smartsheet_api_token || '').trim());
+                const salesforceAuthConfigured =
+                  (Boolean(connector?.salesforce?.has_client_secret) || Boolean(String(draft.salesforce_client_secret || '').trim()))
+                  && (Boolean(connector?.salesforce?.has_refresh_token) || Boolean(String(draft.salesforce_refresh_token || '').trim()));
+                const snowflakeAuthConfigured =
+                  Boolean(connector?.snowflake?.has_password)
+                  || Boolean(connector?.snowflake?.has_private_key)
+                  || Boolean(String(draft.snowflake_password || '').trim())
+                  || Boolean(String(draft.snowflake_private_key || '').trim());
+                const healthStatus = String(connector?.health?.status || 'unknown').toLowerCase();
                 const settingsOpen = Boolean(connectorSettingsOpen[connector.id]);
 
                 return (
@@ -1026,6 +1241,10 @@ export default function Account() {
                         </div>
                         <p className="account-connector-description">{connector.description}</p>
                         <p className="account-connector-toggle-note">{connectorToggleMeaning(connector)}</p>
+                        <p className={`account-connector-health account-connector-health-${healthStatus}`}>
+                          Health: {healthStatus}
+                          {connector?.health?.next_retry_at ? ` • retry ${connector.health.next_retry_at}` : ''}
+                        </p>
                       </div>
                       <div className="account-connector-actions">
                         <span className={`account-connector-badge ${locked ? 'is-locked' : isOn ? 'is-connected' : 'is-available'}`}>
@@ -1134,11 +1353,273 @@ export default function Account() {
                             </span>
                           </div>
                         )}
+
+                        {connector.id === 'workfront_sync' && (
+                          <div className="account-connector-controls">
+                            <label>
+                              Workfront URL
+                              <input
+                                type="text"
+                                value={draft.workfront_base_url || ''}
+                                placeholder={DEFAULT_WORKFRONT_BASE_URL}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { workfront_base_url: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Project ID
+                              <input
+                                type="text"
+                                value={draft.workfront_project_id || ''}
+                                placeholder="Project or portfolio id"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { workfront_project_id: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              API token
+                              <input
+                                type="password"
+                                value={draft.workfront_api_token || ''}
+                                placeholder={workfrontTokenConfigured ? 'Token exists. Enter to rotate token.' : 'Enter API token'}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { workfront_api_token: e.target.value })}
+                              />
+                            </label>
+                          </div>
+                        )}
+
+                        {connector.id === 'smartsheet_sync' && (
+                          <div className="account-connector-controls">
+                            <label>
+                              Smartsheet URL
+                              <input
+                                type="text"
+                                value={draft.smartsheet_base_url || DEFAULT_SMARTSHEET_BASE_URL}
+                                placeholder={DEFAULT_SMARTSHEET_BASE_URL}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { smartsheet_base_url: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Sheet ID
+                              <input
+                                type="text"
+                                value={draft.smartsheet_sheet_id || ''}
+                                placeholder="Sheet id"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { smartsheet_sheet_id: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              API token
+                              <input
+                                type="password"
+                                value={draft.smartsheet_api_token || ''}
+                                placeholder={smartsheetTokenConfigured ? 'Token exists. Enter to rotate token.' : 'Enter API token'}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { smartsheet_api_token: e.target.value })}
+                              />
+                            </label>
+                          </div>
+                        )}
+
+                        {connector.id === 'salesforce_insights' && (
+                          <div className="account-connector-controls">
+                            <label>
+                              Auth Base URL
+                              <input
+                                type="text"
+                                value={draft.salesforce_auth_base_url || ''}
+                                placeholder="https://login.salesforce.com"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_auth_base_url: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Instance URL
+                              <input
+                                type="text"
+                                value={draft.salesforce_instance_url || ''}
+                                placeholder="https://your-instance.salesforce.com"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_instance_url: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Client ID
+                              <input
+                                type="text"
+                                value={draft.salesforce_client_id || ''}
+                                placeholder="Connected app client id"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_client_id: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              Client secret
+                              <input
+                                type="password"
+                                value={draft.salesforce_client_secret || ''}
+                                placeholder={connector?.salesforce?.has_client_secret ? 'Secret exists. Enter to rotate.' : 'Enter client secret'}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_client_secret: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              Refresh token
+                              <input
+                                type="password"
+                                value={draft.salesforce_refresh_token || ''}
+                                placeholder={connector?.salesforce?.has_refresh_token ? 'Token exists. Enter to rotate.' : 'Enter refresh token'}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { salesforce_refresh_token: e.target.value })}
+                              />
+                            </label>
+                            <p className={`account-jira-settings-state ${salesforceAuthConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {salesforceAuthConfigured ? 'OAuth secrets configured' : 'OAuth secrets required'}
+                            </p>
+                            <div className="account-jira-settings-row">
+                              <button
+                                type="button"
+                                className="account-secondary-btn account-jira-settings-btn"
+                                onClick={startSalesforceOauth}
+                                disabled={locked || pending}
+                              >
+                                Connect Salesforce OAuth
+                              </button>
+                              <button
+                                type="button"
+                                className="account-secondary-btn account-jira-settings-btn"
+                                onClick={runSalesforcePipelinePreview}
+                                disabled={locked || pending}
+                              >
+                                Test Pipeline Snapshot
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {connector.id === 'snowflake_insights' && (
+                          <div className="account-connector-controls">
+                            <label>
+                              Account
+                              <input
+                                type="text"
+                                value={draft.snowflake_account || ''}
+                                placeholder="org-account.region.cloud"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_account: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Warehouse
+                              <input
+                                type="text"
+                                value={draft.snowflake_warehouse || ''}
+                                placeholder="ANALYTICS_WH"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_warehouse: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Database
+                              <input
+                                type="text"
+                                value={draft.snowflake_database || ''}
+                                placeholder="ANALYTICS"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_database: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Schema
+                              <input
+                                type="text"
+                                value={draft.snowflake_schema || ''}
+                                placeholder="PUBLIC"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_schema: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              Role
+                              <input
+                                type="text"
+                                value={draft.snowflake_role || ''}
+                                placeholder="ANALYST_ROLE"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_role: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              User
+                              <input
+                                type="text"
+                                value={draft.snowflake_user || ''}
+                                placeholder="service_user"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_user: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              Password
+                              <input
+                                type="password"
+                                value={draft.snowflake_password || ''}
+                                placeholder={connector?.snowflake?.has_password ? 'Password exists. Enter to rotate.' : 'Optional if key is provided'}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_password: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              Private key
+                              <input
+                                type="password"
+                                value={draft.snowflake_private_key || ''}
+                                placeholder={connector?.snowflake?.has_private_key ? 'Key exists. Enter to rotate.' : 'Optional if password is provided'}
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_private_key: e.target.value })}
+                              />
+                            </label>
+                            <label className="account-connector-secret-field">
+                              Table allowlist
+                              <input
+                                type="text"
+                                value={draft.snowflake_table_allowlist || ''}
+                                placeholder="schema.table_a, schema.table_b"
+                                disabled={locked || pending}
+                                onChange={(e) => updateConnectorDraft(connector.id, { snowflake_table_allowlist: e.target.value })}
+                              />
+                            </label>
+                            <p className={`account-jira-settings-state ${snowflakeAuthConfigured ? 'is-ready' : 'is-missing'}`}>
+                              {snowflakeAuthConfigured ? 'Authentication configured' : 'Password or private key required'}
+                            </p>
+                            <div className="account-jira-settings-row">
+                              <button
+                                type="button"
+                                className="account-secondary-btn account-jira-settings-btn"
+                                onClick={() => runSnowflakeQueryCheck(draft)}
+                                disabled={locked || pending}
+                              >
+                                Run Snowflake Test Query
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {!settingsOpen && connector.id === 'jira_sync' && !jiraTokenConfigured && !locked && (
                       <p className="account-connector-locked-note">Jira API token required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'workfront_sync' && !workfrontTokenConfigured && !locked && (
+                      <p className="account-connector-locked-note">Workfront API token required before enabling.</p>
+                    )}
+
+                    {!settingsOpen && connector.id === 'smartsheet_sync' && !smartsheetTokenConfigured && !locked && (
+                      <p className="account-connector-locked-note">Smartsheet API token required before enabling.</p>
                     )}
 
                     {locked && (

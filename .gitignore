@@ -22,3 +22,7 @@ docker-compose.override.yml
 *.chatbak*
 *.fixbak*
 
+
+# Python virtualenvs
+backend/venv/
+backend/venv.broken-*/

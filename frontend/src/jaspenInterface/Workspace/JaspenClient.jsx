@@ -515,6 +515,12 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
 
   syncThreadWbsToJira: async (threadId) =>
     postJSON(endpoints.threadJiraSync(threadId), {}, { withSid: true }),
+
+  syncThreadWbsToWorkfront: async (threadId) =>
+    postJSON(endpoints.threadWorkfrontSync(threadId), {}, { withSid: true }),
+
+  syncThreadWbsToSmartsheet: async (threadId) =>
+    postJSON(endpoints.threadSmartsheetSync(threadId), {}, { withSid: true }),
 };
 
 // Minimal local persistence

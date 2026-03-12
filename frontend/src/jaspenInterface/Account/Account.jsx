@@ -742,6 +742,54 @@ export default function Account() {
     return updateConnector(connector.id, payload);
   };
 
+  const workfrontReadyForEnable = (connector, draft) => {
+    const baseUrl = String(draft?.workfront_base_url || '').trim();
+    const projectId = String(draft?.workfront_project_id || '').trim();
+    const token = String(draft?.workfront_api_token || '').trim();
+    const hasStored = Boolean(connector?.workfront?.has_api_token);
+    return Boolean(baseUrl && projectId && (token || hasStored));
+  };
+
+  const smartsheetReadyForEnable = (connector, draft) => {
+    const baseUrl = String(draft?.smartsheet_base_url || '').trim();
+    const sheetId = String(draft?.smartsheet_sheet_id || '').trim();
+    const token = String(draft?.smartsheet_api_token || '').trim();
+    const hasStored = Boolean(connector?.smartsheet?.has_api_token);
+    return Boolean(baseUrl && sheetId && (token || hasStored));
+  };
+
+  const handleConnectorToggle = async (connector, checked) => {
+    if (!connector?.id) return;
+    const baseDraft = connectorDrafts[connector.id] || buildConnectorDraft(connector);
+
+    if (connector.id === 'jira_sync' && checked) {
+      openJiraConfigModal(connector, {
+        intentEnable: true,
+        revertStatus: baseDraft.connection_status,
+      });
+      return;
+    }
+
+    if (checked && connector.id === 'workfront_sync' && !workfrontReadyForEnable(connector, baseDraft)) {
+      setConnectorSettingsOpen((prev) => ({ ...prev, [connector.id]: true }));
+      setMessage('Configure Workfront URL, project id, and API token, then click Save.');
+      return;
+    }
+
+    if (checked && connector.id === 'smartsheet_sync' && !smartsheetReadyForEnable(connector, baseDraft)) {
+      setConnectorSettingsOpen((prev) => ({ ...prev, [connector.id]: true }));
+      setMessage('Configure Smartsheet URL, sheet id, and API token, then click Save.');
+      return;
+    }
+
+    const nextDraft = {
+      ...baseDraft,
+      connection_status: checked ? 'connected' : 'disconnected',
+    };
+    updateConnectorDraft(connector.id, nextDraft);
+    await saveConnectorDraft(connector, nextDraft);
+  };
+
   const openJiraConfigModal = (connector, options = {}) => {
     const baseDraft = connectorDrafts[connector.id] || buildConnectorDraft(connector);
     const intentEnable = Boolean(options?.intentEnable);
@@ -1255,17 +1303,8 @@ export default function Account() {
                             type="checkbox"
                             checked={isOn}
                             disabled={locked || pending}
-                            onChange={(e) => {
-                              if (connector.id === 'jira_sync' && e.target.checked) {
-                                openJiraConfigModal(connector, {
-                                  intentEnable: true,
-                                  revertStatus: draft.connection_status,
-                                });
-                                return;
-                              }
-                              updateConnectorDraft(connector.id, {
-                                connection_status: e.target.checked ? 'connected' : 'disconnected',
-                              });
+                            onChange={async (e) => {
+                              await handleConnectorToggle(connector, e.target.checked);
                             }}
                           />
                           <span className="account-connector-toggle-track" />

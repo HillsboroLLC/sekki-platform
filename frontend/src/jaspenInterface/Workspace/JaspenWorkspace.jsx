@@ -43,6 +43,34 @@ const PM_VARIANT  = "monitor-check";
 const LSS_VARIANT = "chart-scatter";
 const MODEL_DISPLAY_ORDER = ['pluto', 'orbit', 'titan'];
 const MODEL_VERSION_BY_TYPE = { pluto: '1.0', orbit: '1.0', titan: '1.0' };
+const OBJECTIVE_OPTIONS = [
+  { key: 'balanced', label: 'Balanced' },
+  { key: 'cost', label: 'Cost Optimization' },
+  { key: 'speed', label: 'Speed to Market' },
+  { key: 'growth', label: 'Growth' },
+];
+const OBJECTIVE_LABEL_BY_KEY = OBJECTIVE_OPTIONS.reduce((acc, option) => {
+  acc[option.key] = option.label;
+  return acc;
+}, {});
+const OBJECTIVE_ALIAS = {
+  balanced: 'balanced',
+  default: 'balanced',
+  general: 'balanced',
+  cost: 'cost',
+  'cost optimization': 'cost',
+  'cost-optimization': 'cost',
+  efficiency: 'cost',
+  profitability: 'cost',
+  speed: 'speed',
+  'speed to market': 'speed',
+  'speed-to-market': 'speed',
+  timeline: 'speed',
+  delivery: 'speed',
+  growth: 'growth',
+  revenue: 'growth',
+  expansion: 'growth',
+};
 const INITIAL_NOTIFICATION_UPDATES = [
   {
     id: 'notif-model-access',
@@ -115,6 +143,14 @@ function normalizeReadiness(value) {
  */
 function clampPercent(p) {
   return Math.max(0, Math.min(100, Math.round(Number(p) || 0)));
+}
+
+function normalizeStrategyObjective(value, fallback = 'balanced') {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return fallback;
+  if (OBJECTIVE_ALIAS[text]) return OBJECTIVE_ALIAS[text];
+  const compact = text.replace(/[_-]+/g, ' ');
+  return OBJECTIVE_ALIAS[compact] || fallback;
 }
 
 function isContextSyncMessage(text) {
@@ -316,6 +352,8 @@ export default function JaspenWorkspace() {
 
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState([]);
+  const [strategyObjective, setStrategyObjective] = useState('balanced');
+  const [objectiveExplicitlySet, setObjectiveExplicitlySet] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -467,6 +505,11 @@ const refreshBundle = async (tid) => {
       result: s.result || null,
       timestamp: new Date(s.created_at || Date.now()).getTime(),
     }));
+
+    const bundleObjective = normalizeStrategyObjective(
+      bundle?.strategy_objective || bundle?.thread?.strategy_objective || 'balanced'
+    );
+    setStrategyObjective(bundleObjective);
 
     setSavedScenarios(normalized);
     const bundleLevers = Array.isArray(bundle?.scenario_levers) ? bundle.scenario_levers : [];
@@ -1862,8 +1905,31 @@ const refreshBundle = async (tid) => {
   // AI Assistant drawer state
 const [aiDrawerOpen, setAiDrawerOpen] = useState(true);
 const [aiInput, setAiInput] = useState('');
+const [aiScenarioProposal, setAiScenarioProposal] = useState(null);
+const [aiScenarioBusy, setAiScenarioBusy] = useState(false);
   // Toast notifications for chat actions
   const { toasts, showToast, dismissToast } = useToast();
+  const objectiveLabel = OBJECTIVE_LABEL_BY_KEY[strategyObjective] || OBJECTIVE_LABEL_BY_KEY.balanced;
+
+  const applyStrategyObjective = useCallback(async (nextObjective, options = {}) => {
+    const normalized = normalizeStrategyObjective(nextObjective);
+    const shouldPersist = options.persist !== false;
+    const persistThreadId = options.threadId || currentSessionId || sessionId || null;
+    const markExplicit = options.markExplicit !== false;
+    const silent = options.silent === true;
+    setStrategyObjective(normalized);
+    setAiScenarioProposal((prev) => (prev ? { ...prev, objective: normalized } : prev));
+    if (markExplicit) setObjectiveExplicitlySet(true);
+    if (!shouldPersist || !persistThreadId) return normalized;
+
+    try {
+      await Jaspen.setThreadObjective(persistThreadId, normalized);
+    } catch (err) {
+      console.error('[applyStrategyObjective] persist failed', err);
+      if (!silent) showToast('Saved locally, but could not sync objective to thread yet.', 'warning');
+    }
+    return normalized;
+  }, [currentSessionId, sessionId, showToast]);
 
 
   // AI drawer messages - DO NOT fabricate assistant messages
@@ -1932,6 +1998,7 @@ const [aiInput, setAiInput] = useState('');
       credentials: 'include',
       body: JSON.stringify({
         message,
+        strategy_objective: strategyObjective,
         ui_mode: 'interactive',
         ui_context: {
           screen: activeTab,
@@ -1992,6 +2059,12 @@ return {
                 chat_history: full.chat_history ?? session.chat_history,
                 readiness: normalizeReadiness(full.readiness ?? session.readiness),
                 collected_data: full.collected_data ?? session.collected_data,
+                strategy_objective: normalizeStrategyObjective(
+                  full.strategy_objective ?? session.strategy_objective ?? 'balanced'
+                ),
+                objective_explicitly_set: Boolean(
+                  full.objective_explicitly_set ?? session.objective_explicitly_set
+                ),
               },
             };
           });
@@ -2053,6 +2126,12 @@ async function loadSessionById(id) {
         session_id: thread.id,
         name: thread.name,
         model_type: thread.model_type || null,
+        strategy_objective: normalizeStrategyObjective(
+          thread.strategy_objective || data?.session?.strategy_objective || 'balanced'
+        ),
+        objective_explicitly_set: Boolean(
+          thread.objective_explicitly_set ?? data?.session?.objective_explicitly_set
+        ),
         chat_history: thread.conversation_history || [],
         readiness: normalizeReadiness(thread.readiness_snapshot || null),
         collected_data: {},
@@ -2080,6 +2159,8 @@ result: latestAnalysis ? {
       ...raw,
       result: resolvedResult,
       model_type: raw.model_type || null,
+      strategy_objective: normalizeStrategyObjective(raw.strategy_objective || 'balanced'),
+      objective_explicitly_set: Boolean(raw.objective_explicitly_set),
       readiness: raw.readiness ? normalizeReadiness(raw.readiness) : normalizeReadiness(null),
     };
   } catch (e) {
@@ -2211,6 +2292,8 @@ useEffect(() => {
         setCurrentSessionId(null);
         setAnalysisResult(null);
         setMessages([]);
+        setStrategyObjective('balanced');
+        setObjectiveExplicitlySet(false);
 // (removed) sidebar uses main `messages` as the thread source of truth
         setCollectedData({});
         setReadinessAudit(null);
@@ -2246,6 +2329,10 @@ useEffect(() => {
             status: bundle?.status || 'in_progress',
             result: bundle?.result || bundle?.analysis_result || null,
             score: bundle?.score ?? null,
+            strategy_objective: normalizeStrategyObjective(
+              bundle?.strategy_objective || bundle?.thread?.strategy_objective || 'balanced'
+            ),
+            objective_explicitly_set: false,
           };
         } catch (e) {
           console.debug('[auto-restore] bundle fallback failed', e);
@@ -2261,6 +2348,8 @@ useEffect(() => {
       if (restoredModelType && allowedModelTypes.includes(restoredModelType)) {
         setSelectedModelType(restoredModelType);
       }
+      setStrategyObjective(normalizeStrategyObjective(session?.strategy_objective || 'balanced'));
+      setObjectiveExplicitlySet(Boolean(session?.objective_explicitly_set));
 
 // Restore chat history (support both session.chat_history and session.result.chat_history)
 const rawHistory =
@@ -2568,6 +2657,24 @@ const renderModelTypeInlinePicker = (className = '') => (
   </div>
 );
 
+const renderObjectiveTags = (className = '') => (
+  <div className={`jas-objective-tags ${className}`.trim()}>
+    <span className="jas-objective-tags-label">
+      {objectiveExplicitlySet ? `Objective: ${objectiveLabel}` : 'Primary objective?'}
+    </span>
+    {OBJECTIVE_OPTIONS.map((option) => (
+      <button
+        key={option.key}
+        type="button"
+        className={`jas-objective-tag ${strategyObjective === option.key ? 'active' : ''}`}
+        onClick={() => applyStrategyObjective(option.key, { persist: true, markExplicit: true, silent: true })}
+      >
+        {option.label}
+      </button>
+    ))}
+  </div>
+);
+
 const resizeComposerTextarea = useCallback((el) => {
   if (!el) return;
   el.style.height = 'auto';
@@ -2633,6 +2740,7 @@ useEffect(() => {
         description,
         system_prompt: null,
         model_type: selectedModelType,
+        strategy_objective: strategyObjective,
       });
 
       console.log('[startConversation] convoStart returned:', {
@@ -2665,6 +2773,8 @@ useEffect(() => {
       if (data?.model_type) {
         setSelectedModelType(String(data.model_type).toLowerCase());
       }
+      setStrategyObjective(normalizeStrategyObjective(data?.strategy_objective || strategyObjective));
+      setObjectiveExplicitlySet(Boolean(data?.objective_explicitly_set) || objectiveExplicitlySet);
 
 
       // REMOVED - AI Agent backend handles persistence automatically
@@ -2675,10 +2785,12 @@ useEffect(() => {
         messages: [{ role: "user", text: description }, { role: "ai", text: reply }],
         readiness: data.readiness || 0,
         model_type: data?.model_type || selectedModelType,
+        strategy_objective: normalizeStrategyObjective(data?.strategy_objective || strategyObjective),
         collectedData: data.collected_data || {},
       });
 
       await fetchSessions();
+      return sid;
     } catch (e) {
       if (e?.status === 403 && e?.data?.code === 'model_type_not_allowed') {
         handleModelTypeBlocked(e);
@@ -2687,6 +2799,7 @@ useEffect(() => {
         setError("Could not start the conversation. Please try again.");
       }
       console.error(e);
+      return null;
     } finally {
       setBusy(false);
     }
@@ -2704,7 +2817,7 @@ async function continueConversation(userText) {
 
   if (!sessionId) {
     console.warn('[continueConversation] ABORT - no sessionId');
-    return;
+    return null;
   }
   setBusy(true);
   setError(null);
@@ -2723,6 +2836,7 @@ async function continueConversation(userText) {
       user_message: userText,
       conversation_history,
       model_type: selectedModelType,
+      strategy_objective: strategyObjective,
     });
 
     console.log('[continueConversation] convoContinue returned:', {
@@ -2741,6 +2855,8 @@ async function continueConversation(userText) {
     if (data?.model_type) {
       setSelectedModelType(String(data.model_type).toLowerCase());
     }
+    setStrategyObjective(normalizeStrategyObjective(data?.strategy_objective || strategyObjective));
+    setObjectiveExplicitlySet(Boolean(data?.objective_explicitly_set) || objectiveExplicitlySet);
 
     console.log('[continueConversation] about to call fetchReadinessFor with sessionId:', sessionId);
 
@@ -2790,6 +2906,7 @@ async function continueConversation(userText) {
         { role: "ai", text: serverReply },
       ],
       model_type: data?.model_type || selectedModelType,
+      strategy_objective: normalizeStrategyObjective(data?.strategy_objective || strategyObjective),
       readiness: auditPayload ? {
         percent: clampPercent(auditPayload.overall?.percent ?? 0),
         categories: auditPayload.categories || [],
@@ -2807,6 +2924,7 @@ async function continueConversation(userText) {
       },
       collectedData: updatedCollected,
     });
+    return sessionId;
   } catch (e) {
     if (e?.status === 403 && e?.data?.code === 'model_type_not_allowed') {
       handleModelTypeBlocked(e);
@@ -2815,6 +2933,7 @@ async function continueConversation(userText) {
       setError("Having trouble continuing the conversation. Please resend.");
     }
     console.error(e);
+    return null;
   } finally {
     setBusy(false);
   }
@@ -3127,7 +3246,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
   }
 
   // === Input handling ===
-  function onSubmit() {
+  async function onSubmit() {
     const now = Date.now();
     if (now - (lastSendAtRef.current || 0) < 500) return;
     lastSendAtRef.current = now;
@@ -3136,7 +3255,8 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
     if (busy) return;
     if (!text && (!pendingFiles || pendingFiles.length === 0)) return;
 
-    const attachments = (pendingFiles || []).map(f => ({
+    const filesToAnalyze = [...(pendingFiles || [])];
+    const attachments = filesToAnalyze.map(f => ({
       name: f.name,
       size: f.size,
       type: f.type,
@@ -3157,8 +3277,16 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
     setPendingFiles([]);
 
     const placeholder = text || `Uploaded ${attachments.length} file(s)`;
-    if (!sessionId) startConversation(placeholder);
-    else continueConversation(placeholder);
+    let resolvedThreadId = sessionId || currentSessionId || null;
+    if (!sessionId) {
+      resolvedThreadId = await startConversation(placeholder);
+    } else {
+      resolvedThreadId = await continueConversation(placeholder);
+    }
+
+    if (filesToAnalyze.length > 0) {
+      await analyzeUploadedFiles(filesToAnalyze, resolvedThreadId, text);
+    }
   }
 
   function onKey(e) {
@@ -3181,6 +3309,58 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
     }));
     setPendingFiles((prev) => [...prev, ...toAdd]);
     e.target.value = '';
+  }
+
+  async function analyzeUploadedFiles(filesToAnalyze, threadForInsights, promptText = '') {
+    const validFiles = (Array.isArray(filesToAnalyze) ? filesToAnalyze : []).filter((f) => f?.file);
+    if (validFiles.length === 0) return;
+
+    const resolvedThreadId = threadForInsights || currentSessionId || sessionId || null;
+    const insightEvents = [];
+
+    for (const item of validFiles) {
+      try {
+        const resp = await Jaspen.analyzeDataFile({
+          file: item.file,
+          thread_id: resolvedThreadId || undefined,
+          prompt: promptText || undefined,
+        });
+        const summary = String(resp?.insight?.insight_text || '').trim();
+        if (summary) {
+          insightEvents.push({
+            fileName: item.name,
+            summary,
+            insight: resp?.insight || null,
+          });
+        }
+      } catch (err) {
+        console.error('[analyzeUploadedFiles] failed', err);
+        showToast(`Failed to analyze ${item.name}`, 'error');
+      }
+    }
+
+    if (insightEvents.length > 0) {
+      const joined = insightEvents
+        .map((evt) => `From ${evt.fileName}: ${evt.summary}`)
+        .join('\n\n');
+      setMessages((prev) => [...prev, { role: 'ai', text: `AI Insights\n\n${joined}` }]);
+      showToast('AI insights added from uploaded data', 'success');
+
+      if (analysisResult) {
+        setAnalysisResult((prev) => ({
+          ...(prev || {}),
+          ai_insights: [
+            ...(Array.isArray(prev?.ai_insights) ? prev.ai_insights : []),
+            ...insightEvents.map((evt) => ({
+              file_name: evt.fileName,
+              summary: evt.summary,
+              insight: evt.insight,
+              timestamp: new Date().toISOString(),
+            })),
+          ].slice(-10),
+        }));
+      }
+    }
   }
 
   // === AI Assistant Handlers ===
@@ -3344,8 +3524,8 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
   // - Keep original baseline in result._baseline_scorecard (first time only)
   // - Persist snapshots + selected scorecard id inside the result blob
   try {
-    const sid = currentSessionId || sessionId;
-    const baselineId = baselineScorecardId || (analysisResult?.analysis_id ?? sid);
+    const aiThreadId = currentSessionId || sessionId;
+    const baselineId = baselineScorecardId || (analysisResult?.analysis_id ?? aiThreadId);
 
     // Determine baseline snapshot to preserve (if not already preserved)
     const baselineSnap =
@@ -3633,6 +3813,232 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
   
   const { dispatchChatActions } = useChatCommands(chatCommandHandlers);
 
+  const buildAiScenarioProposal = useCallback((resp, instruction, threadId, fallbackObjective = 'balanced') => {
+    const suggestion = (resp && typeof resp === 'object' && resp.suggestion && typeof resp.suggestion === 'object')
+      ? resp.suggestion
+      : {};
+    const suggestedDeltas = (suggestion && typeof suggestion.deltas === 'object') ? suggestion.deltas : {};
+    const leverContext = Array.isArray(resp?.lever_context) ? resp.lever_context : [];
+    const contextByKey = {};
+    leverContext.forEach((lever) => {
+      if (!lever || !lever.key) return;
+      contextByKey[String(lever.key)] = lever;
+    });
+
+    const defaultBounds = (currentValue, leverType) => {
+      const current = Number(currentValue || 0);
+      if (leverType === 'months') return { min: 1, max: Math.max(24, current * 3 || 24), step: 1 };
+      if (leverType === 'percentage') {
+        if (current >= 0 && current <= 1) return { min: 0, max: 1, step: 0.01 };
+        return { min: 0, max: Math.max(100, current * 2 || 100), step: 0.5 };
+      }
+      if (leverType === 'currency') {
+        const base = Math.max(Math.abs(current), 1000);
+        return { min: 0, max: Math.max(current + base * 2, base * 3), step: Math.max(1, Math.round(base * 0.01)) };
+      }
+      const base = Math.max(Math.abs(current), 10);
+      return { min: 0, max: Math.max(current + base * 2, base * 3), step: 1 };
+    };
+
+    const rows = Object.entries(suggestedDeltas).map(([key, rawValue]) => {
+      const meta = contextByKey[key] || {};
+      const current = Number(meta.current ?? 0);
+      const type = String(meta.type || 'number');
+      const bounds = {
+        min: Number(meta.min),
+        max: Number(meta.max),
+        step: Number(meta.step),
+      };
+      const fallback = defaultBounds(current, type);
+      return {
+        key,
+        label: String(meta.label || key).trim() || key,
+        type,
+        current: Number.isFinite(current) ? current : 0,
+        value: Number(rawValue),
+        min: Number.isFinite(bounds.min) ? bounds.min : fallback.min,
+        max: Number.isFinite(bounds.max) ? bounds.max : fallback.max,
+        step: Number.isFinite(bounds.step) && bounds.step > 0 ? bounds.step : fallback.step,
+        rationale: String((suggestion.rationale && suggestion.rationale[key]) || '').trim(),
+      };
+    }).filter((row) => Number.isFinite(row.value));
+
+    const availableLevers = leverContext.map((lever) => ({
+      key: String(lever.key || ''),
+      label: String(lever.label || lever.key || '').trim() || String(lever.key || ''),
+      type: String(lever.type || 'number'),
+      current: Number(lever.current || 0),
+      min: Number(lever.min),
+      max: Number(lever.max),
+      step: Number(lever.step),
+    })).filter((lever) => lever.key);
+
+    const selectedKeys = new Set(rows.map((row) => row.key));
+    const firstAvailable = (availableLevers.find((lever) => !selectedKeys.has(lever.key)) || {}).key || '';
+
+    return {
+      threadId,
+      objective: normalizeStrategyObjective(resp?.strategy_objective || fallbackObjective),
+      instruction: String(instruction || '').trim(),
+      label: String(suggestion.label || resp?.scenario?.label || 'AI Suggested Scenario').trim() || 'AI Suggested Scenario',
+      summary: String(suggestion.summary || '').trim(),
+      rows,
+      preview: resp?.preview_scorecard || null,
+      availableLevers,
+      addLeverKey: firstAvailable,
+    };
+  }, []);
+
+  const proposalDeltas = (proposal) => {
+    const out = {};
+    (proposal?.rows || []).forEach((row) => {
+      const val = Number(row?.value);
+      if (!row?.key || !Number.isFinite(val)) return;
+      out[row.key] = val;
+    });
+    return out;
+  };
+
+  const setProposalRowValue = (key, value) => {
+    setAiScenarioProposal((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rows: prev.rows.map((row) => {
+          if (row.key !== key) return row;
+          return { ...row, value };
+        }),
+      };
+    });
+  };
+
+  const setProposalAddLeverKey = (key) => {
+    setAiScenarioProposal((prev) => (prev ? { ...prev, addLeverKey: key } : prev));
+  };
+
+  const addProposalLever = () => {
+    setAiScenarioProposal((prev) => {
+      if (!prev) return prev;
+      const key = String(prev.addLeverKey || '').trim();
+      if (!key) return prev;
+      if (prev.rows.some((row) => row.key === key)) return prev;
+      const meta = prev.availableLevers.find((lever) => lever.key === key);
+      if (!meta) return prev;
+      const row = {
+        key: meta.key,
+        label: meta.label,
+        type: meta.type || 'number',
+        current: Number(meta.current || 0),
+        value: Number(meta.current || 0),
+        min: Number.isFinite(meta.min) ? meta.min : 0,
+        max: Number.isFinite(meta.max) ? meta.max : Math.max(100, Number(meta.current || 0) * 2 || 100),
+        step: Number.isFinite(meta.step) && meta.step > 0 ? meta.step : 1,
+        rationale: '',
+      };
+      const nextRows = [...prev.rows, row];
+      const selected = new Set(nextRows.map((item) => item.key));
+      const nextAdd = (prev.availableLevers.find((lever) => !selected.has(lever.key)) || {}).key || '';
+      return { ...prev, rows: nextRows, addLeverKey: nextAdd };
+    });
+  };
+
+  const removeProposalLever = (key) => {
+    setAiScenarioProposal((prev) => {
+      if (!prev) return prev;
+      const nextRows = prev.rows.filter((row) => row.key !== key);
+      const selected = new Set(nextRows.map((item) => item.key));
+      const nextAdd = prev.addLeverKey || (prev.availableLevers.find((lever) => !selected.has(lever.key)) || {}).key || '';
+      return { ...prev, rows: nextRows, addLeverKey: nextAdd };
+    });
+  };
+
+  const previewAiScenarioProposal = async () => {
+    if (!aiScenarioProposal?.threadId) return;
+    setAiScenarioBusy(true);
+    try {
+      const resp = await Jaspen.generateAiScenario(aiScenarioProposal.threadId, {
+        instruction: aiScenarioProposal.instruction,
+        deltas: proposalDeltas(aiScenarioProposal),
+        label: aiScenarioProposal.label,
+        commit: false,
+        model_type: selectedModelType,
+        strategy_objective: strategyObjective,
+      });
+      setStrategyObjective(normalizeStrategyObjective(resp?.strategy_objective || strategyObjective));
+      const next = buildAiScenarioProposal(resp, aiScenarioProposal.instruction, aiScenarioProposal.threadId, strategyObjective);
+      setAiScenarioProposal((prev) => ({
+        ...next,
+        label: prev?.label || next.label,
+        instruction: prev?.instruction || next.instruction,
+      }));
+      showToast('Scenario preview updated', 'success');
+    } catch (err) {
+      console.error('[previewAiScenarioProposal] failed', err);
+      showToast(err?.message || 'Failed to refresh scenario preview', 'error');
+    } finally {
+      setAiScenarioBusy(false);
+    }
+  };
+
+  const regenerateAiScenarioProposal = async () => {
+    if (!aiScenarioProposal?.threadId) return;
+    setAiScenarioBusy(true);
+    try {
+      const resp = await Jaspen.generateAiScenario(aiScenarioProposal.threadId, {
+        instruction: aiScenarioProposal.instruction,
+        commit: false,
+        model_type: selectedModelType,
+        strategy_objective: strategyObjective,
+      });
+      setStrategyObjective(normalizeStrategyObjective(resp?.strategy_objective || strategyObjective));
+      const next = buildAiScenarioProposal(resp, aiScenarioProposal.instruction, aiScenarioProposal.threadId, strategyObjective);
+      setAiScenarioProposal(next);
+      showToast('AI scenario regenerated', 'success');
+    } catch (err) {
+      console.error('[regenerateAiScenarioProposal] failed', err);
+      showToast(err?.message || 'Failed to regenerate AI scenario', 'error');
+    } finally {
+      setAiScenarioBusy(false);
+    }
+  };
+
+  const rejectAiScenarioProposal = () => {
+    setAiScenarioProposal(null);
+    showToast('Scenario suggestion discarded', 'info');
+  };
+
+  const acceptAiScenarioProposal = async () => {
+    if (!aiScenarioProposal?.threadId) return;
+    setAiScenarioBusy(true);
+    try {
+      const resp = await Jaspen.generateAiScenario(aiScenarioProposal.threadId, {
+        instruction: aiScenarioProposal.instruction,
+        deltas: proposalDeltas(aiScenarioProposal),
+        label: aiScenarioProposal.label,
+        commit: true,
+        accept: true,
+        model_type: selectedModelType,
+        strategy_objective: strategyObjective,
+      });
+      setStrategyObjective(normalizeStrategyObjective(resp?.strategy_objective || strategyObjective));
+      await refreshBundle(aiScenarioProposal.threadId);
+      setActiveTab('scenario');
+      setView('scenario');
+      setAiScenarioProposal(null);
+      const score = resp?.scenario?.result?.jaspen_score ?? resp?.preview_scorecard?.jaspen_score;
+      setMessages((prev) => [
+        ...prev,
+        { role: 'ai', text: `Scenario accepted: "${aiScenarioProposal.label}"${score != null ? ` (score ${score})` : ''}.` },
+      ]);
+      showToast('AI scenario applied', 'success');
+    } catch (err) {
+      console.error('[acceptAiScenarioProposal] failed', err);
+      showToast(err?.message || 'Failed to apply AI scenario', 'error');
+    } finally {
+      setAiScenarioBusy(false);
+    }
+  };
+
 const sendAIMessage = async () => {
   const text = (aiInput || '').trim();
   if (!text || !sessionId || busy) return;
@@ -3645,6 +4051,72 @@ const sendAIMessage = async () => {
     // 1) Add the user's message into the ONE shared thread UI
     setMessages(prev => [...prev, { role: 'user', text }]);
 
+    const lower = text.toLowerCase();
+    const aiThreadId = currentSessionId || sessionId;
+    const hasScorecardContext = Boolean(analysisResult || selectedScorecardId);
+    const scenarioIntent =
+      hasScorecardContext &&
+      (
+        /\bwhat if\b/.test(lower) ||
+        (
+          /\bscenario\b/.test(lower) &&
+          /\b(increase|decrease|reduce|boost|raise|lower|cut|optimiz|adjust|change)\b/.test(lower)
+        )
+      );
+    const wbsIntent =
+      hasScorecardContext &&
+      /\b(wbs|work breakdown|project plan|task plan|task list)\b/.test(lower) &&
+      /\b(generate|create|build|draft|recommend|suggest|regenerate|optimiz)\b/.test(lower);
+
+    if (scenarioIntent && aiThreadId) {
+      try {
+        const aiScenario = await Jaspen.generateAiScenario(aiThreadId, {
+          instruction: text,
+          commit: false,
+          model_type: selectedModelType,
+          strategy_objective: strategyObjective,
+        });
+        setStrategyObjective(normalizeStrategyObjective(aiScenario?.strategy_objective || strategyObjective));
+        const proposal = buildAiScenarioProposal(aiScenario, text, aiThreadId, strategyObjective);
+        setAiScenarioProposal(proposal);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            text: `I drafted "${proposal.label}". Review, modify, then Accept or Reject.`,
+          },
+        ]);
+        showToast('AI scenario draft ready', 'success');
+        return;
+      } catch (scenarioErr) {
+        console.error('[sendAIMessage] AI scenario generation failed', scenarioErr);
+        showToast('Could not auto-generate scenario from that prompt. Continuing in chat.', 'error');
+      }
+    }
+
+    if (wbsIntent && aiThreadId) {
+      try {
+        const aiWbs = await Jaspen.generateAiWbs(aiThreadId, {
+          instruction: text,
+          commit: true,
+          model_type: selectedModelType,
+        });
+        const taskCount = Array.isArray(aiWbs?.project_wbs?.tasks) ? aiWbs.project_wbs.tasks.length : 0;
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'ai',
+            text: `Generated an AI project WBS with ${taskCount} tasks. You can edit it now from your planning workflow.`,
+          },
+        ]);
+        showToast('AI WBS generated', 'success');
+        return;
+      } catch (wbsErr) {
+        console.error('[sendAIMessage] AI WBS generation failed', wbsErr);
+        showToast('Could not auto-generate WBS from that prompt. Continuing in chat.', 'error');
+      }
+    }
+
     // 2) Call the endpoint that can return Interactive actions
     const resp = await chatWithReadiness(text, currentSessionId || sessionId);
 
@@ -3654,8 +4126,8 @@ const sendAIMessage = async () => {
     }
 
     // 4) Refresh readiness (authoritative) and persist the full updated thread
-    const sid = resp?.sessionId || currentSessionId || sessionId;
-    const auditPayload = await fetchReadinessFor(sid);
+    const sidForAudit = resp?.sessionId || currentSessionId || sessionId;
+    const auditPayload = await fetchReadinessFor(sidForAudit);
 
     const readinessObj = auditPayload ? {
       percent: clampPercent(auditPayload.overall?.percent ?? 0),
@@ -3707,6 +4179,8 @@ const uiActions = parseUIActions(actionEnvelope);
       setView('intake');
       setMessages(previousSessionState.messages);
       setCollectedData(previousSessionState.collectedData);
+      setStrategyObjective(normalizeStrategyObjective(previousSessionState.strategy_objective || 'balanced'));
+      setObjectiveExplicitlySet(Boolean(previousSessionState.strategy_objective));
       setAnalysisResult(null);
       setError(null);
       dispatchSidebar({ type: 'OPEN_READINESS' });
@@ -3725,6 +4199,8 @@ const uiActions = parseUIActions(actionEnvelope);
     setError(null);
     setSavedScenarios([]);
     setCollectedData({});
+    setStrategyObjective('balanced');
+    setObjectiveExplicitlySet(false);
     dispatchSidebar({ type: 'CLOSE_READINESS' });
     setPreviousSessionState(null);
   };
@@ -3752,7 +4228,7 @@ const uiActions = parseUIActions(actionEnvelope);
   const full = looksIncomplete && baseId ? await loadSessionById(baseId) : null;
 
   // Merge shallowly: prefer fields from the full fetch when present
-  const merged = full
+	  const merged = full
     ? {
         ...result,
         ...full,
@@ -3764,7 +4240,12 @@ const uiActions = parseUIActions(actionEnvelope);
         project_name: full.name ?? result.project_name,
         jaspen_score: (full.score ?? result.jaspen_score),
       }
-    : result;
+	    : result;
+  const mergedObjective = normalizeStrategyObjective(
+    merged?.strategy_objective || merged?.result?.strategy_objective || 'balanced'
+  );
+  setStrategyObjective(mergedObjective);
+  setObjectiveExplicitlySet(Boolean(merged?.objective_explicitly_set || merged?.result?.objective_explicitly_set));
 
   // Readiness normalization handled by normalizeReadiness() helper
   // Readiness is ONLY fetched from backend via fetchReadinessFor - no session cache
@@ -3785,11 +4266,12 @@ const uiActions = parseUIActions(actionEnvelope);
     fetchReadinessFor(sid);
 
 
-    setPreviousSessionState({
-      sessionId: sid,
-      messages: restoredMessages,
-      collectedData: merged.collected_data || {},
-    });
+	    setPreviousSessionState({
+	      sessionId: sid,
+	      messages: restoredMessages,
+        strategy_objective: mergedObjective,
+	      collectedData: merged.collected_data || {},
+	    });
     return;
   }
 
@@ -4346,23 +4828,147 @@ setView(id === 'chat' ? 'intake' : id);
           ))}
         </div>
 
+        {aiScenarioProposal && (
+          <div className="jas-ai-scenario-panel">
+            <div className="jas-ai-scenario-head">
+              <div className="jas-ai-scenario-title">AI Scenario Draft</div>
+              <div className="jas-ai-scenario-sub">
+                {aiScenarioProposal.preview?.jaspen_score != null
+                  ? `Projected score: ${aiScenarioProposal.preview.jaspen_score}`
+                  : 'Projected score unavailable'}
+              </div>
+            </div>
+
+            <div className="jas-ai-scenario-field">
+              <label>Scenario label</label>
+              <input
+                type="text"
+                value={aiScenarioProposal.label}
+                onChange={(e) => setAiScenarioProposal((prev) => (prev ? { ...prev, label: e.target.value } : prev))}
+                disabled={aiScenarioBusy}
+              />
+            </div>
+
+            <div className="jas-ai-scenario-field">
+              <label>Desired outcome</label>
+              <textarea
+                rows={2}
+                value={aiScenarioProposal.instruction}
+                onChange={(e) => setAiScenarioProposal((prev) => (prev ? { ...prev, instruction: e.target.value } : prev))}
+                disabled={aiScenarioBusy}
+              />
+            </div>
+
+            <div className="jas-ai-scenario-field">
+              <label>Objective profile</label>
+              <select
+                value={strategyObjective}
+                onChange={(e) => applyStrategyObjective(e.target.value, { persist: true, markExplicit: true, silent: true })}
+                disabled={aiScenarioBusy}
+              >
+                {OBJECTIVE_OPTIONS.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {aiScenarioProposal.summary && (
+              <p className="jas-ai-scenario-summary">{aiScenarioProposal.summary}</p>
+            )}
+
+            <div className="jas-ai-scenario-rows">
+              {aiScenarioProposal.rows.map((row) => (
+                <div className="jas-ai-scenario-row" key={row.key}>
+                  <div className="jas-ai-scenario-row-label">
+                    <strong>{row.label}</strong>
+                    <span>Current: {row.current}</span>
+                  </div>
+                  <div className="jas-ai-scenario-row-input">
+                    <input
+                      type="number"
+                      value={row.value}
+                      min={row.min}
+                      max={row.max}
+                      step={row.step}
+                      disabled={aiScenarioBusy}
+                      onChange={(e) => {
+                        const nextVal = Number(e.target.value);
+                        if (!Number.isFinite(nextVal)) return;
+                        setProposalRowValue(row.key, nextVal);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="jas-ai-mini-btn"
+                      onClick={() => removeProposalLever(row.key)}
+                      disabled={aiScenarioBusy}
+                      title="Remove lever"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  {row.rationale && <div className="jas-ai-scenario-rationale">{row.rationale}</div>}
+                </div>
+              ))}
+            </div>
+
+            {Array.isArray(aiScenarioProposal.availableLevers) && aiScenarioProposal.availableLevers.length > aiScenarioProposal.rows.length && (
+              <div className="jas-ai-scenario-add">
+                <select
+                  value={aiScenarioProposal.addLeverKey || ''}
+                  onChange={(e) => setProposalAddLeverKey(e.target.value)}
+                  disabled={aiScenarioBusy}
+                >
+                  <option value="">Add lever...</option>
+                  {aiScenarioProposal.availableLevers
+                    .filter((lever) => !aiScenarioProposal.rows.some((row) => row.key === lever.key))
+                    .map((lever) => (
+                      <option key={lever.key} value={lever.key}>{lever.label}</option>
+                    ))}
+                </select>
+                <button type="button" className="jas-ai-mini-btn" onClick={addProposalLever} disabled={aiScenarioBusy || !aiScenarioProposal.addLeverKey}>
+                  Add
+                </button>
+              </div>
+            )}
+
+            <div className="jas-ai-scenario-actions">
+              <button type="button" className="jas-ai-mini-btn secondary" onClick={regenerateAiScenarioProposal} disabled={aiScenarioBusy}>
+                Modify (Regenerate)
+              </button>
+              <button type="button" className="jas-ai-mini-btn secondary" onClick={previewAiScenarioProposal} disabled={aiScenarioBusy}>
+                Update Preview
+              </button>
+              <button type="button" className="jas-ai-mini-btn danger" onClick={rejectAiScenarioProposal} disabled={aiScenarioBusy}>
+                Reject
+              </button>
+              <button type="button" className="jas-ai-mini-btn primary" onClick={acceptAiScenarioProposal} disabled={aiScenarioBusy || aiScenarioProposal.rows.length === 0}>
+                {aiScenarioBusy ? 'Applying…' : 'Accept'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="jas-ai-input-area">
-          <textarea
-            className="jas-ai-input"
-            placeholder="Ask about tasks, timeline, resources..."
-            rows="3"
-            value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendAIMessage();
-              }
-            }}
-          />
-          <button className="jas-ai-send-btn" onClick={sendAIMessage}>
-            <FontAwesomeIcon icon={faPaperPlane} />
-          </button>
+          {renderObjectiveTags('jas-ai-objective-tags')}
+          <div className="jas-ai-input-row">
+            <textarea
+              className="jas-ai-input"
+              placeholder="Ask about tasks, timeline, resources..."
+              rows="3"
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendAIMessage();
+                }
+              }}
+            />
+            <button className="jas-ai-send-btn" onClick={sendAIMessage}>
+              <FontAwesomeIcon icon={faPaperPlane} />
+            </button>
+          </div>
         </div>
       </>
     ) : (
@@ -4719,6 +5325,8 @@ setView(id === 'chat' ? 'intake' : id);
                         </div>
                       </div>
                     </div>
+
+                    {renderObjectiveTags('chatgpt-objective-tags')}
 
                     {sessionId && hasConversationMessages && (
                       <div className="chatgpt-footer">
@@ -5143,6 +5751,8 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
               </div>
             </div>
           </div>
+
+          {renderObjectiveTags('jas-chat-objective-tags')}
 
           {sessionId && hasConversationMessages && (
             <div className="chatgpt-footer">

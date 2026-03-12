@@ -17,6 +17,7 @@ export const endpoints = {
   
   // Threads
   getThread:      (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}`,
+  updateThread:   (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}`,
   
   // Analyses
   listAnalyses:   (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}/analyses`,
@@ -40,7 +41,10 @@ export const endpoints = {
   updateScenario:   (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}?thread_id=${encodeURIComponent(threadId)}`,
   applyScenario:    (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}/apply?thread_id=${encodeURIComponent(threadId)}`,
   adoptScenario:    (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}/adopt${threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''}`,
+  aiScenario:       (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/ai-scenario`,
+  aiWbs:            (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/ai-wbs`,
   threadWbs:        (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/wbs`,
+  analyzeData:      `${API_BASE}/api/ai-agent/analyze-data`,
   deleteAnalysis:   (analysisId) => `${API_BASE}/api/strategy/analyses/${encodeURIComponent(analysisId)}`,
   // Connector settings and PM sync profile
   connectorStatus: `${API_BASE}/api/connectors/status`,
@@ -215,7 +219,7 @@ export const Jaspen = {
   },
 
   // ---------- Conversational intake (Claude via /api/chat) ----------
-async convoStart({ description, project_id, model_type }) {
+async convoStart({ description, project_id, model_type, strategy_objective }) {
     console.log('[JaspenClient.convoStart] ENTRY', {
       description: description?.substring(0, 50),
       project_id,
@@ -231,6 +235,7 @@ async convoStart({ description, project_id, model_type }) {
         project_id: pid,
         name: description.substring(0, 60) || 'New Idea',
         model_type: model_type || undefined,
+        strategy_objective: strategy_objective || undefined,
       },
       { withSid: true }
     );
@@ -248,10 +253,11 @@ async convoStart({ description, project_id, model_type }) {
       message: data.message || data.reply,
       readiness: data.readiness || { percent: 0, categories: [] },
       model_type: data.model_type || null,
+      strategy_objective: data.strategy_objective || null,
       status: data.status || 'gathering_info',
     };
   },
-async convoContinue({ session_id, user_message, conversation_history, model_type }) {
+async convoContinue({ session_id, user_message, conversation_history, model_type, strategy_objective }) {
     console.log('[JaspenClient.convoContinue] ENTRY', {
       session_id,
       user_message: user_message?.substring(0, 50),
@@ -264,6 +270,7 @@ async convoContinue({ session_id, user_message, conversation_history, model_type
         thread_id: session_id,
         message: user_message,
         model_type: model_type || undefined,
+        strategy_objective: strategy_objective || undefined,
       },
       { withSid: true }
     );
@@ -281,6 +288,7 @@ async convoContinue({ session_id, user_message, conversation_history, model_type
       message: data.message || data.reply,
       readiness: data.readiness || { percent: 0, categories: [] },
       model_type: data.model_type || null,
+      strategy_objective: data.strategy_objective || null,
     };
   },
 async analyzeFromConversation({ session_id, transcript, deterministic = true, seed, project_name, assumptions, model_type }) {
@@ -429,11 +437,52 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
       { withSid: true }
     ),
 
+  generateAiScenario: async (threadId, payload = {}) =>
+    postJSON(endpoints.aiScenario(threadId), payload, { withSid: true }),
+
+  setThreadObjective: async (threadId, strategy_objective) =>
+    patchJSON(
+      endpoints.updateThread(threadId),
+      { strategy_objective },
+      { withSid: true }
+    ),
+
+  generateAiWbs: async (threadId, payload = {}) =>
+    postJSON(endpoints.aiWbs(threadId), payload, { withSid: true }),
+
   getThreadWbs: async (threadId) =>
     getJSON(endpoints.threadWbs(threadId), { withSid: true }),
 
   upsertThreadWbs: async (threadId, project_wbs) =>
     putJSON(endpoints.threadWbs(threadId), { project_wbs }, { withSid: true }),
+
+  analyzeDataFile: async ({ file, thread_id, prompt } = {}) => {
+    if (!file) throw new Error('file is required');
+    const token = getToken();
+    const form = new FormData();
+    form.append('file', file);
+    if (thread_id) form.append('thread_id', thread_id);
+    if (prompt) form.append('prompt', prompt);
+
+    const res = await fetch(endpoints.analyzeData, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Session-ID': getSid(),
+      },
+      body: form,
+    });
+    const data = await _json(res);
+    if (!res.ok) {
+      const msg = data?.error || data?.detail || `HTTP ${res.status}`;
+      const err = new Error(msg);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  },
   
   async getLevers(threadId) {
     return getJSON(endpoints.getLevers(threadId));

@@ -490,6 +490,47 @@
   line-height: 1.5;
 }
 
+/* --- AI Insights Section --- */
+.score-dashboard-container .insights-section {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+
+.score-dashboard-container .ins-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.score-dashboard-container .ins-item {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.score-dashboard-container .ins-item:last-child {
+  border-bottom: none;
+}
+
+.score-dashboard-container .ins-meta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.score-dashboard-container .ins-text {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 /* --- Decision Section --- */
 .score-dashboard-container .decision-section {
   background: var(--white);

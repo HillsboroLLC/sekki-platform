@@ -1695,6 +1695,49 @@
   width: 100%;
 }
 
+.jas-objective-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jas-chat-objective-tags,
+.chatgpt-objective-tags {
+  max-width: 920px;
+  margin: 10px auto 0;
+}
+
+.jas-objective-tags-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.jas-objective-tag {
+  border: 1px solid var(--gray-300);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--gray-700);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.jas-objective-tag:hover {
+  border-color: var(--gray-500);
+  color: var(--navy);
+}
+
+.jas-objective-tag.active {
+  border-color: var(--navy);
+  color: var(--navy);
+  background: #eef2ff;
+}
+
 .jas-model-picker-row {
   max-width: 920px;
   margin: 0 auto 10px;
@@ -2464,8 +2507,19 @@
   background: var(--white);
   border-top: 1px solid var(--border);
   display: flex;
+  flex-direction: column;
   gap: 10px;
   flex-shrink: 0;
+}
+
+.jas-ai-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.jas-ai-objective-tags {
+  margin: 0;
 }
 
 .jas-ai-input {
@@ -2500,10 +2554,173 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition);
+  align-self: flex-end;
 }
 
 .jas-ai-send-btn:hover {
   background: #1e2a4f;
+}
+
+.jas-ai-scenario-panel {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--gray-50);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jas-ai-scenario-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.jas-ai-scenario-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.jas-ai-scenario-sub {
+  font-size: 0.72rem;
+  color: var(--gray-600);
+}
+
+.jas-ai-scenario-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jas-ai-scenario-field label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.jas-ai-scenario-field input,
+.jas-ai-scenario-field textarea,
+.jas-ai-scenario-field select {
+  width: 100%;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: var(--navy);
+  background: var(--white);
+  font-family: var(--font);
+}
+
+.jas-ai-scenario-summary {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--gray-700);
+}
+
+.jas-ai-scenario-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.jas-ai-scenario-row {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  background: var(--white);
+}
+
+.jas-ai-scenario-row-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--gray-700);
+  margin-bottom: 6px;
+}
+
+.jas-ai-scenario-row-label strong {
+  color: var(--navy);
+}
+
+.jas-ai-scenario-row-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.jas-ai-scenario-row-input input {
+  flex: 1;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+.jas-ai-scenario-rationale {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--gray-600);
+  line-height: 1.35;
+}
+
+.jas-ai-scenario-add {
+  display: flex;
+  gap: 8px;
+}
+
+.jas-ai-scenario-add select {
+  flex: 1;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  color: var(--navy);
+  background: var(--white);
+}
+
+.jas-ai-scenario-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jas-ai-mini-btn {
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  color: var(--navy);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jas-ai-mini-btn.primary {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: var(--white);
+}
+
+.jas-ai-mini-btn.secondary {
+  border-color: var(--gray-400);
+}
+
+.jas-ai-mini-btn.danger {
+  border-color: #d33f49;
+  color: #d33f49;
+}
+
+.jas-ai-mini-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* Drawer backdrop overlay */

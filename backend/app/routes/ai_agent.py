@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
+import io
 import json
 import math
+import openai
 import os
 import re
 import uuid
@@ -28,6 +30,36 @@ from app.tool_registry import (
 from .sessions import load_user_sessions, save_user_sessions
 
 ai_agent_bp = Blueprint('ai_agent', __name__)
+
+STRATEGY_OBJECTIVE_OPTIONS = ("balanced", "cost", "speed", "growth")
+STRATEGY_OBJECTIVE_ALIASES = {
+    "balanced": "balanced",
+    "default": "balanced",
+    "general": "balanced",
+    "cost": "cost",
+    "cost optimization": "cost",
+    "cost-optimization": "cost",
+    "efficiency": "cost",
+    "profitability": "cost",
+    "speed": "speed",
+    "speed to market": "speed",
+    "speed-to-market": "speed",
+    "timeline": "speed",
+    "delivery": "speed",
+    "growth": "growth",
+    "revenue": "growth",
+    "expansion": "growth",
+}
+
+
+def normalize_strategy_objective(value, default="balanced"):
+    text = str(value or "").strip().lower()
+    if not text:
+        return default
+    if text in STRATEGY_OBJECTIVE_ALIASES:
+        return STRATEGY_OBJECTIVE_ALIASES[text]
+    compact = text.replace("_", " ").replace("-", " ")
+    return STRATEGY_OBJECTIVE_ALIASES.get(compact, default)
 
 
 READINESS_SPEC_V1 = {
@@ -316,7 +348,7 @@ def _build_readiness_items(spec, version, categories, user_text, user_turns):
     return items, summary
 
 
-def _new_session(user_id, thread_id, name, model_type=None):
+def _new_session(user_id, thread_id, name, model_type=None, strategy_objective=None, objective_explicit=False):
     now = _iso_now()
     return {
         "session_id": thread_id,
@@ -330,6 +362,8 @@ def _new_session(user_id, thread_id, name, model_type=None):
         "timestamp": now,
         "status": "in_progress",
         "user_id": user_id,
+        "strategy_objective": normalize_strategy_objective(strategy_objective),
+        "objective_explicitly_set": bool(objective_explicit),
     }
 
 
@@ -939,6 +973,235 @@ def _find_session_by_thread(thread_id, user_id=None):
     return None
 
 
+def _data_insights_model():
+    return (
+        current_app.config.get("AI_DATA_INSIGHTS_MODEL")
+        or os.getenv("AI_DATA_INSIGHTS_MODEL")
+        or "gpt-4o-mini"
+    )
+
+
+def _openai_api_key():
+    return current_app.config.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+
+def _dataset_from_upload(uploaded_file):
+    try:
+        import pandas as pd
+    except Exception as e:
+        raise RuntimeError(f"pandas is required for data analysis: {e}")
+
+    filename = str(getattr(uploaded_file, "filename", "") or "upload").strip() or "upload"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    content = uploaded_file.read()
+    if not content:
+        raise ValueError("Uploaded file is empty.")
+
+    bio = io.BytesIO(content)
+    if ext in ("csv", "txt"):
+        df = pd.read_csv(bio)
+    elif ext in ("xlsx", "xls"):
+        try:
+            df = pd.read_excel(bio)
+        except Exception as exc:
+            raise ValueError(f"Could not parse Excel file ({filename}): {exc}")
+    else:
+        raise ValueError("Unsupported file type. Upload CSV or Excel (.csv/.xlsx/.xls).")
+
+    if df is None or df.empty:
+        raise ValueError("Dataset has no rows.")
+    return df, filename
+
+
+def _linear_slope(values):
+    n = len(values)
+    if n < 2:
+        return 0.0
+    sum_x = (n - 1) * n / 2.0
+    sum_x2 = (n - 1) * n * (2 * n - 1) / 6.0
+    sum_y = float(sum(values))
+    sum_xy = sum(i * float(v) for i, v in enumerate(values))
+    denom = (n * sum_x2) - (sum_x ** 2)
+    if abs(denom) < 1e-12:
+        return 0.0
+    return ((n * sum_xy) - (sum_x * sum_y)) / denom
+
+
+def _summarize_dataset(df):
+    try:
+        import pandas as pd
+    except Exception as e:
+        raise RuntimeError(f"pandas is required for data analysis: {e}")
+
+    row_count = int(df.shape[0])
+    column_count = int(df.shape[1])
+    columns = [str(c) for c in list(df.columns)]
+    numeric_cols = [str(c) for c in list(df.select_dtypes(include=["number"]).columns)]
+    categorical_cols = [c for c in columns if c not in numeric_cols]
+
+    trends = []
+    anomalies = []
+    risk_indicators = []
+    opportunities = []
+
+    for col in numeric_cols:
+        series = pd.to_numeric(df[col], errors="coerce").dropna()
+        if series.empty:
+            continue
+
+        values = [float(v) for v in series.tolist()]
+        mean_val = float(sum(values) / len(values))
+        variance = float(sum((v - mean_val) ** 2 for v in values) / max(1, len(values)))
+        std_val = math.sqrt(variance)
+        slope = _linear_slope(values)
+        rel_slope = (slope / max(abs(mean_val), 1.0))
+
+        direction = "stable"
+        if rel_slope > 0.01:
+            direction = "increasing"
+        elif rel_slope < -0.01:
+            direction = "decreasing"
+
+        anomaly_count = 0
+        if std_val > 1e-9:
+            anomaly_count = sum(1 for v in values if abs((v - mean_val) / std_val) >= 3.0)
+
+        trends.append({
+            "metric": col,
+            "direction": direction,
+            "slope": round(float(slope), 6),
+            "mean": round(mean_val, 4),
+            "latest": round(values[-1], 4),
+        })
+        anomalies.append({
+            "metric": col,
+            "count": int(anomaly_count),
+            "pct_rows": round((anomaly_count / max(1, len(values))) * 100.0, 2),
+        })
+
+        if direction == "decreasing":
+            risk_indicators.append(f"{col} is trending downward and may impact delivery performance.")
+        elif direction == "increasing":
+            opportunities.append(f"{col} shows positive momentum and may support higher-confidence targets.")
+        if anomaly_count > max(2, int(len(values) * 0.05)):
+            risk_indicators.append(f"{col} has elevated outlier frequency; validate data quality or process variance.")
+
+    trends_sorted = sorted(
+        trends,
+        key=lambda x: abs(float(x.get("slope") or 0.0)),
+        reverse=True,
+    )
+    anomalies_sorted = sorted(anomalies, key=lambda x: x.get("count", 0), reverse=True)
+
+    return {
+        "row_count": row_count,
+        "column_count": column_count,
+        "columns": columns,
+        "numeric_columns": numeric_cols,
+        "categorical_columns": categorical_cols,
+        "trends": trends_sorted[:8],
+        "anomalies": anomalies_sorted[:8],
+        "risk_indicators": risk_indicators[:8],
+        "opportunities": opportunities[:8],
+    }
+
+
+def _heuristic_insight_text(summary):
+    trend_bits = []
+    for item in (summary.get("trends") or [])[:3]:
+        trend_bits.append(f"{item.get('metric')}: {item.get('direction')}")
+    anomaly_bits = []
+    for item in (summary.get("anomalies") or [])[:3]:
+        if int(item.get("count") or 0) > 0:
+            anomaly_bits.append(f"{item.get('metric')} ({item.get('count')} outliers)")
+
+    lead = f"Analyzed {summary.get('row_count')} rows across {summary.get('column_count')} columns."
+    trend_sentence = f"Top trends: {', '.join(trend_bits)}." if trend_bits else "No strong numeric trends were detected."
+    anomaly_sentence = (
+        f"Anomaly watch: {', '.join(anomaly_bits)}."
+        if anomaly_bits else
+        "No major anomaly clusters were detected."
+    )
+    risks = summary.get("risk_indicators") or []
+    opps = summary.get("opportunities") or []
+    risk_sentence = f"Risks: {risks[0]}" if risks else "Risks: None flagged from basic statistical checks."
+    opp_sentence = f"Opportunity: {opps[0]}" if opps else "Opportunity: Establish a baseline dashboard and monitor trend inflections weekly."
+    return " ".join([lead, trend_sentence, anomaly_sentence, risk_sentence, opp_sentence]).strip()
+
+
+def _llm_data_insight_text(summary, user_prompt):
+    api_key = _openai_api_key()
+    if not api_key:
+        return _heuristic_insight_text(summary), "heuristic"
+
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        prompt = f"""
+You are a strategy data analyst. Summarize dataset trends, risk indicators, and opportunity recommendations.
+
+User focus:
+{user_prompt or "General strategy and execution insights"}
+
+Structured summary:
+{json.dumps(summary, indent=2)}
+
+Return concise plain text with:
+1) Trend summary
+2) Top risks
+3) Top opportunities
+4) Recommended next actions (3 bullets inline)
+""".strip()
+        response = client.chat.completions.create(
+            model=_data_insights_model(),
+            messages=[
+                {"role": "system", "content": "You are a concise strategy analytics assistant."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=600,
+            temperature=0.2,
+        )
+        text = str((response.choices[0].message.content or "")).strip()
+        if not text:
+            raise ValueError("empty_llm_response")
+        return text, "openai"
+    except Exception:
+        return _heuristic_insight_text(summary), "heuristic"
+
+
+def _persist_thread_insight(user_id, thread_id, filename, insight_payload, summary_text):
+    sessions = load_user_sessions(user_id) or {}
+    session_key, session = _resolve_user_session(sessions, thread_id)
+    if not isinstance(session, dict):
+        session = _new_session(user_id, thread_id, f"Data Upload: {filename}")
+        session_key = thread_id
+
+    insights = session.get("ai_insights")
+    if not isinstance(insights, list):
+        insights = []
+
+    event = {
+        "id": f"ins_{uuid.uuid4().hex[:10]}",
+        "timestamp": _iso_now(),
+        "file_name": filename,
+        "summary": summary_text,
+        "insight": insight_payload,
+    }
+    insights = [event, *[item for item in insights if isinstance(item, dict)]][:20]
+    session["ai_insights"] = insights
+
+    chat_history = _session_chat_history(session)
+    chat_history.append({
+        "role": "assistant",
+        "content": f"[AI Data Insights] {summary_text}",
+        "timestamp": _iso_now(),
+    })
+    session["chat_history"] = chat_history
+    session["timestamp"] = _iso_now()
+    sessions[session_key or thread_id] = session
+    save_user_sessions(user_id, sessions)
+    return event
+
+
 @ai_agent_bp.route("/conversation/start", methods=["POST"])
 @jwt_required()
 def conversation_start():
@@ -960,8 +1223,24 @@ def conversation_start():
     if model_error:
         return jsonify(model_error), 403
 
+    objective_supplied = any(key in data for key in ("strategy_objective", "objective"))
+    requested_objective = normalize_strategy_objective(data.get("strategy_objective") or data.get("objective"))
+
     sessions = load_user_sessions(user_id)
-    session = sessions.get(thread_id) or _new_session(user_id, thread_id, name, model_selection["model_type"])
+    session = sessions.get(thread_id) or _new_session(
+        user_id,
+        thread_id,
+        name,
+        model_selection["model_type"],
+        strategy_objective=requested_objective,
+        objective_explicit=objective_supplied,
+    )
+    existing_objective = normalize_strategy_objective(session.get("strategy_objective"))
+    session["strategy_objective"] = requested_objective if objective_supplied else existing_objective
+    if objective_supplied:
+        session["objective_explicitly_set"] = True
+    elif "objective_explicitly_set" not in session:
+        session["objective_explicitly_set"] = False
 
     chat_history = session.get("chat_history")
     if not isinstance(chat_history, list):
@@ -1024,6 +1303,9 @@ def conversation_start():
             "updated_at": _iso_now(),
         },
         "status": "gathering_info",
+        "strategy_objective": session.get("strategy_objective") or "balanced",
+        "objective_explicitly_set": bool(session.get("objective_explicitly_set")),
+        "objective_options": list(STRATEGY_OBJECTIVE_OPTIONS),
     }), 200
 
 
@@ -1057,7 +1339,23 @@ def conversation_continue():
     if model_error:
         return jsonify(model_error), 403
 
-    session = session or _new_session(user_id, thread_id, "Jaspen Intake", model_selection["model_type"])
+    objective_supplied = any(key in data for key in ("strategy_objective", "objective"))
+    requested_objective = normalize_strategy_objective(data.get("strategy_objective") or data.get("objective"))
+
+    session = session or _new_session(
+        user_id,
+        thread_id,
+        "Jaspen Intake",
+        model_selection["model_type"],
+        strategy_objective=requested_objective,
+        objective_explicit=objective_supplied,
+    )
+    existing_objective = normalize_strategy_objective(session.get("strategy_objective"))
+    session["strategy_objective"] = requested_objective if objective_supplied else existing_objective
+    if objective_supplied:
+        session["objective_explicitly_set"] = True
+    elif "objective_explicitly_set" not in session:
+        session["objective_explicitly_set"] = False
     chat_history = session.get("chat_history")
     if not isinstance(chat_history, list):
         chat_history = []
@@ -1119,6 +1417,9 @@ def conversation_continue():
             "updated_at": _iso_now(),
         },
         "status": "ready_to_analyze" if readiness["overall"]["percent"] >= 85 else "gathering_info",
+        "strategy_objective": session.get("strategy_objective") or "balanced",
+        "objective_explicitly_set": bool(session.get("objective_explicitly_set")),
+        "objective_options": list(STRATEGY_OBJECTIVE_OPTIONS),
     }), 200
 
 
@@ -1205,6 +1506,8 @@ def list_threads():
             "session_id": thread_id,
             "name": candidate.get("name") or "Jaspen Intake",
             "model_type": normalize_model_type(candidate.get("model_type")) or None,
+            "strategy_objective": normalize_strategy_objective(candidate.get("strategy_objective")),
+            "objective_explicitly_set": bool(candidate.get("objective_explicitly_set")),
             "chat_history": chat_history,
             "readiness": readiness,
         })
@@ -1268,6 +1571,8 @@ def get_thread(thread_id):
         "session_id": resolved_thread_id,
         "name": session.get("name") or "Jaspen Intake",
         "model_type": normalize_model_type(session.get("model_type")) or None,
+        "strategy_objective": normalize_strategy_objective(session.get("strategy_objective")),
+        "objective_explicitly_set": bool(session.get("objective_explicitly_set")),
         "status": session.get("status") or ("completed" if analyses else "in_progress"),
         "created_at": session.get("created"),
         "updated_at": session.get("timestamp"),
@@ -1279,6 +1584,8 @@ def get_thread(thread_id):
         **session,
         "session_id": resolved_thread_id,
         "model_type": normalize_model_type(session.get("model_type")) or None,
+        "strategy_objective": normalize_strategy_objective(session.get("strategy_objective")),
+        "objective_explicitly_set": bool(session.get("objective_explicitly_set")),
         "chat_history": chat_history,
         "readiness": readiness,
     }
@@ -1299,8 +1606,9 @@ def get_thread(thread_id):
 def update_thread(thread_id):
     data = request.get_json() or {}
     name = str(data.get("name") or "").strip()
-    if not name:
-        return jsonify({"error": "name is required"}), 400
+    objective_supplied = any(key in data for key in ("strategy_objective", "objective"))
+    if not name and not objective_supplied:
+        return jsonify({"error": "name or strategy_objective is required"}), 400
 
     user_id = get_jwt_identity()
     sessions = load_user_sessions(user_id) or {}
@@ -1309,7 +1617,15 @@ def update_thread(thread_id):
         return jsonify({"error": "Thread not found"}), 404
 
     resolved_thread_id = str(session.get("session_id") or session_key or thread_id)
-    session["name"] = name
+    if name:
+        session["name"] = name
+    if objective_supplied:
+        session["strategy_objective"] = normalize_strategy_objective(
+            data.get("strategy_objective") or data.get("objective")
+        )
+        session["objective_explicitly_set"] = True
+    elif "objective_explicitly_set" not in session:
+        session["objective_explicitly_set"] = False
     session["timestamp"] = _iso_now()
     sessions[session_key or resolved_thread_id] = session
     save_user_sessions(user_id, sessions)
@@ -1319,6 +1635,8 @@ def update_thread(thread_id):
     session_payload = {
         **session,
         "session_id": resolved_thread_id,
+        "strategy_objective": normalize_strategy_objective(session.get("strategy_objective")),
+        "objective_explicitly_set": bool(session.get("objective_explicitly_set")),
         "chat_history": chat_history,
         "readiness": readiness,
     }
@@ -1327,7 +1645,9 @@ def update_thread(thread_id):
         "success": True,
         "thread": {
             "id": resolved_thread_id,
-            "name": name,
+            "name": session.get("name") or "Jaspen Intake",
+            "strategy_objective": normalize_strategy_objective(session.get("strategy_objective")),
+            "objective_explicitly_set": bool(session.get("objective_explicitly_set")),
             "status": session.get("status") or "in_progress",
             "updated_at": session.get("timestamp"),
         },
@@ -1369,3 +1689,72 @@ def get_thread_levers(thread_id):
         "thread_id": resolved_thread_id,
         "levers": levers,
     }), 200
+
+
+@ai_agent_bp.route("/analyze-data", methods=["POST"])
+@jwt_required()
+def analyze_data():
+    """
+    Upload CSV/Excel data and return AI-driven trend/risk/opportunity insights.
+    Persists insights onto the thread (when thread_id provided) for richer scoring context.
+    """
+    try:
+        user_id = get_jwt_identity()
+        thread_id = str(
+            request.form.get("thread_id")
+            or request.args.get("thread_id")
+            or request.headers.get("X-Session-ID")
+            or ""
+        ).strip() or None
+        user_prompt = str(request.form.get("prompt") or request.form.get("instruction") or "").strip()
+
+        uploaded = request.files.get("file")
+        if uploaded is None:
+            return jsonify({"error": "file is required (multipart/form-data)"}), 400
+        if not str(getattr(uploaded, "filename", "") or "").strip():
+            return jsonify({"error": "Uploaded file must have a name."}), 400
+
+        df, filename = _dataset_from_upload(uploaded)
+        summary = _summarize_dataset(df)
+        insight_text, provider = _llm_data_insight_text(summary, user_prompt)
+
+        try:
+            preview_df = df.head(5).copy()
+            preview_json = preview_df.where(preview_df.notna(), None).to_json(orient="records", date_format="iso")
+            preview_rows = json.loads(preview_json)
+        except Exception:
+            preview_rows = []
+
+        insight_payload = {
+            "file_name": filename,
+            "dataset_summary": summary,
+            "insight_text": insight_text,
+            "provider": provider,
+            "timestamp": _iso_now(),
+        }
+
+        persisted_event = None
+        if thread_id:
+            persisted_event = _persist_thread_insight(
+                user_id=user_id,
+                thread_id=thread_id,
+                filename=filename,
+                insight_payload=insight_payload,
+                summary_text=insight_text,
+            )
+
+        return jsonify({
+            "success": True,
+            "thread_id": thread_id,
+            "insight": insight_payload,
+            "preview_rows": preview_rows,
+            "persisted": bool(persisted_event),
+            "persisted_event": persisted_event,
+        }), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except RuntimeError as re_err:
+        return jsonify({"error": str(re_err)}), 500
+    except Exception as e:
+        print(f"[analyze_data] {e}")
+        return jsonify({"error": "Failed to analyze uploaded data."}), 500

@@ -33,6 +33,7 @@ export default function ScoreDashboard({
   const financialImpact = result.financial_impact || {};
   const risks = result.top_risks || result.risks || [];
   const recommendations = result.recommendations || [];
+  const aiInsights = Array.isArray(result.ai_insights) ? result.ai_insights : [];
 
   // Before/After financial data
   const beforeAfter = result.before_after_financials || {};
@@ -165,6 +166,7 @@ export default function ScoreDashboard({
 
   const hasScores = categoryScoreRows.length > 0;
   const hasFinancialImpact = financialGridItems.length > 0;
+  const hasAiInsights = aiInsights.length > 0;
 
   if (!selectedSnapshot && !analysisResult) return <div className="score-dashboard-container"><div className="empty-state"><p>No analysis result available</p></div></div>;
 
@@ -253,6 +255,25 @@ export default function ScoreDashboard({
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* AI Insights Widget */}
+        {hasAiInsights && (
+          <div className="insights-section">
+            <div className="ins-header">AI Insights</div>
+            {aiInsights.slice(0, 5).map((entry, idx) => {
+              const summary =
+                String(entry?.summary || entry?.insight?.insight_text || '').trim() ||
+                'Insight generated from uploaded data.';
+              const fileName = String(entry?.file_name || entry?.insight?.file_name || '').trim();
+              return (
+                <div key={`${fileName || 'ins'}_${idx}`} className="ins-item">
+                  <div className="ins-meta">{fileName || `Insight ${idx + 1}`}</div>
+                  <div className="ins-text">{summary}</div>
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -1,537 +1,445 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './Knowledge.css';
 
 const TOPICS = {
-  agent: {
-    short: 'AG',
-    label: 'The Agent',
-    title: 'The Agent',
-    summary:
-      'Jaspen is an execution-focused decision agent that converts complex project context into operating decisions teams can execute.',
+  gettingStarted: {
+    short: 'GS',
+    label: 'Getting Started',
+    title: 'Getting Started',
+    summary: 'End-to-end workflow from project kickoff to execution sync.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'The agent ingests structured and unstructured inputs including goals, constraints, owner context, timelines, and system signals. It then generates recommendation-grade outputs instead of generic summaries.',
-          'Jaspen is designed to bridge strategy and execution. It produces direction that can be scored, reviewed, and translated into operational actions rather than leaving teams with only narrative advice.',
-        ],
-      },
-      {
-        heading: 'Why',
-        paragraphs: [
-          'Most delivery drift happens between planning and handoff. Jaspen reduces that drift by combining reasoning, readiness checks, and integration controls in one workflow.',
-          'This structure lets leaders move from decision to execution with fewer interpretation gaps, clearer ownership, and stronger confidence in downstream system updates.',
-        ],
-      },
-      {
-        heading: 'Where',
-        paragraphs: [
-          'The primary runtime is the workspace at /new. This is where teams enter goals, review outputs, compare options, and progress approved direction into implementation.',
-        ],
-      },
-      {
-        heading: 'How',
-        paragraphs: [
-          'Use the workspace in a consistent sequence so outputs are auditable and easier to operationalize across teams.',
+        heading: 'Recommended Flow',
+        body: [
+          'Use this sequence for consistent outcomes and faster team alignment.',
         ],
         steps: [
-          'Open /new and define objective, constraints, and expected outcomes.',
-          'Select the model tier your plan supports, then generate recommendations.',
-          'Review readiness and scenario tradeoffs before choosing a path.',
-          'Apply connector settings and save integration behavior for production sync.',
+          'Start a project in New Project.',
+          'Complete discovery with the AI intake conversation.',
+          'Review the scorecard and key risks.',
+          'Model scenarios and adopt the best option.',
+          'Generate WBS and adjust owners, timelines, and dependencies.',
+          'Sync to your PM system from Connectors.',
+        ],
+      },
+      {
+        heading: 'Output Surfaces',
+        body: [
+          'Use Scores for historical results, Projects for portfolio tracking, Activity for timeline events, and Reports for exported executive outputs.',
         ],
       },
     ],
     links: [
-      { label: 'Open workspace', href: '/new' },
-      { label: 'Open billing and usage', href: '/account' },
+      { label: 'New Project', href: '/new' },
+      { label: 'Projects', href: '/projects' },
+      { label: 'Scores', href: '/scores' },
+      { label: 'Connectors', href: '/connectors-manage' },
     ],
+  },
+  agent: {
+    short: 'AG',
+    label: 'The Agent',
+    title: 'The Agent',
+    summary: 'Execution-focused decision intelligence from intake through operational handoff.',
+    sections: [
+      {
+        heading: 'What It Does',
+        body: [
+          'Jaspen transforms goals, constraints, and operational context into scoreable recommendations and execution-ready plans.',
+        ],
+      },
+      {
+        heading: 'Why It Matters',
+        body: [
+          'The platform reduces strategy-to-execution drift by making assumptions explicit and outputs auditable.',
+        ],
+      },
+    ],
+    links: [{ label: 'Workspace', href: '/new' }],
   },
   components: {
     short: 'CP',
     label: 'Agent Components',
     title: 'Agent Components',
-    summary:
-      'The agent is built as explicit components so each stage can be inspected, tuned, and governed.',
+    summary: 'Composable services for intake, scoring, scenarios, execution planning, and integrations.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'The stack is composed of an Intake Layer, Reasoning Core, Scoring and Readiness layer, Scenario Modeler, Execution Translator, and Connector Orchestrator.',
-          'Each component has a narrow responsibility. This keeps behavior explainable and makes failures easier to isolate when teams troubleshoot plan quality or sync outcomes.',
+        heading: 'Core Layers',
+        body: [
+          'Intake captures context, scoring quantifies readiness, scenarios model tradeoffs, WBS planning operationalizes execution, and connectors sync external systems.',
         ],
       },
       {
-        heading: 'Why',
-        paragraphs: [
-          'Component separation improves reliability. It also allows policy controls to be applied at the right stage instead of relying on one opaque end-to-end operation.',
-        ],
-      },
-      {
-        heading: 'How components map to user flow',
-        paragraphs: [
-          'Intake captures context and constraints. Reasoning generates options. Scoring validates confidence. Scenario Modeler quantifies tradeoffs. Execution Translator formats approved direction. Connector Orchestrator controls external sync behavior.',
-        ],
-        list: [
-          'Intake Layer: prompt, goals, constraints, and workspace context capture.',
-          'Reasoning Core: options, tradeoffs, and recommendation generation.',
-          'Scoring and Readiness: confidence and checklist progression.',
-          'Scenario Modeler: quantified impact, cost, and risk comparison.',
-          'Execution Translator: milestone and owner-ready action output.',
-          'Connector Orchestrator: credentialed sync and conflict policy handling.',
+        heading: 'Why This Structure',
+        body: [
+          'Each layer can be inspected and tuned independently, which improves reliability and governance.',
         ],
       },
     ],
-    links: [{ label: 'Open workspace', href: '/new' }],
+    links: [{ label: 'Workspace', href: '/new' }],
   },
-  billing: {
-    short: 'BL',
-    label: 'Billing and Usage',
-    title: 'Billing and Usage Service',
-    summary:
-      'Billing and Usage is the entitlement and access control layer for plans, credits, connectors, and model availability.',
+  scoresHistory: {
+    short: 'SC',
+    label: 'Scores History',
+    title: 'Scores History',
+    summary: 'Completed scorecards across projects with filtering, sorting, trend visibility, and export.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'This service determines what a workspace can use based on plan tier and current credit state. It controls connector eligibility, model access, and purchased capacity visibility.',
+        heading: 'What You Get',
+        body: [
+          'The Scores page lists completed analyses with project name, Jaspen score, category, adopted scenario, component score breakdown, and date.',
         ],
       },
       {
-        heading: 'Why',
-        paragraphs: [
-          'Without explicit entitlement checks, connector and model behavior becomes inconsistent across teams. Billing and Usage ensures feature availability is enforced before sync or execution starts.',
-        ],
-      },
-      {
-        heading: 'Where',
-        paragraphs: [
-          'Use /account for the internal account surface. The sidebar tabs segment plan overview, plans, connectors, packs, models, system administration, and knowledge access.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Review current plan and credit posture in Overview.',
-          'Adjust plan or pack strategy in Plans and Credit packs.',
-          'Configure and save connector settings in Connectors.',
-          'Validate model access by plan in Models.',
+        heading: 'How To Use',
+        body: [
+          'Sort by name, score, category, or date. Filter by category/date/search. Export CSV for offline review.',
         ],
       },
     ],
-    links: [{ label: 'Open billing and usage', href: '/account' }],
+    links: [{ label: 'Open Scores', href: '/scores' }],
   },
-  connectorPlatform: {
-    short: 'OR',
-    label: 'Connector Platform',
-    title: 'Connector Platform',
-    summary:
-      'All connectors follow a shared lifecycle: entitlement check, settings capture, toggle state change, and explicit save.',
+  aiScenarios: {
+    short: 'AS',
+    label: 'AI Scenarios',
+    title: 'AI Scenario Suggestions',
+    summary: 'Generate lever adjustments from natural language, then accept, modify, or reject.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'Connector controls expose a consistent surface across execution and data tools. Each connector can define required settings, sync direction options, and conflict resolution policy.',
+        heading: 'Prompt Examples',
+        body: [
+          'Try prompts like "Increase budget by 20%" or "Accelerate timeline by one quarter". The agent returns rationale and lever-by-lever changes.',
         ],
       },
       {
-        heading: 'Why',
-        paragraphs: [
-          'A common interaction model reduces user friction during setup and prevents accidental drift when teams manage multiple tools at once.',
-        ],
-      },
-      {
-        heading: 'How connector state works',
-        paragraphs: [
-          'Toggles are draft state changes until saved. Save is the commit action that persists connector configuration and status.',
-        ],
-        list: [
-          'On unlocks connector-specific sync or data ingestion behavior.',
-          'Off blocks connector-specific sync and context ingestion.',
-          'Locked connectors cannot be enabled until plan requirements are met.',
-          'Settings can still be reviewed even when activation is blocked by tier.',
+        heading: 'Control Model',
+        body: [
+          'You always decide final adoption. AI suggestions can be accepted directly or edited in the manual scenario modeler.',
         ],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Workspace', href: '/new' }],
+  },
+  aiWbsGeneration: {
+    short: 'WB',
+    label: 'AI WBS Generation',
+    title: 'AI WBS Generation',
+    summary: 'Generate an initial project plan from scorecard risks and adopted scenario context.',
+    sections: [
+      {
+        heading: 'What Is Generated',
+        body: [
+          'The generated WBS includes phases, tasks, priorities, suggested roles, dependencies, and risk mapping.',
+        ],
+      },
+      {
+        heading: 'Post-Generation Editing',
+        body: [
+          'All generated tasks remain editable. Teams can refine task titles, owners, durations, and dependencies before syncing.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Workspace', href: '/new' }],
+  },
+  dataInsights: {
+    short: 'DI',
+    label: 'Data Insights',
+    title: 'Data Insights',
+    summary: 'Upload CSV/Excel datasets and run AI-assisted trend, anomaly, risk, and opportunity analysis.',
+    sections: [
+      {
+        heading: 'Workflow',
+        body: [
+          'Upload a dataset, select Analyze, and review structured insight cards and chart recommendations.',
+        ],
+      },
+      {
+        heading: 'Best Practices',
+        body: [
+          'Use clean headers and stable metric definitions. Ask targeted questions when you need focused analysis.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Insights', href: '/insights' }],
+  },
+  teamManagement: {
+    short: 'TM',
+    label: 'Team Management',
+    title: 'Team Management',
+    summary: 'Manage organizations, members, invitations, roles, and seat policy by plan.',
+    sections: [
+      {
+        heading: 'Role Model',
+        body: [
+          'Roles are owner, admin, creator, collaborator, and viewer. Owner is unique per org and has full admin privileges.',
+        ],
+      },
+      {
+        heading: 'Seat Defaults',
+        body: [
+          'Team: admin 2, creator 5, collaborator 10, viewer unlimited. Enterprise: admin 5, creator 25, collaborator unlimited, viewer unlimited.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Team', href: '/team' }],
+  },
+  savedStarters: {
+    short: 'ST',
+    label: 'Saved Starters',
+    title: 'Saved Starters',
+    summary: 'Save reusable intake and scoring configurations from completed analyses.',
+    sections: [
+      {
+        heading: 'What Is Saved',
+        body: [
+          'Starters can preserve objective, intake context, lever defaults, and scoring preferences for repeatable launches.',
+        ],
+      },
+      {
+        heading: 'How Teams Use It',
+        body: [
+          'Create starters from strong analyses, share with your organization, and begin future projects from those baselines.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Workspace', href: '/new' }],
+  },
+  connectorSetup: {
+    short: 'CS',
+    label: 'Connector Setup',
+    title: 'Connector Setup',
+    summary: 'Unified setup pattern for execution and data connectors with explicit save behavior.',
+    sections: [
+      {
+        heading: 'Setup Pattern',
+        body: [
+          'Select connector, enter required credentials/settings, choose sync mode and conflict policy, then Save.',
+        ],
+      },
+      {
+        heading: 'Operational Controls',
+        body: [
+          'Use Test Connection for credential validation and Sync Now for on-demand runs. Health and audit history are available per connector.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   jira: {
     short: 'JR',
     label: 'Jira',
     title: 'Jira Connector (Execution)',
-    summary:
-      'Jira connects execution issues, ownership, and sprint state so planning outputs stay aligned with delivery reality.',
+    summary: 'Bidirectional issue and sprint alignment for execution planning.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'The Jira connector supports controlled synchronization between Jaspen execution plans and Jira issue data. It can run in directional or bi-directional sync modes depending on policy.',
-        ],
-      },
-      {
-        heading: 'Why',
-        paragraphs: [
-          'Teams need planning confidence and sprint-level truth at the same time. Jira integration prevents stale task status from undermining execution decisions.',
-        ],
-      },
-      {
-        heading: 'Where',
-        paragraphs: [
-          'Navigate to Billing and Usage > Connectors, locate Jira, and open Settings. Jira can also trigger API settings capture when the toggle is turned on without token configuration.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Toggle Jira on to begin setup intent.',
-          'Enter Jira URL, project key, Jira email, API token, and issue type.',
-          'Select sync mode and conflict policy.',
-          'Save to persist settings and activation state.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: [
-          'Jira base URL',
-          'Jira project key',
-          'Jira email',
-          'Jira API token',
-          'Jira issue type',
-          'Sync mode',
-          'Conflict policy',
-        ],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks issue sync, sprint/state alignment, ownership mapping, and execution status visibility in context-aware planning.',
-          'Off blocks Jira-based sync and prevents Jira execution updates from contributing to planning context.',
+        heading: 'Required Settings',
+        body: [
+          'Base URL, project key, email, API token, issue type, sync mode, and conflict policy.',
         ],
       },
     ],
-    links: [
-      { label: 'Open connector settings', href: '/account' },
-      {
-        label: 'Jira API token docs',
-        href: 'https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/',
-      },
-    ],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   workfront: {
     short: 'WF',
     label: 'Workfront',
     title: 'Workfront Connector (Execution)',
-    summary:
-      'Workfront integration aligns milestones, ownership, and schedule signals with Jaspen execution plans.',
+    summary: 'Milestone and owner synchronization with Workfront projects.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'The Workfront connector exchanges project structure and status data so approved direction in Jaspen remains aligned with active Workfront execution.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable Workfront from the Connectors tab.',
-          'Set external workspace or account identifier.',
-          'Choose sync mode and conflict policy.',
-          'Save connector draft to commit changes.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks milestone alignment, owner alignment, and schedule change visibility.',
-          'Off blocks Workfront status and ownership exchange.',
-        ],
+        heading: 'Required Settings',
+        body: ['Workfront base URL, project ID, API token, sync mode, and conflict policy.'],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   smartsheet: {
     short: 'SM',
     label: 'Smartsheet',
     title: 'Smartsheet Connector (Execution)',
-    summary:
-      'Smartsheet integration maps row-level execution data to planning and readiness workflows.',
+    summary: 'Task-row synchronization for schedule and execution status alignment.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'The Smartsheet connector synchronizes row status, date fields, and execution state signals to reduce mismatch between spreadsheet operations and program planning.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable Smartsheet from Connectors.',
-          'Set external workspace or account id.',
-          'Choose sync mode and conflict policy.',
-          'Save connector configuration.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks task-row status sync, date alignment, and execution signal ingestion.',
-          'Off blocks Smartsheet-driven delivery-state exchange.',
-        ],
+        heading: 'Required Settings',
+        body: ['Smartsheet sheet ID, access token, sync mode, and conflict policy.'],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   salesforce: {
     short: 'SF',
     label: 'Salesforce',
     title: 'Salesforce Connector (Data)',
-    summary:
-      'Salesforce adds account and pipeline context to recommendation quality and prioritization tradeoffs.',
+    summary: 'CRM pipeline and customer context for prioritization insights.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'This connector ingests CRM-oriented trend and account signal data. It enriches planning context used by recommendation and scoring logic.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable Salesforce connector state.',
-          'Set external workspace or account id.',
-          'Configure sync mode and conflict policy.',
-          'Save to commit connector changes.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks pipeline and customer context in analysis workflows.',
-          'Off blocks Salesforce-derived insight context from recommendation pipelines.',
+        heading: 'Required Settings',
+        body: [
+          'Instance URL, client ID, client secret, and refresh token for OAuth-backed data pulls.',
         ],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   snowflake: {
     short: 'SN',
     label: 'Snowflake',
     title: 'Snowflake Connector (Data)',
-    summary:
-      'Snowflake contributes warehouse KPI and financial trend data to scenario and scoring quality.',
+    summary: 'Governed warehouse metrics and trend extraction for enriched analysis.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'Snowflake integration reads governed analytical context that can materially improve confidence in planning and prioritization recommendations.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable Snowflake connector state.',
-          'Set external workspace or account id.',
-          'Select sync mode and conflict policy.',
-          'Save connector settings.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks warehouse KPI and financial trend ingestion.',
-          'Off blocks Snowflake context from recommendation generation.',
+        heading: 'Required Settings',
+        body: [
+          'Account, warehouse, database, schema, role, user credentials, and table allowlist.',
         ],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   oracleFusion: {
     short: 'OF',
     label: 'Oracle Fusion',
     title: 'Oracle Fusion Connector (Data)',
-    summary:
-      'Oracle Fusion adds ERP operations and finance signals for enterprise-ready decision context.',
+    summary: 'ERP operations and finance context for enterprise planning decisions.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'This connector ingests ERP-backed operational and financial data to ground recommendation output in real enterprise constraints and current-state conditions.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable Oracle Fusion connector state.',
-          'Enter external workspace or account id.',
-          'Choose sync mode and conflict policy.',
-          'Save connector settings.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks ERP signal ingestion and finance/operations context.',
-          'Off blocks Oracle Fusion signals from planning analysis.',
-        ],
+        heading: 'Required Settings',
+        body: ['Base URL, username, password, optional business unit, sync mode, and policy.'],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   serviceNow: {
     short: 'SV',
     label: 'ServiceNow',
     title: 'ServiceNow Connector (Data)',
-    summary:
-      'ServiceNow contributes service and change-management context to execution risk visibility.',
+    summary: 'Service and change metrics for execution risk visibility.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'The ServiceNow connector ingests service and change signals to improve risk detection and dependency awareness in execution planning.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable ServiceNow connector state.',
-          'Set external workspace or account id.',
-          'Configure sync mode and conflict policy.',
-          'Save connector settings.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks service/change signal context and execution-risk insights.',
-          'Off blocks ServiceNow signal ingestion for analysis.',
-        ],
+        heading: 'Required Settings',
+        body: ['Instance URL, username, password, optional table allowlist, sync mode, and policy.'],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   netSuite: {
     short: 'NS',
     label: 'NetSuite',
     title: 'NetSuite Connector (Data)',
-    summary:
-      'NetSuite adds finance and operations trend context for stronger execution tradeoff decisions.',
+    summary: 'Operational and finance trend context for tradeoff planning.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'NetSuite integration contributes operational and financial context to improve feasibility and cost-awareness in recommendation workflows.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Enable NetSuite connector state.',
-          'Set external workspace or account id.',
-          'Choose sync mode and conflict policy.',
-          'Save connector settings.',
-        ],
-      },
-      {
-        heading: 'Required settings',
-        list: ['External workspace/account id', 'Sync mode', 'Conflict policy'],
-      },
-      {
-        heading: 'Toggle behavior',
-        paragraphs: [
-          'On unlocks finance and operations trend context in tradeoff modeling.',
-          'Off blocks NetSuite context from recommendation pipelines.',
+        heading: 'Required Settings',
+        body: [
+          'Account ID, consumer key/secret, token ID/secret, REST base URL, sync mode, and policy.',
         ],
       },
     ],
-    links: [{ label: 'Open connector settings', href: '/account' }],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
+  },
+  billing: {
+    short: 'BL',
+    label: 'Billing and Usage',
+    title: 'Billing and Usage',
+    summary: 'Plan entitlement, credits, and access governance.',
+    sections: [
+      {
+        heading: 'Scope',
+        body: [
+          'Billing determines feature access, connector eligibility, and model availability by plan.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Account', href: '/account' }],
   },
   api: {
     short: 'AP',
     label: 'API and Integrations',
-    title: 'API and Integration Surface',
-    summary:
-      'The API surface enables programmatic management of sessions, billing context, connector settings, and administrative workflows.',
+    title: 'API and Integrations',
+    summary: 'Programmatic access for sessions, connectors, reports, activity, and organization workflows.',
     sections: [
       {
-        heading: 'What',
-        paragraphs: [
-          'Internal endpoints back the account and workspace UI. These routes expose read and write operations for connector state, billing status, and operational administration.',
-        ],
-      },
-      {
-        heading: 'Why',
-        paragraphs: [
-          'Programmatic access supports automation, repeatable provisioning, and better operational observability than manual-only setup.',
-        ],
-      },
-      {
-        heading: 'How',
-        steps: [
-          'Authenticate using the same account/session model as internal UI.',
-          'Read current billing and connector state before changes.',
-          'Patch connector settings with required fields and explicit status.',
-          'Persist via save-style update and verify response state.',
-        ],
-      },
-      {
-        heading: 'Operational notes',
-        list: [
-          'Connector updates are explicit save operations, not auto-commit toggles.',
-          'Jira activation requires API credential fields.',
-          'Plan entitlements are enforced before connector write operations.',
+        heading: 'Integration Pattern',
+        body: [
+          'Authenticate, read current state, apply explicit writes, then verify responses and audit logs.',
         ],
       },
     ],
-    links: [
-      { label: 'Open API console', href: '/pages/api' },
-      { label: 'Open billing and usage', href: '/account' },
-    ],
+    links: [{ label: 'Open API Console', href: '/pages/api' }],
   },
 };
 
 const TOPIC_GROUPS = [
+  { label: 'Start Here', items: ['gettingStarted'] },
   {
-    label: 'Core Services',
-    items: ['agent', 'components', 'billing', 'connectorPlatform', 'api'],
+    label: 'Core Features',
+    items: [
+      'agent',
+      'components',
+      'scoresHistory',
+      'aiScenarios',
+      'aiWbsGeneration',
+      'dataInsights',
+      'teamManagement',
+      'savedStarters',
+      'connectorSetup',
+    ],
   },
   {
-    label: 'Execution Connectors',
-    items: ['jira', 'workfront', 'smartsheet'],
+    label: 'Connectors',
+    items: ['jira', 'workfront', 'smartsheet', 'salesforce', 'snowflake', 'oracleFusion', 'serviceNow', 'netSuite'],
   },
-  {
-    label: 'Data Connectors',
-    items: ['salesforce', 'snowflake', 'oracleFusion', 'serviceNow', 'netSuite'],
-  },
+  { label: 'Platform', items: ['billing', 'api'] },
 ];
+
+function toSearchBlob(topic) {
+  const sections = Array.isArray(topic?.sections) ? topic.sections : [];
+  const sectionText = sections
+    .map((section) => {
+      const body = Array.isArray(section?.body) ? section.body.join(' ') : String(section?.body || '');
+      const list = Array.isArray(section?.list) ? section.list.join(' ') : '';
+      const steps = Array.isArray(section?.steps) ? section.steps.join(' ') : '';
+      return `${section?.heading || ''} ${body} ${list} ${steps}`;
+    })
+    .join(' ');
+  return `${topic?.title || ''} ${topic?.summary || ''} ${sectionText}`.toLowerCase();
+}
 
 export default function Knowledge() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeTopicId, setActiveTopicId] = useState('agent');
-  const activeTopic = useMemo(() => TOPICS[activeTopicId] || TOPICS.agent, [activeTopicId]);
+  const [activeTopicId, setActiveTopicId] = useState('gettingStarted');
+  const [query, setQuery] = useState('');
+
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const filteredGroups = useMemo(() => {
+    return TOPIC_GROUPS.map((group) => {
+      const items = group.items.filter((topicId) => {
+        const topic = TOPICS[topicId];
+        if (!topic) return false;
+        if (!normalizedQuery) return true;
+        return toSearchBlob(topic).includes(normalizedQuery);
+      });
+      return { ...group, items };
+    }).filter((group) => group.items.length > 0);
+  }, [normalizedQuery]);
+
+  const visibleTopicIds = useMemo(
+    () => filteredGroups.flatMap((group) => group.items),
+    [filteredGroups]
+  );
+
+  useEffect(() => {
+    if (!visibleTopicIds.length) return;
+    if (!visibleTopicIds.includes(activeTopicId)) {
+      setActiveTopicId(visibleTopicIds[0]);
+    }
+  }, [activeTopicId, visibleTopicIds]);
+
+  const activeTopic = useMemo(() => {
+    if (!visibleTopicIds.length) return null;
+    return TOPICS[activeTopicId] || TOPICS[visibleTopicIds[0]];
+  }, [activeTopicId, visibleTopicIds]);
 
   return (
     <div className="knowledge-page">
@@ -550,7 +458,7 @@ export default function Knowledge() {
             </button>
           </div>
           <div className="knowledge-sidebar-scroll">
-            {TOPIC_GROUPS.map((group) => (
+            {filteredGroups.map((group) => (
               <section key={group.label} className="knowledge-index-group">
                 {!sidebarCollapsed && <p className="knowledge-index-label">{group.label}</p>}
                 <div className="knowledge-index-items">
@@ -573,6 +481,9 @@ export default function Knowledge() {
                 </div>
               </section>
             ))}
+            {!filteredGroups.length && !sidebarCollapsed && (
+              <p className="knowledge-index-empty">No topics match your search.</p>
+            )}
           </div>
         </aside>
 
@@ -581,59 +492,75 @@ export default function Knowledge() {
             <p className="knowledge-eyebrow">Knowledge</p>
             <h1>Internal Product Documentation</h1>
             <p className="knowledge-header-summary">
-              Central documentation for every service and connector, including operational behavior, required settings,
-              and setup expectations.
+              Contextual documentation for scoring, AI workflows, team collaboration, connectors, and operational setup.
             </p>
+            <div className="knowledge-search-wrap">
+              <input
+                type="search"
+                className="knowledge-search-input"
+                placeholder="Search topics, summaries, and section content..."
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label="Search knowledge topics"
+              />
+            </div>
           </header>
 
-          <article className="knowledge-topic" aria-live="polite">
-            <header className="knowledge-topic-head">
-              <h2>{activeTopic.title}</h2>
-              <p>{activeTopic.summary}</p>
-            </header>
+          {activeTopic ? (
+            <article className="knowledge-topic" aria-live="polite">
+              <header className="knowledge-topic-head">
+                <h2>{activeTopic.title}</h2>
+                <p>{activeTopic.summary}</p>
+              </header>
 
-            {(activeTopic.sections || []).map((section) => (
-              <section key={`${activeTopic.title}-${section.heading}`} className="knowledge-doc-section">
-                <h3>{section.heading}</h3>
-                {Array.isArray(section.paragraphs) &&
-                  section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-                {Array.isArray(section.steps) && section.steps.length > 0 && (
-                  <ol>
-                    {section.steps.map((step) => (
-                      <li key={step}>{step}</li>
+              {(activeTopic.sections || []).map((section) => (
+                <section key={`${activeTopic.title}-${section.heading}`} className="knowledge-doc-section">
+                  <h3>{section.heading}</h3>
+                  {(Array.isArray(section.body) ? section.body : [section.body])
+                    .filter(Boolean)
+                    .map((paragraph) => (
+                      <p key={`${section.heading}-${paragraph}`}>{paragraph}</p>
                     ))}
-                  </ol>
-                )}
-                {Array.isArray(section.list) && section.list.length > 0 && (
-                  <ul>
-                    {section.list.map((item) => (
-                      <li key={item}>{item}</li>
+                  {Array.isArray(section.steps) && section.steps.length > 0 && (
+                    <ol>
+                      {section.steps.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ol>
+                  )}
+                  {Array.isArray(section.list) && section.list.length > 0 && (
+                    <ul>
+                      {section.list.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ))}
+
+              {Array.isArray(activeTopic.links) && activeTopic.links.length > 0 && (
+                <section className="knowledge-doc-section knowledge-links">
+                  <h3>Related links</h3>
+                  <ul className="knowledge-link-list">
+                    {activeTopic.links.map((link) => (
+                      <li key={`${activeTopic.title}-${link.href}`}>
+                        <a href={link.href} className="knowledge-link">
+                          {link.label}
+                        </a>
+                      </li>
                     ))}
                   </ul>
-                )}
+                </section>
+              )}
+            </article>
+          ) : (
+            <div className="knowledge-topic">
+              <section className="knowledge-doc-section">
+                <h3>No topics found</h3>
+                <p>Try a broader keyword or clear the search field.</p>
               </section>
-            ))}
-
-            {Array.isArray(activeTopic.links) && activeTopic.links.length > 0 && (
-              <section className="knowledge-doc-section knowledge-links">
-                <h3>Related links</h3>
-                <ul className="knowledge-link-list">
-                  {activeTopic.links.map((link) => (
-                    <li key={`${activeTopic.title}-${link.href}`}>
-                      <a
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="knowledge-link"
-                      >
-                        {link.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-          </article>
+            </div>
+          )}
         </main>
       </div>
     </div>

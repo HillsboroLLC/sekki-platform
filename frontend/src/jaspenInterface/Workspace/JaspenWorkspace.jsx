@@ -270,50 +270,6 @@ function isSelfServePlan(plan) {
   return ['free', 'essential'].includes(normalizePlanKey(plan));
 }
 
-const CONNECTOR_DEFINITIONS = {
-  jira_sync: {
-    label: 'Jira',
-    group: 'Execution',
-    description: 'Sync issues, ownership, and sprint status for delivery tracking.',
-  },
-  workfront_sync: {
-    label: 'Workfront',
-    group: 'Execution',
-    description: 'Connect portfolio, project milestones, and execution updates.',
-  },
-  smartsheet_sync: {
-    label: 'Smartsheet',
-    group: 'Execution',
-    description: 'Connect plans, timelines, and row-level status tracking.',
-  },
-  salesforce_insights: {
-    label: 'Salesforce',
-    group: 'Data',
-    description: 'Monitor customer and pipeline trends for strategic insights.',
-  },
-  snowflake_insights: {
-    label: 'Snowflake',
-    group: 'Data',
-    description: 'Pull governed KPI and financial trend data for analysis.',
-  },
-  oracle_fusion_insights: {
-    label: 'Oracle Fusion',
-    group: 'Data',
-    description: 'Use ERP financial and operations signals in recommendations.',
-  },
-  servicenow_insights: {
-    label: 'ServiceNow',
-    group: 'Data',
-    description: 'Track service and change patterns impacting delivery confidence.',
-  },
-  netsuite_insights: {
-    label: 'NetSuite',
-    group: 'Data',
-    description: 'Connect finance and operational trends to planning decisions.',
-  },
-};
-
-const CONNECTOR_IDS = Object.keys(CONNECTOR_DEFINITIONS);
 const PLAN_ORDER = ['free', 'essential', 'team', 'enterprise'];
 const PLAN_RANK = { free: 0, essential: 1, team: 2, enterprise: 3 };
 
@@ -766,37 +722,6 @@ const refreshBundle = async (tid) => {
   }, [toolEntitlementById, fallbackMinPlanByTool, currentPlanKey]);
   const canUseScenarios = canUseTool('scenario_create', 'write');
   const canUseWbsWrite = canUseTool('wbs_write', 'write');
-  const connectorCatalog = useMemo(() => {
-    const connectorEntitlements = toolEntitlements.filter((tool) => String(tool?.type || '').toLowerCase() === 'connector');
-    const entitlementMap = {};
-    connectorEntitlements.forEach((tool) => {
-      const id = String(tool?.id || '').trim();
-      if (id) entitlementMap[id] = tool;
-    });
-
-    return CONNECTOR_IDS.map((id) => {
-      const def = CONNECTOR_DEFINITIONS[id];
-      const ent = entitlementMap[id];
-      const enabled = ent ? Boolean(ent.enabled) : canUseTool(id, 'read');
-      const connected = Boolean(ent?.connected || String(ent?.connection_status || '').toLowerCase() === 'connected');
-      const requiredMinTier = ent?.required_min_tier || fallbackMinPlanByTool[id] || 'enterprise';
-      const status = connected ? 'connected' : enabled ? 'available' : 'locked';
-      return {
-        id,
-        label: def.label,
-        group: def.group,
-        description: def.description,
-        status,
-        connected,
-        enabled,
-        requiredMinTier: String(requiredMinTier || '').toLowerCase(),
-      };
-    });
-  }, [toolEntitlements, canUseTool, fallbackMinPlanByTool]);
-  const connectedConnectorCount = useMemo(
-    () => connectorCatalog.filter((item) => item.connected).length,
-    [connectorCatalog]
-  );
   const isGlobalAdmin = Boolean(billingStatus?.is_admin);
   const canAccessEnterpriseAdmin = isGlobalAdmin || currentPlanKey === 'enterprise';
   const monthlyCreditLimit = billingStatus?.monthly_credit_limit;
@@ -1538,17 +1463,6 @@ const refreshBundle = async (tid) => {
     setKnowledgeMenuOpen(false);
   };
 
-  const handlePMDashboardClick = (onClose) => {
-    const rank = PLAN_RANK[currentPlanKey] || 0;
-    if (rank < 1) {
-      showToast('PM Dashboard is available on Essential, Team, and Enterprise plans.', 'info');
-      setBillingModalOpen(true);
-      return;
-    }
-    onClose?.();
-    navigate('/dashboard');
-  };
-
   const renderSidebarFooter = (onClose) => (
     <div className="jas-ud-footer">
       <button
@@ -1688,22 +1602,25 @@ const refreshBundle = async (tid) => {
       <div className="jas-ud-scroll">
         <div className="jas-ud-section">
           <div className="jas-ud-section-label">Navigate</div>
-          <button className="jas-ud-item" onClick={() => handlePMDashboardClick(onClose)}>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/dashboard'); }}>
             <FontAwesomeIcon icon={faListCheck} />
-            <span className="jas-ud-item-label">PM Dashboard</span>
-            {(PLAN_RANK[currentPlanKey] || 0) < 1 && <span className="jas-ud-item-badge">Essential+</span>}
+            <span className="jas-ud-item-label">Dashboard</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/new'); }}>
+            <FontAwesomeIcon icon={faPlus} />
+            <span className="jas-ud-item-label">New Project</span>
           </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/projects'); }}>
             <FontAwesomeIcon icon={faLayerGroup} />
             <span className="jas-ud-item-label">Projects</span>
           </button>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions'); }}>
-            <FontAwesomeIcon icon={faLayerGroup} />
-            <span className="jas-ud-item-label">Sessions</span>
-          </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/scores'); }}>
             <FontAwesomeIcon icon={faChartLine} />
             <span className="jas-ud-item-label">Scores</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions'); }}>
+            <FontAwesomeIcon icon={faLayerGroup} />
+            <span className="jas-ud-item-label">Sessions</span>
           </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/insights'); }}>
             <FontAwesomeIcon icon={faChartLine} />
@@ -1717,26 +1634,34 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faClockRotateLeft} />
             <span className="jas-ud-item-label">Activity</span>
           </button>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions?view=queue'); }}>
-            <FontAwesomeIcon icon={faClockRotateLeft} />
-            <span className="jas-ud-item-label">In Queue</span>
-          </button>
           {canAccessTeam && (
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
               <FontAwesomeIcon icon={faUser} />
               <span className="jas-ud-item-label">Team</span>
             </button>
           )}
-          {canAccessEnterpriseAdmin && (
-            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
-              <FontAwesomeIcon icon={faGaugeHigh} />
-              <span className="jas-ud-item-label">Enterprise Admin</span>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/connectors-manage'); }}>
+            <FontAwesomeIcon icon={faLayerGroup} />
+            <span className="jas-ud-item-label">Connectors</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/knowledge'); }}>
+            <FontAwesomeIcon icon={faQuestionCircle} />
+            <span className="jas-ud-item-label">Knowledge</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/account'); }}>
+            <FontAwesomeIcon icon={faUser} />
+            <span className="jas-ud-item-label">Account</span>
+          </button>
+          {isGlobalAdmin && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/jaspen-admin'); }}>
+              <FontAwesomeIcon icon={faUser} />
+              <span className="jas-ud-item-label">Admin</span>
             </button>
           )}
         </div>
 
         <div className="jas-ud-section">
-          <div className="jas-ud-section-label">Account</div>
+          <div className="jas-ud-section-label">User Tools</div>
           <button
             className="jas-ud-item"
             onClick={() => {
@@ -1760,25 +1685,14 @@ const refreshBundle = async (tid) => {
             <span className="jas-ud-item-label">Credits</span>
             <span className="jas-ud-item-badge">{billingLoading ? '...' : creditsBadge}</span>
           </button>
-          <button
-            className="jas-ud-item"
-            onClick={() => {
-              navigate('/connectors-manage');
-              setAccountQuickMenuOpen(false);
-              setKnowledgeMenuOpen(false);
-            }}
-          >
-            <FontAwesomeIcon icon={faLayerGroup} />
-            <span className="jas-ud-item-label">Connectors</span>
-            <span className="jas-ud-item-badge">
-              {connectedConnectorCount > 0 ? `${connectedConnectorCount} connected` : currentPlanLabel}
-            </span>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions?view=queue'); }}>
+            <FontAwesomeIcon icon={faClockRotateLeft} />
+            <span className="jas-ud-item-label">In Queue</span>
           </button>
-          {isGlobalAdmin && (
-            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/jaspen-admin'); }}>
-              <FontAwesomeIcon icon={faUser} />
-              <span className="jas-ud-item-label">Jaspen Admin</span>
-              <span className="jas-ud-item-badge">Global</span>
+          {canAccessEnterpriseAdmin && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
+              <FontAwesomeIcon icon={faGaugeHigh} />
+              <span className="jas-ud-item-label">Enterprise Admin</span>
             </button>
           )}
         </div>

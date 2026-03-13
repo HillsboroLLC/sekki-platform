@@ -5,6 +5,8 @@ from flask import Blueprint, current_app, jsonify, redirect, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.billing_config import to_public_plan
+from app.connectors.smartsheet import smartsheet_connect, smartsheet_list_sheets
+from app.connectors.workfront import workfront_connect, workfront_sync_status
 from app.connector_registry import (
     get_connector_catalog,
     get_connector_definition,
@@ -723,6 +725,23 @@ def update_connector(connector_id):
                 "connector_id": connector_id,
                 "missing_required_fields": missing_required_fields,
             }), 400
+        if connector_id == "workfront_sync":
+            valid = workfront_connect(
+                candidate_settings.get("workfront_base_url"),
+                candidate_settings.get("workfront_api_token"),
+            )
+            if not valid:
+                return jsonify({
+                    "error": "Unable to validate Workfront credentials. Check URL and API token.",
+                    "connector_id": connector_id,
+                }), 400
+        if connector_id == "smartsheet_sync":
+            valid = smartsheet_connect(candidate_settings.get("smartsheet_api_token"))
+            if not valid:
+                return jsonify({
+                    "error": "Unable to validate Smartsheet token.",
+                    "connector_id": connector_id,
+                }), 400
 
     saved = update_connector_settings(user.id, connector_id, updates)
     _, updated_views = _connector_views_for_user(user)
@@ -758,6 +777,16 @@ def get_connector_health(connector_id):
 
     settings = get_connector_settings(user.id, connector_id)
     recent_events = get_sync_audit_events(user.id, connector_id=connector_id, limit=10)
+    live_status = None
+    if connector_id == "workfront_sync":
+        live_status = workfront_sync_status(
+            {
+                "base_url": settings.get("workfront_base_url"),
+                "api_key": settings.get("workfront_api_token"),
+                "project_id": settings.get("workfront_project_id"),
+                "last_sync_at": settings.get("last_sync_at"),
+            }
+        )
     return jsonify({
         "success": True,
         "connector_id": connector_id,
@@ -771,8 +800,29 @@ def get_connector_health(connector_id):
             "last_error_at": settings.get("last_error_at"),
             "last_error_message": settings.get("last_error_message") or "",
         },
+        "live_status": live_status,
         "recent_events": recent_events,
     }), 200
+
+
+@connectors_bp.route("/smartsheet/sheets", methods=["GET"])
+@jwt_required()
+def get_smartsheet_sheets():
+    user = User.query.get(get_jwt_identity())
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    settings = get_connector_settings(user.id, "smartsheet_sync")
+    try:
+        sheets = smartsheet_list_sheets(
+            {
+                "base_url": settings.get("smartsheet_base_url"),
+                "access_token": settings.get("smartsheet_api_token"),
+            }
+        )
+        return jsonify({"success": True, "sheets": sheets, "count": len(sheets)}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @connectors_bp.route("/<connector_id>/audit", methods=["GET"])

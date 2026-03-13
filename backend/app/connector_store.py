@@ -3,8 +3,11 @@ import hashlib
 import json
 import os
 import secrets
+import time
 from copy import deepcopy
 from datetime import datetime, timedelta
+
+import requests
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -20,6 +23,7 @@ AUDIT_LOG_LIMIT = 500
 DEFAULT_AUDIT_LIMIT = 100
 MAX_AUDIT_LIMIT = 500
 _SECRET_PREFIX = "enc::"
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 # Per-connector credential fields that must never be stored in plain text.
 SENSITIVE_CONNECTOR_FIELDS = {
@@ -167,29 +171,62 @@ def _default_thread_sync_profile(thread_id):
 
 def _sensitive_fields_for(connector_id):
     key = str(connector_id or "").strip().lower()
-    return set(SENSITIVE_CONNECTOR_FIELDS.get(key, ()))
+    sensitive_fields = set(SENSITIVE_CONNECTOR_FIELDS.get(key, ()))
+    defaults = _default_connector_settings(key)
+    for field_name in defaults.keys():
+        if str(field_name).strip().endswith("_api_token"):
+            sensitive_fields.add(field_name)
+    return sensitive_fields
+
+
+def _derive_fernet_key(secret_material):
+    text = str(secret_material or "").strip()
+    if not text:
+        return None
+    try:
+        raw = text.encode("utf-8")
+        if len(raw) == 44:
+            Fernet(raw)
+            return raw
+    except Exception:
+        pass
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest)
+
+
+def _build_cipher_candidates():
+    if Fernet is None:
+        return []
+
+    candidate_secrets = [
+        os.getenv("CONNECTOR_ENCRYPTION_KEY"),
+        os.getenv("CONNECTOR_CREDENTIALS_SECRET"),
+        os.getenv("JWT_SECRET_KEY"),
+        os.getenv("SECRET_KEY"),
+    ]
+    seen_keys = set()
+    ciphers = []
+    for secret_material in candidate_secrets:
+        key = _derive_fernet_key(secret_material)
+        if not key:
+            continue
+        key_text = key.decode("utf-8")
+        if key_text in seen_keys:
+            continue
+        seen_keys.add(key_text)
+        try:
+            ciphers.append(Fernet(key))
+        except Exception:
+            continue
+    return ciphers
 
 
 def _build_cipher():
-    if Fernet is None:
-        return None
-    secret_material = (
-        os.getenv("CONNECTOR_CREDENTIALS_SECRET")
-        or os.getenv("JWT_SECRET_KEY")
-        or os.getenv("SECRET_KEY")
-        or ""
-    ).strip()
-    if not secret_material:
-        return None
-    digest = hashlib.sha256(secret_material.encode("utf-8")).digest()
-    key = base64.urlsafe_b64encode(digest)
-    try:
-        return Fernet(key)
-    except Exception:
-        return None
+    ciphers = _build_cipher_candidates()
+    return ciphers[0] if ciphers else None
 
 
-def _encrypt_secret(value):
+def encrypt_token(value):
     text = str(value or "")
     if not text:
         return ""
@@ -204,20 +241,30 @@ def _encrypt_secret(value):
     return f"{_SECRET_PREFIX}{token}"
 
 
-def _decrypt_secret(value):
+def decrypt_token(value):
     text = str(value or "")
     if not text:
         return ""
     if not text.startswith(_SECRET_PREFIX):
         return text
-    cipher = _build_cipher()
-    if not cipher:
+    ciphers = _build_cipher_candidates()
+    if not ciphers:
         return ""
     token = text[len(_SECRET_PREFIX):]
-    try:
-        return cipher.decrypt(token.encode("utf-8")).decode("utf-8")
-    except (InvalidToken, ValueError):
-        return ""
+    for cipher in ciphers:
+        try:
+            return cipher.decrypt(token.encode("utf-8")).decode("utf-8")
+        except (InvalidToken, ValueError):
+            continue
+    return ""
+
+
+def _encrypt_secret(value):
+    return encrypt_token(value)
+
+
+def _decrypt_secret(value):
+    return decrypt_token(value)
 
 
 def _hydrate_connector_settings(connector_id, current):
@@ -226,7 +273,7 @@ def _hydrate_connector_settings(connector_id, current):
         base.update(current)
     for secret_field in _sensitive_fields_for(connector_id):
         if secret_field in base:
-            base[secret_field] = _decrypt_secret(base.get(secret_field))
+            base[secret_field] = decrypt_token(base.get(secret_field))
     return base
 
 
@@ -234,8 +281,60 @@ def _persist_connector_settings(connector_id, current):
     prepared = dict(current or {})
     for secret_field in _sensitive_fields_for(connector_id):
         if secret_field in prepared:
-            prepared[secret_field] = _encrypt_secret(prepared.get(secret_field))
+            prepared[secret_field] = encrypt_token(prepared.get(secret_field))
     return prepared
+
+
+def connector_api_call(method, url, headers=None, body=None, max_retries=3, timeout=20, params=None, auth=None):
+    last_error = None
+    retry_count = max(0, _parse_int(max_retries, default=3))
+
+    for attempt in range(0, retry_count + 1):
+        try:
+            response = requests.request(
+                method=str(method or "GET").upper(),
+                url=url,
+                headers=headers,
+                json=body,
+                params=params,
+                auth=auth,
+                timeout=timeout,
+            )
+            status_code = int(response.status_code or 0)
+            should_retry = status_code in RETRYABLE_STATUS_CODES and attempt < retry_count
+            if should_retry:
+                time.sleep(2 ** attempt)
+                continue
+
+            payload = {}
+            if response.text:
+                try:
+                    payload = response.json()
+                except Exception:
+                    payload = {"raw": response.text}
+
+            if status_code >= 400:
+                raise RuntimeError(f"HTTP {status_code}: {payload or response.text}")
+
+            return {
+                "status_code": status_code,
+                "data": payload if isinstance(payload, dict) else {"items": payload},
+                "attempt_count": attempt + 1,
+            }
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt < retry_count:
+                time.sleep(2 ** attempt)
+                continue
+            break
+        except Exception as exc:
+            last_error = exc
+            if attempt < retry_count:
+                time.sleep(2 ** attempt)
+                continue
+            break
+
+    raise RuntimeError(f"Connector API call failed for {url}: {last_error}")
 
 
 def load_connector_state(user_id):
@@ -272,10 +371,29 @@ def save_connector_state(user_id, data):
         return False
 
 
+def _upgrade_connector_secret_storage(state, connector_id):
+    connectors = state.get("connectors") if isinstance(state.get("connectors"), dict) else {}
+    key = str(connector_id or "").strip().lower()
+    current = connectors.get(key)
+    if not isinstance(current, dict):
+        return False
+    if not _build_cipher():
+        return False
+    prepared = _persist_connector_settings(key, current)
+    if prepared == current:
+        return False
+    connectors[key] = prepared
+    state["connectors"] = connectors
+    return True
+
+
 def get_connector_settings(user_id, connector_id):
     state = load_connector_state(user_id)
     connectors = state.get("connectors") or {}
     key = str(connector_id or "").strip().lower()
+    if _upgrade_connector_secret_storage(state, key):
+        save_connector_state(user_id, state)
+        connectors = state.get("connectors") or {}
     current = connectors.get(key)
     return _hydrate_connector_settings(key, current)
 
@@ -283,7 +401,15 @@ def get_connector_settings(user_id, connector_id):
 def get_all_connector_settings(user_id):
     state = load_connector_state(user_id)
     raw = state.get("connectors") or {}
+    changed = False
     result = {}
+    for key in list(raw.keys()):
+        connector_id = str(key or "").strip().lower()
+        changed = _upgrade_connector_secret_storage(state, connector_id) or changed
+    if changed:
+        save_connector_state(user_id, state)
+        raw = state.get("connectors") or {}
+
     for key, value in raw.items():
         connector_id = str(key or "").strip().lower()
         result[connector_id] = _hydrate_connector_settings(connector_id, value)
@@ -404,6 +530,15 @@ def append_sync_audit_event(
     log.insert(0, entry)
     state["audit_log"] = log[:AUDIT_LOG_LIMIT]
     save_connector_state(user_id, state)
+    _persist_connector_sync_log(
+        user_id=user_id,
+        connector_id=entry.get("connector_id"),
+        thread_id=entry.get("thread_id"),
+        action=entry.get("action"),
+        status=_normalize_sync_log_status(entry.get("status")),
+        items_synced=_extract_items_synced(entry.get("metadata")),
+        error_message=(entry.get("message") or "") if str(entry.get("status") or "").lower() in {"failed", "partial", "skipped"} else "",
+    )
     return entry
 
 
@@ -424,6 +559,61 @@ def get_sync_audit_events(user_id, connector_id=None, thread_id=None, limit=DEFA
         rows.append(deepcopy(item))
 
     return rows[:_sanitize_limit(limit)]
+
+
+def _normalize_sync_log_status(status):
+    value = str(status or "").strip().lower()
+    if value == "success":
+        return "success"
+    if value in {"failed", "error"}:
+        return "failed"
+    return "partial"
+
+
+def _extract_items_synced(metadata):
+    if not isinstance(metadata, dict):
+        return 0
+    if "items_synced" in metadata:
+        return max(0, _parse_int(metadata.get("items_synced"), default=0))
+    total = 0
+    for key in ("created", "updated", "imported", "synced"):
+        total += max(0, _parse_int(metadata.get(key), default=0))
+    return total
+
+
+def _persist_connector_sync_log(
+    *,
+    user_id,
+    connector_id,
+    thread_id,
+    action,
+    status,
+    items_synced=0,
+    error_message="",
+):
+    try:
+        from app import db
+        from app.models import ConnectorSyncLog
+
+        record = ConnectorSyncLog(
+            user_id=str(user_id),
+            connector_id=str(connector_id or "").strip().lower(),
+            thread_id=str(thread_id or "").strip() or None,
+            action=str(action or "sync").strip().lower()[:100],
+            status=str(status or "partial").strip().lower()[:50],
+            items_synced=max(0, _parse_int(items_synced, default=0)),
+            error_message=str(error_message or "")[:2000] or None,
+        )
+        db.session.add(record)
+        db.session.commit()
+    except Exception as exc:
+        try:
+            from app import db
+
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"[connectors] sync log write skipped: {exc}")
 
 
 def get_thread_sync_profile(user_id, thread_id):

@@ -150,6 +150,7 @@ def create_app():
     app.config['SALESFORCE_AUTH_BASE_URL'] = os.getenv('SALESFORCE_AUTH_BASE_URL', 'https://login.salesforce.com')
     app.config['SALESFORCE_REDIRECT_URI'] = os.getenv('SALESFORCE_REDIRECT_URI', '')
     app.config['SNOWFLAKE_PRIVATE_KEY_PASSPHRASE'] = os.getenv('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '')
+    app.config['CONNECTOR_ENCRYPTION_KEY'] = os.getenv('CONNECTOR_ENCRYPTION_KEY', '')
     app.config['CONNECTOR_CREDENTIALS_SECRET'] = os.getenv('CONNECTOR_CREDENTIALS_SECRET', '')
     # —— Frontend base URL for success/cancel links —— #
     app.config['FRONTEND_BASE_URL'] = frontend_base

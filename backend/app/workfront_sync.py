@@ -2,6 +2,7 @@ import copy
 import os
 from datetime import datetime
 
+from app.connectors.workfront import workfront_push_wbs
 from app.connector_runtime import request_json_with_backoff
 from app.connector_store import get_connector_settings, get_thread_sync_profile
 from app.scenarios_store import load_scenarios_data, save_scenarios_data
@@ -201,7 +202,6 @@ def sync_wbs_to_workfront(user_id, thread_id, project_wbs, thread_sync_profile=N
     connector_ids = [str(item).strip().lower() for item in connector_ids if str(item).strip()]
 
     settings = get_connector_settings(user_id, "workfront_sync")
-    field_mapping = _resolve_wbs_to_workfront_mapping(settings.get("workfront_field_mapping"))
 
     if _text(settings.get("connection_status")).lower() != "connected":
         return {"success": False, "skipped": True, "reason": "workfront_not_connected", "project_wbs": project_wbs}
@@ -213,64 +213,14 @@ def sync_wbs_to_workfront(user_id, thread_id, project_wbs, thread_sync_profile=N
     config = _workfront_runtime_config(user_id)
     if not _workfront_ready(config):
         return {"success": False, "skipped": True, "reason": "workfront_config_missing", "project_wbs": project_wbs}
-
-    updated_wbs = copy.deepcopy(project_wbs) if isinstance(project_wbs, dict) else {"name": "Execution WBS", "tasks": []}
-    tasks = _task_list(updated_wbs)
-    created = 0
-    updated = 0
-    errors = []
-    max_attempt_count = 1
-    total_duration_ms = 0
-
-    for task in tasks:
-        if not isinstance(task, dict):
-            continue
-        task_id = _text(task.get("id"))
-        if not task_id:
-            continue
-
-        refs = task.get("external_refs") if isinstance(task.get("external_refs"), dict) else {}
-        external_id = _text(refs.get("workfront_task_id") or task.get("workfront_task_id"))
-        payload = _task_to_workfront_fields(user_id, thread_id, task, field_mapping, config["project_id"])
-
-        try:
-            if external_id:
-                _, meta = _workfront_request(
-                    config,
-                    "PUT",
-                    f"/attask/api/v17.0/task/{external_id}",
-                    payload=payload,
-                )
-                updated += 1
-            else:
-                data, meta = _workfront_request(
-                    config,
-                    "POST",
-                    "/attask/api/v17.0/task",
-                    payload=payload,
-                )
-                new_id = _extract_record_id(data)
-                if new_id:
-                    refs["workfront_task_id"] = new_id
-                    task["external_refs"] = refs
-                    created += 1
-                    updated += 1
-            max_attempt_count = max(max_attempt_count, int(meta.get("attempt_count") or 1))
-            total_duration_ms += int(meta.get("duration_ms") or 0)
-        except Exception as exc:
-            errors.append({"task_id": task_id, "error": str(exc)[:800]})
-
-    updated_wbs["updated_at"] = _iso_now()
-    return {
-        "success": len(errors) == 0,
-        "skipped": False,
-        "created_tasks": created,
-        "updated_tasks": updated,
-        "errors": errors,
-        "attempt_count": max_attempt_count,
-        "duration_ms": total_duration_ms,
-        "project_wbs": updated_wbs,
+    connector_config = {
+        "base_url": config.get("base_url"),
+        "api_key": config.get("api_token"),
+        "project_id": config.get("project_id"),
+        "field_mapping": settings.get("workfront_field_mapping") if isinstance(settings.get("workfront_field_mapping"), dict) else {},
+        "last_sync_at": settings.get("last_sync_at"),
     }
+    return workfront_push_wbs(thread_id, project_wbs, connector_config)
 
 
 

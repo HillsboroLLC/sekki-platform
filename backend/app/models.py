@@ -397,3 +397,44 @@ class UserDataset(db.Model):
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ConnectorSyncLog(db.Model):
+    __tablename__ = 'connector_sync_logs'
+
+    id = db.Column(
+        db.String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4())
+    )
+    user_id = db.Column(
+        db.String(36),
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    connector_id = db.Column(db.String(100), nullable=False, index=True)
+    thread_id = db.Column(db.String(255), nullable=True, index=True)
+    action = db.Column(db.String(100), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='success')
+    items_synced = db.Column(db.Integer, nullable=False, default=0)
+    error_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        index=True,
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'connector_id': self.connector_id,
+            'thread_id': self.thread_id,
+            'action': self.action,
+            'status': self.status,
+            'items_synced': int(self.items_synced or 0),
+            'error_message': self.error_message,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

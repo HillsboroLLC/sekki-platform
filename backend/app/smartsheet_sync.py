@@ -2,6 +2,7 @@ import copy
 import os
 from datetime import datetime
 
+from app.connectors.smartsheet import smartsheet_push_wbs
 from app.connector_runtime import request_json_with_backoff
 from app.connector_store import get_connector_settings, get_thread_sync_profile
 from app.scenarios_store import load_scenarios_data, save_scenarios_data
@@ -211,7 +212,6 @@ def sync_wbs_to_smartsheet(user_id, thread_id, project_wbs, thread_sync_profile=
     connector_ids = [str(item).strip().lower() for item in connector_ids if str(item).strip()]
 
     settings = get_connector_settings(user_id, "smartsheet_sync")
-    field_mapping = _resolve_wbs_to_smartsheet_mapping(settings.get("smartsheet_field_mapping"))
 
     if _text(settings.get("connection_status")).lower() != "connected":
         return {"success": False, "skipped": True, "reason": "smartsheet_not_connected", "project_wbs": project_wbs}
@@ -223,65 +223,14 @@ def sync_wbs_to_smartsheet(user_id, thread_id, project_wbs, thread_sync_profile=
     config = _runtime_config(user_id)
     if not _ready(config):
         return {"success": False, "skipped": True, "reason": "smartsheet_config_missing", "project_wbs": project_wbs}
-
-    updated_wbs = copy.deepcopy(project_wbs) if isinstance(project_wbs, dict) else {"name": "Execution WBS", "tasks": []}
-    tasks = _task_list(updated_wbs)
-    created = 0
-    updated = 0
-    errors = []
-    max_attempt_count = 1
-    total_duration_ms = 0
-
-    for task in tasks:
-        if not isinstance(task, dict):
-            continue
-        task_id = _text(task.get("id"))
-        if not task_id:
-            continue
-
-        refs = task.get("external_refs") if isinstance(task.get("external_refs"), dict) else {}
-        row_id = _text(refs.get("smartsheet_row_id") or task.get("smartsheet_row_id"))
-
-        try:
-            if row_id:
-                row_payload = [_task_to_row(user_id, thread_id, task, field_mapping, include_id=int(row_id) if row_id.isdigit() else row_id)]
-                _, meta = _smartsheet_request(
-                    config,
-                    "PUT",
-                    f"/2.0/sheets/{config['sheet_id']}/rows",
-                    payload=row_payload,
-                )
-                updated += 1
-            else:
-                row_payload = [_task_to_row(user_id, thread_id, task, field_mapping)]
-                data, meta = _smartsheet_request(
-                    config,
-                    "POST",
-                    f"/2.0/sheets/{config['sheet_id']}/rows",
-                    payload=row_payload,
-                )
-                new_id = _extract_row_id(data)
-                if new_id:
-                    refs["smartsheet_row_id"] = new_id
-                    task["external_refs"] = refs
-                    created += 1
-                    updated += 1
-            max_attempt_count = max(max_attempt_count, int(meta.get("attempt_count") or 1))
-            total_duration_ms += int(meta.get("duration_ms") or 0)
-        except Exception as exc:
-            errors.append({"task_id": task_id, "error": str(exc)[:800]})
-
-    updated_wbs["updated_at"] = _iso_now()
-    return {
-        "success": len(errors) == 0,
-        "skipped": False,
-        "created_rows": created,
-        "updated_tasks": updated,
-        "errors": errors,
-        "attempt_count": max_attempt_count,
-        "duration_ms": total_duration_ms,
-        "project_wbs": updated_wbs,
+    connector_config = {
+        "base_url": config.get("base_url"),
+        "access_token": config.get("api_token"),
+        "sheet_id": config.get("sheet_id"),
+        "field_mapping": settings.get("smartsheet_field_mapping") if isinstance(settings.get("smartsheet_field_mapping"), dict) else {},
+        "last_sync_at": settings.get("last_sync_at"),
     }
+    return smartsheet_push_wbs(thread_id, project_wbs, connector_config)
 
 
 

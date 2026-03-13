@@ -5,7 +5,7 @@
 // ============================================================================
 import React, { useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import './ScoreDashboard.css';
 
 export default function ScoreDashboard({
@@ -20,6 +20,8 @@ export default function ScoreDashboard({
   selectedScorecardId = null,
   threadBundleId = null,
   onBeginProject = null,
+  onGenerateAiWbs = null,
+  generatingAiWbs = false,
 }) {
   // If snapshots are provided, render the selected snapshot as the source of truth.
   const selectedSnapshot = useMemo(() => {
@@ -422,30 +424,47 @@ export default function ScoreDashboard({
         )}
 
         {/* Begin Project Card (alternate placement) */}
-        {onBeginProject && threadBundleId && selectedScorecardId && (
+        {(onBeginProject || onGenerateAiWbs) && threadBundleId && selectedScorecardId && (
           <div className="begin-project-card">
             <h3>Ready to Begin?</h3>
             <p>
               Generate a detailed Work Breakdown Structure and project plan based on this scorecard.
             </p>
-            <button
-              className="sc-btn sc-btn-primary"
-              onClick={async () => {
-                try {
-                  const projectData = await onBeginProject({
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {onGenerateAiWbs && (
+                <button
+                  className="sc-btn sc-btn-primary"
+                  onClick={() => onGenerateAiWbs({
                     threadBundleId,
                     scorecardId: selectedScorecardId,
-                    projectName: result.project_name || 'Untitled Idea'
-                  });
-                  console.log('[ScoreDashboard] Project created:', projectData);
-                } catch (err) {
-                  console.error('[ScoreDashboard] Begin Project failed:', err);
-                  alert('Failed to create project. Please try again.');
-                }
-              }}
-            >
-              <FontAwesomeIcon icon={faPlay} /> Project
-            </button>
+                    projectName: result.project_name || 'Untitled Idea',
+                  })}
+                  disabled={generatingAiWbs}
+                >
+                  <FontAwesomeIcon icon={generatingAiWbs ? faSpinner : faPlay} spin={generatingAiWbs} /> {generatingAiWbs ? 'Generating project plan…' : 'Generate with AI'}
+                </button>
+              )}
+              {onBeginProject && (
+                <button
+                  className="sc-btn sc-btn-primary"
+                  onClick={async () => {
+                    try {
+                      const projectData = await onBeginProject({
+                        threadBundleId,
+                        scorecardId: selectedScorecardId,
+                        projectName: result.project_name || 'Untitled Idea'
+                      });
+                      console.log('[ScoreDashboard] Project created:', projectData);
+                    } catch (err) {
+                      console.error('[ScoreDashboard] Begin Project failed:', err);
+                      alert('Failed to create project. Please try again.');
+                    }
+                  }}
+                >
+                  <FontAwesomeIcon icon={faPlay} /> Project
+                </button>
+              )}
+            </div>
           </div>
         )}
     </div>

@@ -526,6 +526,11 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
 
   const [busy, setBusy] = useState(false);
   const [activeScenario, setActiveScenario] = useState(null);
+  const [aiSuggestOpen, setAiSuggestOpen] = useState(false);
+  const [aiSuggestPrompt, setAiSuggestPrompt] = useState('');
+  const [aiSuggestBusy, setAiSuggestBusy] = useState(false);
+  const [aiSuggestDraft, setAiSuggestDraft] = useState(null);
+  const [aiSuggestError, setAiSuggestError] = useState('');
 
   // Expose imperative controls for interactive chat actions (Score → Scenarios)
   useImperativeHandle(ref, () => ({
@@ -763,6 +768,99 @@ if (label === 'Scenario B') onResultB?.(snapshot);
     setResultB(null);
   }
 
+  function openAiSuggest() {
+    setAiSuggestError('');
+    setAiSuggestDraft(null);
+    setAiSuggestPrompt('');
+    setAiSuggestOpen(true);
+  }
+
+  async function submitAiSuggestPrompt() {
+    const prompt = String(aiSuggestPrompt || '').trim();
+    if (!threadId || !prompt || aiSuggestBusy) return;
+
+    setAiSuggestBusy(true);
+    setAiSuggestError('');
+    try {
+      const resp = await Jaspen.generateAiScenario(threadId, {
+        prompt,
+        commit: false,
+        preview: true,
+      });
+      const suggestion = (resp?.suggestion && typeof resp.suggestion === 'object') ? resp.suggestion : {};
+      const deltas = (suggestion?.deltas && typeof suggestion.deltas === 'object')
+        ? suggestion.deltas
+        : {};
+      const rawAdjustments = Array.isArray(resp?.lever_adjustments) ? resp.lever_adjustments : [];
+      const adjustments = rawAdjustments.map((row) => {
+        const leverId = String(row?.lever_id || '').trim();
+        const leverMeta = levers.find((item) => String(item?.key || '') === leverId);
+        const label = leverMeta?.label || formatLabel(leverId || 'lever');
+        return {
+          lever_id: leverId,
+          lever_label: label,
+          old_value: row?.old_value,
+          new_value: row?.new_value,
+          reason: row?.reason || '',
+          type: leverMeta?.type || inferType(leverId),
+        };
+      });
+
+      setAiSuggestDraft({
+        label: suggestion?.label || resp?.scenario?.label || 'AI Suggested Scenario',
+        rationale: resp?.rationale || suggestion?.rationale || suggestion?.summary || '',
+        deltas,
+        adjustments,
+      });
+    } catch (err) {
+      setAiSuggestError(err?.message || 'Failed to generate AI scenario suggestion');
+      setAiSuggestDraft(null);
+    } finally {
+      setAiSuggestBusy(false);
+    }
+  }
+
+  async function acceptAiSuggest() {
+    if (!threadId || !aiSuggestDraft || aiSuggestBusy) return;
+    setAiSuggestBusy(true);
+    setAiSuggestError('');
+    try {
+      const resp = await Jaspen.generateAiScenario(threadId, {
+        prompt: aiSuggestPrompt,
+        label: aiSuggestDraft.label,
+        deltas: aiSuggestDraft.deltas,
+        commit: true,
+        accept: true,
+      });
+      const createdScenario = resp?.scenario || null;
+      const scorecard = normalizeApplied(createdScenario?.result || resp?.preview_scorecard || {});
+      if (scorecard && typeof scorecard === 'object') {
+        setResultA(scorecard);
+        onResultA?.(scorecard);
+      }
+      setAiSuggestOpen(false);
+      setAiSuggestDraft(null);
+    } catch (err) {
+      setAiSuggestError(err?.message || 'Failed to create AI scenario');
+    } finally {
+      setAiSuggestBusy(false);
+    }
+  }
+
+  function modifyAiSuggest() {
+    if (!aiSuggestDraft || !aiSuggestDraft.deltas) return;
+    const nextValues = { ...scenarioA };
+    Object.entries(aiSuggestDraft.deltas).forEach(([leverId, rawValue]) => {
+      const lever = levers.find((item) => String(item?.key || '') === String(leverId));
+      const multiplier = Number(lever?.display_multiplier) || 1;
+      const numeric = Number(rawValue);
+      if (!Number.isFinite(numeric)) return;
+      nextValues[leverId] = numeric * multiplier;
+    });
+    setScenarioA(nextValues);
+    setAiSuggestOpen(false);
+  }
+
   return (
     <div>
       <div
@@ -815,6 +913,9 @@ if (label === 'Scenario B') onResultB?.(snapshot);
         <Button variant="outline" icon="fa-solid fa-rotate-left" onClick={resetAllToBaseline} disabled={busy}>
           Reset All to Baseline
         </Button>
+        <Button variant="outline" icon="fa-solid fa-wand-magic-sparkles" onClick={openAiSuggest} disabled={busy || aiSuggestBusy || !threadId}>
+          AI Suggest
+        </Button>
         <Button variant="primary" icon="fa-solid fa-play" onClick={runAllScenarios} disabled={busy}>
           {activeScenario === 'all' ? 'Running All...' : 'Run All Scenarios'}
         </Button>
@@ -838,6 +939,99 @@ if (label === 'Scenario B') onResultB?.(snapshot);
         <br />
         After running, click "Adopt" to apply that scenario as your current analysis.
       </div>
+
+      {aiSuggestOpen && (
+        <div className="jas-modal-overlay">
+          <div className="jas-modal-card" style={{ maxWidth: 860, width: '96%' }}>
+            <div className="jas-modal-head">
+              <h3>AI Scenario Suggestion</h3>
+              <button
+                type="button"
+                className="jas-ai-mini-btn secondary"
+                onClick={() => setAiSuggestOpen(false)}
+                disabled={aiSuggestBusy}
+              >
+                Close
+              </button>
+            </div>
+
+            {!aiSuggestDraft && (
+              <div className="jas-modal-body">
+                <label htmlFor="ai-suggest-prompt" style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+                  Describe what you want to explore
+                </label>
+                <textarea
+                  id="ai-suggest-prompt"
+                  placeholder="Describe what you want to explore..."
+                  rows={4}
+                  value={aiSuggestPrompt}
+                  onChange={(event) => setAiSuggestPrompt(event.target.value)}
+                  disabled={aiSuggestBusy}
+                  style={{ width: '100%' }}
+                />
+                {aiSuggestError && <p style={{ color: '#b91c1c', marginTop: 8 }}>{aiSuggestError}</p>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                  <Button variant="primary" onClick={submitAiSuggestPrompt} disabled={aiSuggestBusy || !String(aiSuggestPrompt || '').trim()}>
+                    {aiSuggestBusy ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} spin /> Generating...
+                      </>
+                    ) : 'Generate Suggestion'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {aiSuggestDraft && (
+              <div className="jas-modal-body">
+                <div style={{ marginBottom: 10 }}>
+                  <strong>{aiSuggestDraft.label}</strong>
+                  {aiSuggestDraft.rationale && (
+                    <p style={{ margin: '8px 0 0', color: 'var(--jas-gray-700)' }}>{aiSuggestDraft.rationale}</p>
+                  )}
+                </div>
+
+                <div style={{ maxHeight: 300, overflow: 'auto', border: '1px solid var(--jas-gray-200)', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--jas-gray-50)' }}>
+                        <th style={{ textAlign: 'left', padding: 10 }}>Lever</th>
+                        <th style={{ textAlign: 'left', padding: 10 }}>Change</th>
+                        <th style={{ textAlign: 'left', padding: 10 }}>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aiSuggestDraft.adjustments.map((row) => (
+                        <tr key={row.lever_id}>
+                          <td style={{ padding: 10, borderTop: '1px solid var(--jas-gray-200)' }}>{row.lever_label}</td>
+                          <td style={{ padding: 10, borderTop: '1px solid var(--jas-gray-200)' }}>
+                            {formatValue(row.old_value, row.type)} &rarr; {formatValue(row.new_value, row.type)}
+                          </td>
+                          <td style={{ padding: 10, borderTop: '1px solid var(--jas-gray-200)' }}>{row.reason || 'AI adjustment'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {aiSuggestError && <p style={{ color: '#b91c1c', marginTop: 8 }}>{aiSuggestError}</p>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                  <Button variant="outline" onClick={modifyAiSuggest} disabled={aiSuggestBusy}>
+                    Modify
+                  </Button>
+                  <Button variant="primary" onClick={acceptAiSuggest} disabled={aiSuggestBusy}>
+                    {aiSuggestBusy ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} spin /> Creating...
+                      </>
+                    ) : 'Accept & Create'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

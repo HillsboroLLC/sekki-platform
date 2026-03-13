@@ -407,6 +407,7 @@ const [helpLoading, setHelpLoading] = useState(false);
 const [scenarioOptions, setScenarioOptions] = useState([]);
 const [activeScenarioId, setActiveScenarioId] = useState('baseline');
 const [scenarioDrawerView, setScenarioDrawerView] = useState('assistant');
+const [aiWbsBusy, setAiWbsBusy] = useState(false);
   const [scenarioLevers, setScenarioLevers] = useState([]);
   const [threadEditOpen, setThreadEditOpen] = useState(false);
   const [bundleCurrentScorecard, setBundleCurrentScorecard] = useState(null);
@@ -1674,6 +1675,10 @@ const refreshBundle = async (tid) => {
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/scores'); }}>
             <FontAwesomeIcon icon={faChartLine} />
             <span className="jas-ud-item-label">Scores</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/insights'); }}>
+            <FontAwesomeIcon icon={faChartLine} />
+            <span className="jas-ud-item-label">Insights</span>
           </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions?view=queue'); }}>
             <FontAwesomeIcon icon={faClockRotateLeft} />
@@ -3867,6 +3872,9 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
       ? resp.suggestion
       : {};
     const suggestedDeltas = (suggestion && typeof suggestion.deltas === 'object') ? suggestion.deltas : {};
+    const leverReasons = (suggestion && typeof suggestion.reasons === 'object')
+      ? suggestion.reasons
+      : ((suggestion && typeof suggestion.rationale === 'object') ? suggestion.rationale : {});
     const leverContext = Array.isArray(resp?.lever_context) ? resp.lever_context : [];
     const contextByKey = {};
     leverContext.forEach((lever) => {
@@ -3899,6 +3907,8 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
         step: Number(meta.step),
       };
       const fallback = defaultBounds(current, type);
+      const rationaleFromSuggestion = String((suggestion.rationale && suggestion.rationale[key]) || '').trim();
+      const rationaleFromReasons = String((leverReasons && leverReasons[key]) || '').trim();
       return {
         key,
         label: String(meta.label || key).trim() || key,
@@ -3908,7 +3918,7 @@ console.log('[Finish&Analyze] data.analysis_result.meta.extracted_levers?', data
         min: Number.isFinite(bounds.min) ? bounds.min : fallback.min,
         max: Number.isFinite(bounds.max) ? bounds.max : fallback.max,
         step: Number.isFinite(bounds.step) && bounds.step > 0 ? bounds.step : fallback.step,
-        rationale: String((suggestion.rationale && suggestion.rationale[key]) || '').trim(),
+        rationale: rationaleFromReasons || rationaleFromSuggestion,
       };
     }).filter((row) => Number.isFinite(row.value));
 
@@ -4221,6 +4231,40 @@ const uiActions = parseUIActions(actionEnvelope);
     setBusy(false);
   }
 };
+
+const handleGenerateAiWbsFromScorecard = useCallback(async ({ threadBundleId, scorecardId } = {}) => {
+  const tid = threadBundleId || currentSessionId || sessionId;
+  if (!tid || aiWbsBusy) return;
+
+  const scenarioId = (scorecardId && baselineScorecardId && scorecardId !== baselineScorecardId)
+    ? scorecardId
+    : null;
+
+  setAiWbsBusy(true);
+  try {
+    const resp = await Jaspen.generateAiWbs(tid, {
+      scenario_id: scenarioId,
+      commit: true,
+      prompt: 'Generate a recommended project WBS from this scorecard.',
+      model_type: selectedModelType,
+    });
+    const taskCount = Array.isArray(resp?.project_wbs?.tasks) ? resp.project_wbs.tasks.length : 0;
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'ai',
+        text: `Generated a project WBS with ${taskCount} tasks${scenarioId ? ` using scenario ${scenarioId}` : ''}.`,
+      },
+    ]);
+    showToast('Generated project plan from scorecard', 'success');
+  } catch (err) {
+    console.error('[handleGenerateAiWbsFromScorecard] failed', err);
+    if (err?.status === 403) setBillingModalOpen(true);
+    showToast(err?.message || 'Failed to generate project plan', 'error');
+  } finally {
+    setAiWbsBusy(false);
+  }
+}, [aiWbsBusy, baselineScorecardId, currentSessionId, selectedModelType, sessionId, showToast]);
 
   // === Helpers ===
   const handleNewAnalysis = (forceNew = false) => {
@@ -5214,6 +5258,8 @@ setView(id === 'chat' ? 'intake' : id);
       threadBundleId={sessionId}
       scoreCommentary={scoreCommentary}
       onOpenThreadEdit={() => setThreadEditOpen(true)}
+      onGenerateAiWbs={handleGenerateAiWbsFromScorecard}
+      generatingAiWbs={aiWbsBusy}
 
       onBackToMain={handleNewAnalysis}
       onOpenChat={() => { setActiveTab('chat'); setView('intake'); }}

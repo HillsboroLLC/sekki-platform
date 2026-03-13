@@ -1092,6 +1092,75 @@ def _build_lever_context(baseline_inputs, suggested_deltas):
     return context
 
 
+def _thread_levers_for_scenario_ai(user_id, thread_id, baseline_inputs, suggested_deltas=None):
+    """
+    Build lever metadata using the same internal helper as
+    GET /api/ai-agent/threads/<thread_id>/levers when possible.
+    """
+    try:
+        from .ai_agent import _build_thread_levers as _agent_build_thread_levers
+        from .ai_agent import _resolve_user_session as _agent_resolve_user_session
+    except Exception:
+        _agent_build_thread_levers = None
+        _agent_resolve_user_session = None
+
+    lever_rows = []
+    if _agent_build_thread_levers and _agent_resolve_user_session:
+        try:
+            sessions = load_user_sessions(user_id) or {}
+            _, session = _agent_resolve_user_session(sessions, thread_id)
+            if isinstance(session, dict):
+                lever_rows = _agent_build_thread_levers(session) or []
+        except Exception:
+            lever_rows = []
+
+    if not lever_rows:
+        lever_rows = _build_lever_context(baseline_inputs, suggested_deltas)
+    else:
+        suggested_map = suggested_deltas if isinstance(suggested_deltas, dict) else {}
+        normalized = []
+        for row in lever_rows:
+            if not isinstance(row, dict) or not row.get('key'):
+                continue
+            key = str(row.get('key'))
+            current = _safe_float(row.get('current'))
+            if current is None:
+                current = _safe_float((baseline_inputs or {}).get(key))
+            if current is None:
+                continue
+            lever_type = str(row.get('type') or _infer_lever_type(key))
+            bounds = _lever_bounds(current, lever_type)
+            suggested = _safe_float(suggested_map.get(key))
+            normalized.append({
+                'key': key,
+                'label': str(row.get('label') or key).strip() or key,
+                'type': lever_type,
+                'current': current,
+                'suggested': suggested if suggested is not None else current,
+                'min': _safe_float(row.get('min')) if _safe_float(row.get('min')) is not None else bounds['min'],
+                'max': _safe_float(row.get('max')) if _safe_float(row.get('max')) is not None else bounds['max'],
+                'step': _safe_float(row.get('step')) if _safe_float(row.get('step')) is not None else bounds['step'],
+            })
+        lever_rows = normalized
+
+    return lever_rows
+
+
+def _scenario_adjustments_payload(baseline_inputs, deltas, per_lever_rationale=None):
+    per_lever = per_lever_rationale if isinstance(per_lever_rationale, dict) else {}
+    rows = []
+    for lever_id, new_value in (deltas or {}).items():
+        old_value = _safe_float((baseline_inputs or {}).get(lever_id))
+        reason = str(per_lever.get(lever_id) or '').strip()
+        rows.append({
+            'lever_id': lever_id,
+            'old_value': old_value,
+            'new_value': _safe_float(new_value),
+            'reason': reason or f"Adjusted {str(lever_id).replace('_', ' ')} per requested outcome.",
+        })
+    return rows
+
+
 def _objective_guidance(objective):
     target = _normalize_strategy_objective(objective)
     if target == 'cost':
@@ -1134,7 +1203,13 @@ def _heuristic_scenario_suggestion(instruction, baseline_inputs, objective='bala
         lever_key = next(iter(baseline_inputs.keys()))
 
     if lever_key is None:
-        return {'label': 'AI Scenario', 'summary': 'No baseline levers available.', 'deltas': {}, 'rationale': {}}
+        return {
+            'label': 'AI Scenario',
+            'summary': 'No baseline levers available.',
+            'deltas': {},
+            'rationale': 'No compatible levers were available for this request.',
+            'reasons': {},
+        }
 
     base = _safe_float(baseline_inputs.get(lever_key))
     if base is None:
@@ -1163,35 +1238,78 @@ def _heuristic_scenario_suggestion(instruction, baseline_inputs, objective='bala
         value = round(base * (1.0 + pct * direction), 2)
 
     deltas = {lever_key: value}
-    rationale = {
-        lever_key: (
-            f"Adjusted {lever_key.replace('_', ' ')} by about {int(round(pct * 100))}% "
-            f"to support a {objective} objective."
-        )
-    }
+    reason_text = (
+        f"Adjusted {lever_key.replace('_', ' ')} by about {int(round(pct * 100))}% "
+        f"to support a {objective} objective."
+    )
     return {
         'label': 'AI Suggested Scenario',
         'summary': f'Generated from your request with a {objective} objective profile.',
         'deltas': deltas,
-        'rationale': rationale,
+        'rationale': reason_text,
+        'reasons': {lever_key: reason_text},
     }
 
 
-def _generate_ai_scenario_suggestion(client, llm_model, instruction, baseline_inputs, objective='balanced'):
+def _generate_ai_scenario_suggestion(
+    client,
+    llm_model,
+    instruction,
+    baseline_inputs,
+    objective='balanced',
+    baseline_scorecard=None,
+    lever_definitions=None,
+):
     objective = _normalize_strategy_objective(objective)
     lever_catalog = []
-    for key, val in (baseline_inputs or {}).items():
-        num = _safe_float(val)
-        if num is None:
-            continue
-        lever_catalog.append({
-            'key': key,
-            'current': num,
-            'type': _infer_lever_type(key),
-        })
+    source_rows = lever_definitions if isinstance(lever_definitions, list) else []
+    if source_rows:
+        for row in source_rows:
+            if not isinstance(row, dict) or not row.get('key'):
+                continue
+            key = str(row.get('key'))
+            current = _safe_float(row.get('current'))
+            if current is None:
+                current = _safe_float((baseline_inputs or {}).get(key))
+            if current is None:
+                continue
+            lever_type = str(row.get('type') or _infer_lever_type(key))
+            bounds = _lever_bounds(current, lever_type)
+            lever_catalog.append({
+                'lever_id': key,
+                'current': current,
+                'type': lever_type,
+                'min': _safe_float(row.get('min')) if _safe_float(row.get('min')) is not None else bounds.get('min'),
+                'max': _safe_float(row.get('max')) if _safe_float(row.get('max')) is not None else bounds.get('max'),
+                'step': _safe_float(row.get('step')) if _safe_float(row.get('step')) is not None else bounds.get('step'),
+            })
+    else:
+        for key, val in (baseline_inputs or {}).items():
+            num = _safe_float(val)
+            if num is None:
+                continue
+            lever_type = _infer_lever_type(key)
+            bounds = _lever_bounds(num, lever_type)
+            lever_catalog.append({
+                'lever_id': key,
+                'current': num,
+                'type': lever_type,
+                'min': bounds.get('min'),
+                'max': bounds.get('max'),
+                'step': bounds.get('step'),
+            })
 
     if not lever_catalog:
         return _heuristic_scenario_suggestion(instruction, baseline_inputs, objective=objective)
+
+    score_context = {}
+    if isinstance(baseline_scorecard, dict):
+        score_context = {
+            'jaspen_score': baseline_scorecard.get('jaspen_score'),
+            'score_category': baseline_scorecard.get('score_category'),
+            'component_scores': baseline_scorecard.get('component_scores') if isinstance(baseline_scorecard.get('component_scores'), dict) else {},
+            'financial_impact': baseline_scorecard.get('financial_impact') if isinstance(baseline_scorecard.get('financial_impact'), dict) else {},
+        }
 
     prompt = f"""
 You are helping create a strategy scenario using existing baseline levers.
@@ -1205,27 +1323,29 @@ Objective profile:
 Objective guidance:
 {_objective_guidance(objective)}
 
-Available levers (MUST use only these keys):
+Baseline score context:
+{json.dumps(score_context, indent=2)}
+
+Available levers (MUST use only these lever_id values):
 {json.dumps(lever_catalog, indent=2)}
 
 Return JSON only in this shape:
 {{
   "label": "short scenario label",
-  "summary": "one paragraph summary",
-  "changes": [
-    {{
-      "lever": "exact_key_from_catalog",
-      "value": 123.45,
-      "rationale": "why this change helps the requested outcome"
-    }}
-  ]
+  "deltas": {{
+    "lever_id": 123.45
+  }},
+  "rationale": "short explanation of why the combined lever changes satisfy the request",
+  "reasons": {{
+    "lever_id": "why this specific lever changed"
+  }}
 }}
 
 Rules:
 - Suggest 1-6 lever changes.
 - Keep values realistic relative to current levels.
-- Always include rationale for every lever.
-- Do not invent new lever keys.
+- Always include rationale for every lever inside reasons.
+- Do not invent new lever ids.
 - Align the recommendation with the objective profile while still honoring the user's request.
 """.strip()
 
@@ -1245,111 +1365,190 @@ Rules:
 
     by_lower = {str(k).lower(): k for k in baseline_inputs.keys()}
     deltas = {}
-    rationale = {}
-    for change in parsed.get('changes', []) if isinstance(parsed, dict) else []:
-        if not isinstance(change, dict):
-            continue
-        raw_lever = str(change.get('lever') or '').strip()
-        if not raw_lever:
-            continue
-        lever = raw_lever if raw_lever in baseline_inputs else by_lower.get(raw_lever.lower())
-        if not lever:
-            continue
-        value = _safe_float(change.get('value'))
-        if value is None:
-            continue
-        deltas[lever] = value
-        rationale[lever] = str(change.get('rationale') or '').strip() or f"Adjusted {lever.replace('_', ' ')}."
+    reasons = {}
+    raw_deltas = parsed.get('deltas') if isinstance(parsed, dict) else {}
+    if isinstance(raw_deltas, dict):
+        for raw_lever, raw_value in raw_deltas.items():
+            lever_key = str(raw_lever or '').strip()
+            if not lever_key:
+                continue
+            lever = lever_key if lever_key in baseline_inputs else by_lower.get(lever_key.lower())
+            if not lever:
+                continue
+            value = _safe_float(raw_value)
+            if value is None:
+                continue
+            deltas[lever] = value
+
+    raw_reasons = parsed.get('reasons') if isinstance(parsed, dict) else {}
+    if isinstance(raw_reasons, dict):
+        for raw_lever, reason in raw_reasons.items():
+            lever_key = str(raw_lever or '').strip()
+            if not lever_key:
+                continue
+            lever = lever_key if lever_key in baseline_inputs else by_lower.get(lever_key.lower())
+            if not lever:
+                continue
+            reason_text = str(reason or '').strip()
+            if reason_text:
+                reasons[lever] = reason_text
+
+    if not deltas and isinstance(parsed, dict):
+        # Backward compatibility: old "changes" response shape.
+        for change in parsed.get('changes', []):
+            if not isinstance(change, dict):
+                continue
+            raw_lever = str(change.get('lever') or '').strip()
+            if not raw_lever:
+                continue
+            lever = raw_lever if raw_lever in baseline_inputs else by_lower.get(raw_lever.lower())
+            if not lever:
+                continue
+            value = _safe_float(change.get('value'))
+            if value is None:
+                continue
+            deltas[lever] = value
+            reason_text = str(change.get('rationale') or '').strip()
+            if reason_text:
+                reasons[lever] = reason_text
 
     if not deltas:
         return _heuristic_scenario_suggestion(instruction, baseline_inputs, objective=objective)
 
+    summary = str(parsed.get('summary') or '').strip() if isinstance(parsed, dict) else ''
+    rationale = str(parsed.get('rationale') or '').strip() if isinstance(parsed, dict) else ''
+    if not rationale:
+        if summary:
+            rationale = summary
+        else:
+            rationale = (
+                f"Generated lever adjustments to support the {objective} objective "
+                f"and the user request."
+            )
+
+    for key in deltas.keys():
+        reasons.setdefault(key, f"Adjusted {key.replace('_', ' ')} to align with the requested outcome.")
+
     return {
         'label': str(parsed.get('label') or 'AI Suggested Scenario').strip() or 'AI Suggested Scenario',
-        'summary': str(parsed.get('summary') or '').strip(),
+        'summary': summary,
         'deltas': deltas,
         'rationale': rationale,
+        'reasons': reasons,
     }
 
 
-def _heuristic_wbs_suggestion(scorecard, instruction):
+def _heuristic_wbs_suggestion(scorecard, instruction, scenario_payload=None):
     comps = (scorecard or {}).get('component_scores') if isinstance(scorecard, dict) else {}
     comps = comps if isinstance(comps, dict) else {}
     tasks = [
         {
+            'id': 'kickoff_alignment',
             'title': 'Kickoff alignment and success criteria',
-            'owner_role': 'Program Manager',
+            'description': 'Align stakeholders on scope, objectives, and measurable outcomes.',
             'priority': 'high',
-            'timeline_days': 5,
+            'estimated_days': 5,
+            'suggested_role': 'Project Manager',
             'depends_on': [],
-            'rationale': 'Establishes shared scope and measurable outcomes early.',
+            'risk_area': 'execution_readiness',
         },
         {
+            'id': 'dependency_map',
             'title': 'Create execution cadence and dependency map',
-            'owner_role': 'Delivery Lead',
+            'description': 'Map workstream dependencies and establish execution cadence.',
             'priority': 'high',
-            'timeline_days': 7,
-            'depends_on': ['Kickoff alignment and success criteria'],
-            'rationale': 'Converts strategic intent into an executable sequence.',
+            'estimated_days': 7,
+            'suggested_role': 'Program Manager',
+            'depends_on': ['kickoff_alignment'],
+            'risk_area': 'execution_readiness',
         },
     ]
 
     if float(comps.get('financial_health') or 0) < 70:
         tasks.append({
+            'id': 'financial_guardrails',
             'title': 'Run budget guardrail and ROI checkpoint',
-            'owner_role': 'Finance Partner',
+            'description': 'Validate investment assumptions and define financial checkpoints.',
             'priority': 'high',
-            'timeline_days': 7,
-            'depends_on': ['Kickoff alignment and success criteria'],
-            'rationale': 'Addresses financial risk and improves return confidence.',
+            'estimated_days': 7,
+            'suggested_role': 'Finance Analyst',
+            'depends_on': ['kickoff_alignment'],
+            'risk_area': 'financial_health',
         })
     if float(comps.get('market_position') or 0) < 70:
         tasks.append({
+            'id': 'market_validation',
             'title': 'Validate customer value and market assumptions',
-            'owner_role': 'Product Marketing',
+            'description': 'Run customer and market validation to sharpen value proposition.',
             'priority': 'medium',
-            'timeline_days': 10,
-            'depends_on': ['Kickoff alignment and success criteria'],
-            'rationale': 'Reduces go-to-market uncertainty before scaling execution.',
+            'estimated_days': 10,
+            'suggested_role': 'Product Marketing',
+            'depends_on': ['kickoff_alignment'],
+            'risk_area': 'market_position',
         })
     if float(comps.get('operational_efficiency') or 0) < 70:
         tasks.append({
+            'id': 'process_optimization',
             'title': 'Map process bottlenecks and automate handoffs',
-            'owner_role': 'Operations Lead',
+            'description': 'Identify bottlenecks and improve process handoffs.',
             'priority': 'medium',
-            'timeline_days': 14,
-            'depends_on': ['Create execution cadence and dependency map'],
-            'rationale': 'Improves throughput and predictability for delivery.',
+            'estimated_days': 14,
+            'suggested_role': 'Operations Lead',
+            'depends_on': ['dependency_map'],
+            'risk_area': 'operational_efficiency',
         })
     if float(comps.get('execution_readiness') or 0) < 70:
         tasks.append({
+            'id': 'staffing_plan',
             'title': 'Staff critical roles and contingency owners',
-            'owner_role': 'Program Manager',
+            'description': 'Assign owners and contingency coverage for critical tasks.',
             'priority': 'high',
-            'timeline_days': 6,
-            'depends_on': ['Create execution cadence and dependency map'],
-            'rationale': 'Strengthens ownership and risk response capability.',
+            'estimated_days': 6,
+            'suggested_role': 'Project Manager',
+            'depends_on': ['dependency_map'],
+            'risk_area': 'execution_readiness',
         })
 
     tasks.append({
+        'id': 'weekly_risk_review',
         'title': 'Weekly risk review and mitigation updates',
-        'owner_role': 'PMO',
+        'description': 'Review risk register and update mitigations weekly.',
         'priority': 'medium',
-        'timeline_days': 30,
-        'depends_on': ['Create execution cadence and dependency map'],
-        'rationale': 'Maintains momentum and catches execution drift quickly.',
+        'estimated_days': 30,
+        'suggested_role': 'PMO',
+        'depends_on': ['dependency_map'],
+        'risk_area': 'execution_readiness',
     })
+
+    scenario_note = ''
+    if isinstance(scenario_payload, dict) and scenario_payload.get('label'):
+        scenario_note = f" using scenario '{scenario_payload.get('label')}'"
 
     return {
         'name': 'AI Generated WBS',
         'description': str(instruction or '').strip() or 'Generated from scorecard drivers and risk profile.',
-        'summary': 'Generated using component score priorities and risk hotspots.',
-        'tasks': tasks[:12],
+        'summary': f"Generated{scenario_note} using component score priorities and risk hotspots.",
+        'phases': [
+            {
+                'name': 'Initiation',
+                'tasks': tasks[:2],
+            },
+            {
+                'name': 'Execution',
+                'tasks': tasks[2:],
+            },
+        ],
     }
 
 
-def _generate_ai_wbs_suggestion(client, llm_model, scorecard, instruction):
+def _generate_ai_wbs_suggestion(client, llm_model, scorecard, instruction, scenario_payload=None):
     scorecard_payload = scorecard if isinstance(scorecard, dict) else {}
+    scenario_context = scenario_payload if isinstance(scenario_payload, dict) else {}
+    top_risks = scorecard_payload.get('top_risks') if isinstance(scorecard_payload.get('top_risks'), list) else scorecard_payload.get('risks')
+    if not isinstance(top_risks, list):
+        top_risks = []
+    recommendations = scorecard_payload.get('recommendations') if isinstance(scorecard_payload.get('recommendations'), list) else []
+
     prompt = f"""
 You are generating a project WBS from a strategy scorecard.
 
@@ -1359,25 +1558,44 @@ Instruction:
 Scorecard context:
 {json.dumps(scorecard_payload, indent=2)}
 
+Key insights:
+{json.dumps(scorecard_payload.get('key_insights') or [], indent=2)}
+
+Top risks:
+{json.dumps(top_risks, indent=2)}
+
+Recommendations:
+{json.dumps(recommendations, indent=2)}
+
+Scenario context (if provided):
+{json.dumps(scenario_context, indent=2)}
+
 Return JSON only:
 {{
   "name": "WBS title",
   "description": "one paragraph",
   "summary": "short summary",
-  "tasks": [
+  "phases": [
     {{
-      "title": "task title",
-      "owner_role": "role",
-      "priority": "high|medium|low",
-      "timeline_days": 7,
-      "depends_on": ["optional title references"],
-      "rationale": "why this task matters"
+      "name": "Phase Name",
+      "tasks": [
+        {{
+          "id": "unique-task-id",
+          "title": "Task title",
+          "description": "What this task involves",
+          "priority": "high|medium|low",
+          "estimated_days": 5,
+          "suggested_role": "Project Manager|Developer|Analyst|etc",
+          "dependencies": ["other-task-id"],
+          "risk_area": "which component score this addresses"
+        }}
+      ]
     }}
   ]
 }}
 
 Rules:
-- Return 5-14 tasks.
+- Return 5-20 tasks total.
 - Ensure dependencies are realistic and avoid circular references.
 - Include at least one risk-mitigation task and one value-capture task.
 """.strip()
@@ -1393,76 +1611,128 @@ Rules:
             max_tokens=1200,
         )
         parsed = _extract_json_object(response.choices[0].message.content)
-        if not isinstance(parsed, dict) or not isinstance(parsed.get('tasks'), list) or not parsed.get('tasks'):
+        if not isinstance(parsed, dict):
+            raise ValueError('invalid_wbs_response')
+        if not isinstance(parsed.get('phases'), list) and not isinstance(parsed.get('tasks'), list):
             raise ValueError('invalid_wbs_response')
         return parsed
     except Exception:
-        return _heuristic_wbs_suggestion(scorecard, instruction)
+        return _heuristic_wbs_suggestion(scorecard, instruction, scenario_payload=scenario_context)
 
 
 def _materialize_ai_wbs(wbs_payload):
     now = datetime.utcnow()
-    tasks_in = wbs_payload.get('tasks') if isinstance(wbs_payload, dict) else []
-    if not isinstance(tasks_in, list):
-        tasks_in = []
+    tasks_in = []
+    phases_in = []
+    if isinstance(wbs_payload, dict):
+        if isinstance(wbs_payload.get('phases'), list):
+            phases_in = wbs_payload.get('phases')
+        elif isinstance(wbs_payload.get('tasks'), list):
+            phases_in = [{'name': 'Generated Plan', 'tasks': wbs_payload.get('tasks')}]
 
     created = []
-    by_title = {}
-    for idx, raw in enumerate(tasks_in):
-        if not isinstance(raw, dict):
-            continue
-        title = str(raw.get('title') or '').strip()
-        if not title:
-            continue
-        task_id = f"task_{uuid.uuid4().hex[:10]}"
-        owner = str(raw.get('owner_role') or raw.get('owner') or '').strip()
-        priority = str(raw.get('priority') or '').strip().lower()
-        if priority not in {'high', 'medium', 'low'}:
-            priority = None
-        timeline_days = raw.get('timeline_days')
-        try:
-            timeline_days = max(1, int(timeline_days)) if timeline_days is not None else None
-        except Exception:
-            timeline_days = None
-        due_date = (now + timedelta(days=timeline_days)).date().isoformat() if timeline_days else None
+    id_aliases = {}
+    phase_rows = []
+    running_order = 1
 
-        task = {
-            'id': task_id,
-            'title': title,
-            'status': 'todo',
-            'owner': owner,
-            'due_date': due_date,
-            'depends_on': [],
-            'order': idx + 1,
-            'external_refs': {},
-        }
-        if priority:
-            task['priority'] = priority
-        if timeline_days:
-            task['timeline_days'] = timeline_days
-        rationale = str(raw.get('rationale') or '').strip()
-        if rationale:
-            task['rationale'] = rationale
-        created.append(task)
-        by_title[title.lower()] = task_id
+    for phase in phases_in:
+        if not isinstance(phase, dict):
+            continue
+        phase_name = str(phase.get('name') or 'Phase').strip() or 'Phase'
+        phase_task_ids = []
+        raw_tasks = phase.get('tasks') if isinstance(phase.get('tasks'), list) else []
 
-    for idx, raw in enumerate(tasks_in):
-        if idx >= len(created) or not isinstance(raw, dict):
+        for raw in raw_tasks:
+            if not isinstance(raw, dict):
+                continue
+            title = str(raw.get('title') or '').strip()
+            if not title:
+                continue
+
+            requested_id = str(raw.get('id') or '').strip()
+            task_id = requested_id or f"task_{uuid.uuid4().hex[:10]}"
+            owner = str(raw.get('owner') or raw.get('suggested_role') or raw.get('owner_role') or '').strip()
+            priority = str(raw.get('priority') or '').strip().lower()
+            if priority not in {'high', 'medium', 'low'}:
+                priority = None
+            estimated_days = raw.get('estimated_days')
+            if estimated_days is None:
+                estimated_days = raw.get('timeline_days')
+            try:
+                estimated_days = max(1, int(estimated_days)) if estimated_days is not None else None
+            except Exception:
+                estimated_days = None
+            due_date = (now + timedelta(days=estimated_days)).date().isoformat() if estimated_days else None
+
+            task = {
+                'id': task_id,
+                'title': title,
+                'status': 'todo',
+                'owner': owner,
+                'suggested_role': owner,
+                'due_date': due_date,
+                'depends_on': [],
+                'order': running_order,
+                'phase': phase_name,
+                'external_refs': {},
+            }
+            running_order += 1
+            if priority:
+                task['priority'] = priority
+            if estimated_days:
+                task['timeline_days'] = estimated_days
+                task['estimated_days'] = estimated_days
+            description = str(raw.get('description') or '').strip()
+            if description:
+                task['description'] = description
+            rationale = str(raw.get('rationale') or '').strip()
+            if rationale:
+                task['rationale'] = rationale
+            risk_area = str(raw.get('risk_area') or '').strip()
+            if risk_area:
+                task['risk_area'] = risk_area
+
+            created.append(task)
+            phase_task_ids.append(task_id)
+            id_aliases[task_id.lower()] = task_id
+            id_aliases[title.lower()] = task_id
+            if requested_id:
+                id_aliases[requested_id.lower()] = task_id
+
+        if phase_task_ids:
+            phase_rows.append({'name': phase_name, 'task_ids': phase_task_ids})
+
+    for phase in phases_in:
+        if not isinstance(phase, dict):
             continue
-        raw_deps = raw.get('depends_on')
-        if not isinstance(raw_deps, list):
-            continue
-        deps = []
-        for dep in raw_deps:
-            dep_title = str(dep or '').strip().lower()
-            dep_id = by_title.get(dep_title)
-            if dep_id and dep_id != created[idx]['id'] and dep_id not in deps:
-                deps.append(dep_id)
-        created[idx]['depends_on'] = deps
+        raw_tasks = phase.get('tasks') if isinstance(phase.get('tasks'), list) else []
+        for raw in raw_tasks:
+            if not isinstance(raw, dict):
+                continue
+            requested_id = str(raw.get('id') or '').strip().lower()
+            title_key = str(raw.get('title') or '').strip().lower()
+            task_id = id_aliases.get(requested_id) or id_aliases.get(title_key)
+            if not task_id:
+                continue
+            task = next((item for item in created if item.get('id') == task_id), None)
+            if not isinstance(task, dict):
+                continue
+            raw_deps = raw.get('dependencies')
+            if not isinstance(raw_deps, list):
+                raw_deps = raw.get('depends_on') if isinstance(raw.get('depends_on'), list) else []
+            deps = []
+            for dep in raw_deps:
+                dep_key = str(dep or '').strip().lower()
+                dep_id = id_aliases.get(dep_key)
+                if dep_id and dep_id != task_id and dep_id not in deps:
+                    deps.append(dep_id)
+            task['depends_on'] = deps
 
     return {
         'name': str(wbs_payload.get('name') or 'AI Generated WBS').strip() or 'AI Generated WBS',
         'description': str(wbs_payload.get('description') or '').strip(),
+        'summary': str(wbs_payload.get('summary') or '').strip(),
+        'phases': phase_rows,
         'tasks': created,
     }
 
@@ -1483,7 +1753,7 @@ def _normalize_wbs_task(raw_task):
     if status not in ALLOWED_WBS_STATUSES:
         status = 'todo'
 
-    owner = str(raw_task.get('owner') or '').strip()
+    owner = str(raw_task.get('owner') or raw_task.get('suggested_role') or raw_task.get('owner_role') or '').strip()
     due_date = str(raw_task.get('due_date') or '').strip() or None
     order = raw_task.get('order')
     try:
@@ -1496,6 +1766,8 @@ def _normalize_wbs_task(raw_task):
         priority = None
 
     timeline_days = raw_task.get('timeline_days')
+    if timeline_days is None:
+        timeline_days = raw_task.get('estimated_days')
     try:
         timeline_days = int(timeline_days) if timeline_days is not None else None
     except Exception:
@@ -1504,6 +1776,10 @@ def _normalize_wbs_task(raw_task):
         timeline_days = None
 
     rationale = str(raw_task.get('rationale') or '').strip() or None
+    description = str(raw_task.get('description') or '').strip() or None
+    suggested_role = str(raw_task.get('suggested_role') or raw_task.get('owner_role') or owner or '').strip() or None
+    risk_area = str(raw_task.get('risk_area') or '').strip() or None
+    phase = str(raw_task.get('phase') or '').strip() or None
 
     depends_on = raw_task.get('depends_on')
     if not isinstance(depends_on, list):
@@ -1545,8 +1821,17 @@ def _normalize_wbs_task(raw_task):
         task['priority'] = priority
     if timeline_days:
         task['timeline_days'] = timeline_days
+        task['estimated_days'] = timeline_days
     if rationale:
         task['rationale'] = rationale
+    if description:
+        task['description'] = description
+    if suggested_role:
+        task['suggested_role'] = suggested_role
+    if risk_area:
+        task['risk_area'] = risk_area
+    if phase:
+        task['phase'] = phase
     return task
 
 
@@ -1562,6 +1847,9 @@ def _normalize_project_wbs(payload, existing=None):
     incoming_tasks = payload.get('tasks')
     if not isinstance(incoming_tasks, list):
         incoming_tasks = []
+    incoming_phases = payload.get('phases')
+    if not isinstance(incoming_phases, list):
+        incoming_phases = base.get('phases') if isinstance(base.get('phases'), list) else []
 
     tasks = []
     for idx, raw_task in enumerate(incoming_tasks):
@@ -1581,6 +1869,8 @@ def _normalize_project_wbs(payload, existing=None):
         'version': int(base.get('version') or payload.get('version') or 1),
         'name': str(payload.get('name') or base.get('name') or 'Execution WBS').strip(),
         'description': str(payload.get('description') or base.get('description') or '').strip(),
+        'summary': str(payload.get('summary') or base.get('summary') or '').strip(),
+        'phases': incoming_phases,
         'tasks': tasks,
         'created_at': base.get('created_at') or now,
         'updated_at': now,
@@ -1826,7 +2116,7 @@ def create_ai_scenario(thread_id):
     """
     try:
         user_id = get_jwt_identity()
-        user, _, access_err = _require_tool_access(user_id, 'scenario_create', access='write')
+        user, plan_key, access_err = _require_tool_access(user_id, 'scenario_create', access='write')
         if access_err:
             return access_err
 
@@ -1867,6 +2157,8 @@ def create_ai_scenario(thread_id):
         if not instruction and not manual_deltas:
             return jsonify({'error': 'Provide instruction/message or deltas for scenario generation.'}), 400
 
+        lever_context = _thread_levers_for_scenario_ai(user_id, thread_id, baseline_inputs, manual_deltas or None)
+
         if manual_deltas:
             suggestion = {
                 'label': str(payload.get('label') or 'AI Scenario (Modified)').strip() or 'AI Scenario (Modified)',
@@ -1875,7 +2167,8 @@ def create_ai_scenario(thread_id):
                     or f'Scenario built from your manual lever adjustments ({strategy_objective} objective).'
                 ).strip(),
                 'deltas': manual_deltas,
-                'rationale': {
+                'rationale': f"Adjusted {len(manual_deltas)} levers based on your requested edits.",
+                'reasons': {
                     key: f"Set by user adjustment from {baseline_inputs.get(key)} to {value}."
                     for key, value in manual_deltas.items()
                 },
@@ -1888,6 +2181,8 @@ def create_ai_scenario(thread_id):
                 instruction=instruction,
                 baseline_inputs=baseline_inputs,
                 objective=strategy_objective,
+                baseline_scorecard=baseline,
+                lever_definitions=lever_context,
             )
 
         deltas = suggestion.get('deltas') if isinstance(suggestion, dict) else {}
@@ -1900,6 +2195,15 @@ def create_ai_scenario(thread_id):
         preview['analysis_id'] = f"preview_{uuid.uuid4().hex[:10]}"
         preview['thread_id'] = thread_id
         preview['label'] = label_override or str(suggestion.get('label') or 'AI Suggested Scenario')
+        preview['scenario_id'] = None
+
+        reasons = suggestion.get('reasons') if isinstance(suggestion, dict) and isinstance(suggestion.get('reasons'), dict) else {}
+        lever_adjustments = _scenario_adjustments_payload(baseline_inputs, deltas, reasons)
+        rationale_text = str(
+            (suggestion or {}).get('rationale')
+            or (suggestion or {}).get('summary')
+            or f"Generated {len(lever_adjustments)} lever adjustments based on your prompt."
+        ).strip()
 
         response_payload = {
             'success': True,
@@ -1907,51 +2211,74 @@ def create_ai_scenario(thread_id):
             'model_type': model_selection['model_type'],
             'strategy_objective': strategy_objective,
             'objective_options': list(STRATEGY_OBJECTIVE_OPTIONS),
+            'rationale': rationale_text,
+            'lever_adjustments': lever_adjustments,
             'suggestion': {
                 'label': preview['label'],
                 'summary': str(suggestion.get('summary') or '').strip(),
                 'deltas': deltas,
-                'rationale': suggestion.get('rationale') if isinstance(suggestion.get('rationale'), dict) else {},
+                'rationale': rationale_text,
+                'reasons': reasons,
             },
             'preview_scorecard': preview,
-            'lever_context': _build_lever_context(baseline_inputs, deltas),
+            'lever_context': _thread_levers_for_scenario_ai(user_id, thread_id, baseline_inputs, deltas),
         }
 
-        commit = bool(payload.get('commit') or payload.get('accept'))
+        if 'commit' in payload:
+            commit = bool(payload.get('commit'))
+        elif 'accept' in payload:
+            commit = bool(payload.get('accept'))
+        elif 'preview' in payload:
+            commit = not bool(payload.get('preview'))
+        else:
+            # Default to create scenario unless explicitly previewing.
+            commit = True
+
         if commit:
             scenario_id = str(payload.get('scenario_id') or uuid.uuid4())
-            scenarios = thread_data.setdefault('scenarios', {})
-            existing = scenarios.get(scenario_id) if isinstance(scenarios, dict) else None
-            if not isinstance(existing, dict):
-                existing = {
-                    'scenario_id': scenario_id,
-                    'thread_id': thread_id,
-                    'created_at': datetime.utcnow().isoformat(),
-                }
-            existing['label'] = preview['label']
-            existing['deltas'] = deltas
-            existing['result'] = {
+            scenario_result = {
                 **preview,
                 'analysis_id': scenario_id,
                 'scenario_id': scenario_id,
                 'label': preview['label'],
             }
-            existing['updated_at'] = datetime.utcnow().isoformat()
-            existing['ai_rationale'] = response_payload['suggestion']['rationale']
-            existing['ai_summary'] = response_payload['suggestion']['summary']
-            existing['ai_instruction'] = instruction or None
-            existing['strategy_objective'] = strategy_objective
-
-            scenarios[scenario_id] = existing
-            thread_data['scenarios'] = scenarios
-            thread_data['strategy_objective'] = strategy_objective
-            all_data[thread_id] = thread_data
-            _save_scenarios(user_id, all_data)
+            try:
+                created = _create_scenario_record(
+                    user_id,
+                    thread_id,
+                    deltas=deltas,
+                    label=preview['label'],
+                    baseline=baseline,
+                    scenario_id=scenario_id,
+                    plan_key=plan_key,
+                    result=scenario_result,
+                    metadata={
+                        'ai_summary': str(suggestion.get('summary') or '').strip(),
+                        'ai_rationale': rationale_text,
+                        'ai_reasons': reasons,
+                        'ai_instruction': instruction or None,
+                        'strategy_objective': strategy_objective,
+                    },
+                )
+            except PermissionError as limit_error:
+                payload = {}
+                try:
+                    payload = json.loads(str(limit_error))
+                except Exception:
+                    payload = {'error': str(limit_error)}
+                return jsonify(payload), 403
 
             response_payload['scenario_id'] = scenario_id
-            response_payload['scenario'] = existing
+            response_payload['scenario'] = created
             response_payload['committed'] = True
         else:
+            response_payload['scenario'] = {
+                'scenario_id': None,
+                'thread_id': thread_id,
+                'label': preview['label'],
+                'deltas': deltas,
+                'result': preview,
+            }
             response_payload['committed'] = False
 
         return jsonify(response_payload), 200
@@ -1993,13 +2320,20 @@ def generate_ai_wbs(thread_id):
             or payload.get('prompt')
             or ''
         ).strip()
+        scenario_id = str(payload.get('scenario_id') or '').strip() or None
 
         all_data, thread_data, baseline, _baseline_inputs, session, _strategy_objective = _resolve_thread_baseline(user_id, thread_id)
         scenarios = thread_data.get('scenarios') if isinstance(thread_data.get('scenarios'), dict) else {}
         adopted_id = thread_data.get('adopted_scenario_id')
+        adopted_scenario = None
+
         current_scorecard = baseline if isinstance(baseline, dict) else None
-        if adopted_id and adopted_id in scenarios and isinstance((scenarios.get(adopted_id) or {}).get('result'), dict):
-            current_scorecard = scenarios[adopted_id]['result']
+        if scenario_id and scenario_id in scenarios and isinstance((scenarios.get(scenario_id) or {}).get('result'), dict):
+            adopted_scenario = scenarios.get(scenario_id)
+            current_scorecard = adopted_scenario.get('result')
+        elif adopted_id and adopted_id in scenarios and isinstance((scenarios.get(adopted_id) or {}).get('result'), dict):
+            adopted_scenario = scenarios.get(adopted_id)
+            current_scorecard = adopted_scenario.get('result')
         if current_scorecard is None and isinstance(session, dict) and isinstance(session.get('result'), dict):
             current_scorecard = session.get('result')
         if not isinstance(current_scorecard, dict):
@@ -2011,12 +2345,15 @@ def generate_ai_wbs(thread_id):
             model_selection['llm_model'],
             scorecard=current_scorecard,
             instruction=instruction,
+            scenario_payload=adopted_scenario,
         )
         materialized = _materialize_ai_wbs(raw_wbs)
         normalized_wbs = _normalize_project_wbs({'project_wbs': materialized}, existing=None)
         normalized_wbs['ai_generated'] = True
         normalized_wbs['ai_generated_at'] = datetime.utcnow().isoformat()
         normalized_wbs['ai_summary'] = str(raw_wbs.get('summary') or '').strip()
+        if scenario_id:
+            normalized_wbs['source_scenario_id'] = scenario_id
 
         limits = get_wbs_limits_for_plan(plan_key)
         max_tasks = limits.get('max_tasks_per_wbs')
@@ -2051,6 +2388,8 @@ def generate_ai_wbs(thread_id):
             'success': True,
             'thread_id': thread_id,
             'committed': commit,
+            'scenario_id': scenario_id,
+            'generated_wbs': raw_wbs if isinstance(raw_wbs, dict) else {},
             'project_wbs': normalized_wbs,
             'model_type': model_selection['model_type'],
             'limits': limits,
@@ -2064,6 +2403,70 @@ def generate_ai_wbs(thread_id):
 # SCENARIO CRUD ROUTES
 # ============================================================
 
+def _create_scenario_record(
+    user_id,
+    thread_id,
+    *,
+    deltas,
+    label='Scenario',
+    baseline=None,
+    scenario_id=None,
+    plan_key=None,
+    result=None,
+    metadata=None,
+):
+    all_data = _load_scenarios(user_id)
+    if thread_id not in all_data or not isinstance(all_data.get(thread_id), dict):
+        all_data[thread_id] = _thread_entry()
+    td = all_data[thread_id]
+
+    if baseline and not td.get('baseline'):
+        td['baseline'] = baseline
+        td['baseline_inputs'] = _extract_baseline_inputs(baseline)
+    elif baseline and isinstance(baseline, dict) and isinstance(td.get('baseline_inputs'), dict) and not td.get('baseline_inputs'):
+        td['baseline_inputs'] = _extract_baseline_inputs(baseline)
+
+    scenarios = td.get('scenarios')
+    if not isinstance(scenarios, dict):
+        scenarios = {}
+        td['scenarios'] = scenarios
+
+    scenario_limits = get_scenario_limits_for_plan(plan_key).get('max_scenarios_per_thread') if plan_key else None
+    existing = scenarios.get(str(scenario_id)) if scenario_id else None
+    creating_new = not isinstance(existing, dict)
+    if creating_new and isinstance(scenario_limits, int) and len(scenarios) >= scenario_limits:
+        raise PermissionError(json.dumps({
+            'error': 'Scenario limit reached for current plan',
+            'code': 'scenario_limit_reached',
+            'plan_key': plan_key,
+            'thread_id': thread_id,
+            'max_scenarios_per_thread': scenario_limits,
+        }))
+
+    sid = str(scenario_id or uuid.uuid4())
+    now_iso = datetime.utcnow().isoformat()
+    scenario = existing if isinstance(existing, dict) else {
+        'scenario_id': sid,
+        'thread_id': thread_id,
+        'created_at': now_iso,
+    }
+    scenario['label'] = str(label or 'Scenario').strip() or 'Scenario'
+    scenario['deltas'] = deltas if isinstance(deltas, dict) else {}
+    scenario['result'] = result if isinstance(result, dict) else scenario.get('result')
+    scenario['updated_at'] = now_iso
+    if isinstance(metadata, dict):
+        for key, value in metadata.items():
+            scenario[key] = value
+
+    scenarios[sid] = scenario
+    td['scenarios'] = scenarios
+    all_data[thread_id] = td
+
+    if not _save_scenarios(user_id, all_data):
+        raise RuntimeError('Failed to persist scenario.')
+    return scenario
+
+
 @strategy_bp.route('/threads/<thread_id>/scenarios', methods=['POST'])
 @jwt_required()
 def create_scenario(thread_id):
@@ -2076,45 +2479,32 @@ def create_scenario(thread_id):
 
         data = request.get_json() or {}
 
-        all_data = _load_scenarios(user_id)
-        if thread_id not in all_data:
-            all_data[thread_id] = _thread_entry()
-        td = all_data[thread_id]
+        label = data.get('label', 'Scenario')
+        deltas = data.get('deltas') if isinstance(data.get('deltas'), dict) else {}
+        baseline = data.get('baseline') if isinstance(data.get('baseline'), dict) else None
 
-        max_scenarios = get_scenario_limits_for_plan(plan_key).get('max_scenarios_per_thread')
-        current_count = len(td.get('scenarios', {}))
-        if isinstance(max_scenarios, int) and current_count >= max_scenarios:
-            return jsonify({
-                'error': 'Scenario limit reached for current plan',
-                'code': 'scenario_limit_reached',
-                'plan_key': plan_key,
-                'thread_id': thread_id,
-                'max_scenarios_per_thread': max_scenarios,
-            }), 403
+        try:
+            created = _create_scenario_record(
+                user_id,
+                thread_id,
+                deltas=deltas,
+                label=label,
+                baseline=baseline,
+                plan_key=plan_key,
+            )
+        except PermissionError as limit_error:
+            payload = {}
+            try:
+                payload = json.loads(str(limit_error))
+            except Exception:
+                payload = {'error': str(limit_error)}
+            return jsonify(payload), 403
 
-        # Persist baseline the first time it arrives
-        baseline = data.get('baseline')
-        if baseline and not td.get('baseline'):
-            td['baseline'] = baseline
-            td['baseline_inputs'] = _extract_baseline_inputs(baseline)
-
-        scenario_id = str(uuid.uuid4())
-        td['scenarios'][scenario_id] = {
-            'scenario_id': scenario_id,
-            'thread_id': thread_id,
-            'label': data.get('label', 'Scenario'),
-            'deltas': data.get('deltas', {}),
-            'result': None,
-            'created_at': datetime.utcnow().isoformat(),
-            'updated_at': datetime.utcnow().isoformat(),
-        }
-
-        _save_scenarios(user_id, all_data)
         return jsonify({
-            'scenario_id': scenario_id,
+            'scenario_id': created.get('scenario_id'),
             'thread_id': thread_id,
-            'label': td['scenarios'][scenario_id]['label'],
-            'created_at': td['scenarios'][scenario_id]['created_at'],
+            'label': created.get('label'),
+            'created_at': created.get('created_at'),
         }), 201
 
     except Exception as e:

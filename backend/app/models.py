@@ -316,3 +316,41 @@ class UserSession(db.Model):
         db.UniqueConstraint('user_id', 'session_id', name='uq_user_sessions_user_id_session_id'),
         db.Index('ix_user_sessions_user_id_updated_at', 'user_id', 'updated_at'),
     )
+
+
+class UserDataset(db.Model):
+    __tablename__ = 'user_datasets'
+
+    id = db.Column(
+        db.String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4())
+    )
+    user_id = db.Column(
+        db.String(36),
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    filename = db.Column(db.String(255), nullable=False)
+    row_count = db.Column(db.Integer, nullable=False)
+    column_names = db.Column(db.JSON, nullable=False)
+    data_preview = db.Column(db.JSON, nullable=True)
+    status = db.Column(db.String(50), nullable=False, default='ready')
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'filename': self.filename,
+            'row_count': self.row_count,
+            'column_names': self.column_names if isinstance(self.column_names, list) else [],
+            'data_preview': self.data_preview if isinstance(self.data_preview, list) else [],
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

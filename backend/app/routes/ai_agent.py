@@ -25,6 +25,7 @@ from app.tool_registry import (
     get_context_budget,
     get_tool_catalog,
     get_tool_entitlements,
+    is_tool_allowed,
 )
 from app.orgs import resolve_active_org_for_user
 
@@ -593,8 +594,8 @@ def _anthropic_history_summary(chat_history, keep_last_turns=16):
     return summary[:1200]
 
 
-def _anthropic_tool_definitions():
-    return [
+def _anthropic_tool_definitions(enable_mutation_tools=False):
+    tools = [
         {
             "name": "get_readiness_snapshot",
             "description": "Return the latest readiness percent, missing checklist items, and top follow-up question.",
@@ -614,6 +615,69 @@ def _anthropic_tool_definitions():
             },
         },
     ]
+    if enable_mutation_tools:
+        tools.extend([
+            {
+                "name": "create_scenario",
+                "description": "Create a scenario from lever deltas for the active thread.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "deltas": {
+                            "type": "object",
+                            "description": "Map of lever_id to new value",
+                            "additionalProperties": {"type": "number"},
+                        },
+                    },
+                    "required": ["label", "deltas"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "update_wbs_task",
+                "description": "Update one editable field on a WBS task for the active thread.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "field": {"type": "string", "enum": ["title", "description", "priority", "estimated_days", "suggested_role"]},
+                        "new_value": {},
+                    },
+                    "required": ["task_id", "field", "new_value"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "add_wbs_task",
+                "description": "Add a new WBS task in a phase for the active thread.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "phase_name": {"type": "string"},
+                        "title": {"type": "string"},
+                        "description": {"type": "string"},
+                        "priority": {"type": "string"},
+                        "estimated_days": {"type": "number"},
+                    },
+                    "required": ["phase_name", "title", "description", "priority", "estimated_days"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "remove_wbs_task",
+                "description": "Remove a WBS task by id for the active thread.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                    },
+                    "required": ["task_id"],
+                    "additionalProperties": False,
+                },
+            },
+        ])
+    return tools
 
 
 def _anthropic_tool_output(tool_name, readiness):
@@ -647,6 +711,186 @@ def _anthropic_tool_output(tool_name, readiness):
         "top_followup": _next_question(readiness),
         "checklist_summary": readiness.get("checklist_summary") or {},
     }
+
+
+def _tool_error(message, code="tool_error"):
+    return {"ok": False, "code": code, "error": str(message)}
+
+
+def _tool_success(payload):
+    out = {"ok": True}
+    if isinstance(payload, dict):
+        out.update(payload)
+    return out
+
+
+def _execute_mutation_tool(tool_name, tool_input, *, user, user_id, thread_id):
+    if not user:
+        return _tool_error("User context missing.")
+    if not thread_id:
+        return _tool_error("thread_id is required for mutation tools.", code="missing_thread")
+
+    plan_key = to_public_plan(user.subscription_plan)
+    tool_input = tool_input if isinstance(tool_input, dict) else {}
+
+    from .strategy import (
+        _compute_scenario_scorecard,
+        _create_scenario_record,
+        _normalize_project_wbs,
+        _resolve_thread_baseline,
+        _sanitize_deltas,
+        _save_scenarios,
+    )
+
+    if tool_name == "create_scenario":
+        if not is_tool_allowed(plan_key, "scenario_create", "write"):
+            return _tool_error("Scenario creation is not allowed on your current plan.", code="tool_not_allowed")
+
+        label = str(tool_input.get("label") or "AI Scenario").strip() or "AI Scenario"
+        raw_deltas = tool_input.get("deltas") if isinstance(tool_input.get("deltas"), dict) else {}
+        _, _, baseline, baseline_inputs, _session, objective = _resolve_thread_baseline(user_id, thread_id)
+        if not isinstance(baseline, dict):
+            return _tool_error("No baseline scorecard is available yet for this thread.", code="missing_baseline")
+
+        deltas = _sanitize_deltas(baseline_inputs or {}, raw_deltas)
+        if not deltas:
+            return _tool_error("No valid lever deltas were provided.", code="invalid_deltas")
+
+        scenario_id = str(uuid.uuid4())
+        result = _compute_scenario_scorecard(baseline, deltas, baseline_inputs or {})
+        result.update({
+            "analysis_id": scenario_id,
+            "scenario_id": scenario_id,
+            "thread_id": thread_id,
+            "label": label,
+        })
+        try:
+            scenario = _create_scenario_record(
+                user_id,
+                thread_id,
+                deltas=deltas,
+                label=label,
+                baseline=baseline,
+                scenario_id=scenario_id,
+                plan_key=plan_key,
+                result=result,
+                metadata={
+                    "ai_rationale": "Created from conversational tool request.",
+                    "strategy_objective": objective,
+                },
+            )
+        except PermissionError as limit_error:
+            return _tool_error(str(limit_error), code="scenario_limit_reached")
+
+        return _tool_success({
+            "tool": tool_name,
+            "confirmation": (
+                f"I've created a new scenario called '{label}' with {len(deltas)} lever adjustments "
+                f"and a projected score of {result.get('jaspen_score')}."
+            ),
+            "scenario": scenario,
+        })
+
+    if tool_name in {"update_wbs_task", "add_wbs_task", "remove_wbs_task"}:
+        if not is_tool_allowed(plan_key, "wbs_write", "write"):
+            return _tool_error("WBS write actions are not allowed on your current plan.", code="tool_not_allowed")
+
+        from .strategy import _load_scenarios, _thread_entry
+
+        all_data = _load_scenarios(user_id)
+        if thread_id not in all_data or not isinstance(all_data.get(thread_id), dict):
+            all_data[thread_id] = _thread_entry()
+        td = all_data[thread_id]
+        current_wbs = td.get("project_wbs") if isinstance(td.get("project_wbs"), dict) else {"name": "Execution WBS", "tasks": []}
+        tasks = list(current_wbs.get("tasks") if isinstance(current_wbs.get("tasks"), list) else [])
+
+        if tool_name == "update_wbs_task":
+            task_id = str(tool_input.get("task_id") or "").strip()
+            field = str(tool_input.get("field") or "").strip()
+            new_value = tool_input.get("new_value")
+            idx = next((i for i, task in enumerate(tasks) if str((task or {}).get("id") or "") == task_id), -1)
+            if idx < 0:
+                return _tool_error("Task not found.", code="task_not_found")
+
+            task = dict(tasks[idx] or {})
+            if field == "title":
+                task["title"] = str(new_value or "").strip()
+            elif field == "description":
+                task["description"] = str(new_value or "").strip()
+            elif field == "priority":
+                priority = str(new_value or "").strip().lower()
+                if priority not in {"high", "medium", "low"}:
+                    return _tool_error("Priority must be high, medium, or low.", code="invalid_priority")
+                task["priority"] = priority
+            elif field == "estimated_days":
+                try:
+                    days = max(1, int(new_value))
+                except Exception:
+                    return _tool_error("estimated_days must be a positive integer.", code="invalid_estimated_days")
+                task["estimated_days"] = days
+                task["timeline_days"] = days
+            elif field == "suggested_role":
+                role = str(new_value or "").strip()
+                task["suggested_role"] = role
+                task["owner"] = role
+            else:
+                return _tool_error("Unsupported WBS update field.", code="invalid_field")
+            tasks[idx] = task
+            confirmation = f"Updated task '{task.get('title') or task_id}' ({field})."
+
+        elif tool_name == "add_wbs_task":
+            title = str(tool_input.get("title") or "").strip()
+            if not title:
+                return _tool_error("title is required.", code="invalid_title")
+            priority = str(tool_input.get("priority") or "").strip().lower()
+            if priority not in {"high", "medium", "low"}:
+                return _tool_error("Priority must be high, medium, or low.", code="invalid_priority")
+            try:
+                estimated_days = max(1, int(tool_input.get("estimated_days")))
+            except Exception:
+                return _tool_error("estimated_days must be a positive integer.", code="invalid_estimated_days")
+
+            new_task = {
+                "id": f"task_{uuid.uuid4().hex[:10]}",
+                "title": title,
+                "description": str(tool_input.get("description") or "").strip(),
+                "priority": priority,
+                "estimated_days": estimated_days,
+                "timeline_days": estimated_days,
+                "suggested_role": str(tool_input.get("suggested_role") or "Project Manager").strip(),
+                "owner": str(tool_input.get("suggested_role") or "Project Manager").strip(),
+                "phase": str(tool_input.get("phase_name") or "Execution").strip() or "Execution",
+                "status": "todo",
+                "depends_on": [],
+            }
+            tasks.append(new_task)
+            confirmation = f"Added task '{title}' to phase '{new_task.get('phase')}'."
+
+        else:  # remove_wbs_task
+            task_id = str(tool_input.get("task_id") or "").strip()
+            before_count = len(tasks)
+            tasks = [task for task in tasks if str((task or {}).get("id") or "") != task_id]
+            if len(tasks) == before_count:
+                return _tool_error("Task not found.", code="task_not_found")
+            for task in tasks:
+                deps = task.get("depends_on")
+                if isinstance(deps, list):
+                    task["depends_on"] = [dep for dep in deps if str(dep) != task_id]
+            confirmation = f"Removed task '{task_id}' from the WBS."
+
+        normalized = _normalize_project_wbs({"project_wbs": {**current_wbs, "tasks": tasks}}, existing=current_wbs)
+        td["project_wbs"] = normalized
+        all_data[thread_id] = td
+        if not _save_scenarios(user_id, all_data):
+            return _tool_error("Failed to persist WBS changes.", code="persist_failed")
+
+        return _tool_success({
+            "tool": tool_name,
+            "confirmation": confirmation,
+            "project_wbs": normalized,
+        })
+
+    return _tool_error(f"Unsupported tool '{tool_name}'.", code="unknown_tool")
 
 
 def _anthropic_content_to_dicts(content_blocks):
@@ -684,16 +928,25 @@ def _anthropic_text(content_blocks):
     return "\n".join(out).strip()
 
 
-def _generate_assistant_reply(user_message, chat_history, readiness, model_selection, context_budget=None):
+def _generate_assistant_reply(
+    user_message,
+    chat_history,
+    readiness,
+    model_selection,
+    context_budget=None,
+    user=None,
+    user_id=None,
+    thread_id=None,
+):
     fallback_reply = _next_question(readiness)
     api_key = _anthropic_api_key()
     if not api_key:
-        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, []
 
     try:
         import anthropic
     except Exception:
-        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, []
 
     model_name = _anthropic_model_for_selection(model_selection)
     max_tokens = int(
@@ -708,8 +961,9 @@ def _generate_assistant_reply(user_message, chat_history, readiness, model_selec
     )
 
     system_prompt = (
-        "You are Jaspen's intake agent. Ask one concise next question that advances readiness. "
-        "Do not repeat the user's wording unnecessarily. Use tool results when available."
+        "You are Jaspen's intake agent. Ask one concise next question that advances readiness when intake is incomplete. "
+        "When the user asks to modify scenarios or WBS tasks, call the relevant tools instead of only describing steps. "
+        "After a tool succeeds, summarize exactly what was changed."
     )
     max_turns = int((context_budget or {}).get("recent_turns") or 16)
     max_turns = max(8, min(80, max_turns))
@@ -721,9 +975,16 @@ def _generate_assistant_reply(user_message, chat_history, readiness, model_selec
         messages = [{"role": "user", "content": user_message}]
 
     client = anthropic.Anthropic(api_key=api_key)
-    tools = _anthropic_tool_definitions()
+    plan_key = to_public_plan(user.subscription_plan) if user else "free"
+    can_mutate = bool(thread_id) and (
+        is_tool_allowed(plan_key, "scenario_create", "write")
+        or is_tool_allowed(plan_key, "wbs_write", "write")
+    )
+    tools = _anthropic_tool_definitions(enable_mutation_tools=can_mutate)
     total_input_tokens = 0
     total_output_tokens = 0
+    executed_actions = []
+    tool_confirmations = []
 
     response = client.messages.create(
         model=model_name,
@@ -747,11 +1008,33 @@ def _generate_assistant_reply(user_message, chat_history, readiness, model_selec
             if isinstance(block, dict):
                 tool_name = str(block.get("name") or "").strip()
                 tool_use_id = block.get("id")
+                tool_input = block.get("input") if isinstance(block.get("input"), dict) else {}
             else:
                 tool_name = str(getattr(block, "name", "") or "").strip()
                 tool_use_id = getattr(block, "id", None)
+                raw_input = getattr(block, "input", None)
+                tool_input = raw_input if isinstance(raw_input, dict) else {}
 
-            result_payload = _anthropic_tool_output(tool_name, readiness)
+            if tool_name in {"get_readiness_snapshot", "get_data_contract"}:
+                result_payload = _anthropic_tool_output(tool_name, readiness)
+            else:
+                result_payload = _execute_mutation_tool(
+                    tool_name,
+                    tool_input,
+                    user=user,
+                    user_id=user_id,
+                    thread_id=thread_id,
+                )
+                if isinstance(result_payload, dict) and result_payload.get("ok"):
+                    confirmation = str(result_payload.get("confirmation") or "").strip()
+                    if confirmation:
+                        tool_confirmations.append(confirmation)
+                if isinstance(result_payload, dict):
+                    executed_actions.append({
+                        "tool": tool_name,
+                        "input": tool_input,
+                        "result": result_payload,
+                    })
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
@@ -772,6 +1055,10 @@ def _generate_assistant_reply(user_message, chat_history, readiness, model_selec
         total_output_tokens += int(getattr(getattr(response, "usage", None), "output_tokens", 0) or 0)
 
     reply = _anthropic_text(response.content) or fallback_reply
+    if tool_confirmations:
+        confirmations_text = "\n".join(f"- {item}" for item in tool_confirmations)
+        if confirmations_text and confirmations_text not in reply:
+            reply = f"{reply}\n\nApplied changes:\n{confirmations_text}".strip()
     usage = {
         "provider": "anthropic",
         "model": model_name,
@@ -779,7 +1066,7 @@ def _generate_assistant_reply(user_message, chat_history, readiness, model_selec
         "output_tokens": total_output_tokens,
         "total_tokens": total_input_tokens + total_output_tokens,
     }
-    return reply, usage
+    return reply, usage, executed_actions
 
 
 def _record_usage(session, usage, credits_charged):
@@ -1271,12 +1558,15 @@ def conversation_start():
     chat_history.append({"role": "user", "content": user_message, "timestamp": _iso_now()})
     readiness = _compute_readiness(chat_history)
     context_budget = get_context_budget(to_public_plan(user.subscription_plan))
-    assistant_reply, usage = _generate_assistant_reply(
+    assistant_reply, usage, actions = _generate_assistant_reply(
         user_message,
         chat_history,
         readiness,
         model_selection,
         context_budget=context_budget,
+        user=user,
+        user_id=user_id,
+        thread_id=thread_id,
     )
 
     credits_charged = _estimate_usage_credit_charge(usage.get("total_tokens"), model_selection["model_type"])
@@ -1310,6 +1600,7 @@ def conversation_start():
         "message": assistant_reply,
         "model_type": model_selection["model_type"],
         "allowed_model_types": model_selection["allowed_model_types"],
+        "actions": actions if isinstance(actions, list) else [],
         "usage": usage,
         "context_budget": context_budget,
         "credits": {
@@ -1395,12 +1686,15 @@ def conversation_continue():
     chat_history.append({"role": "user", "content": user_message, "timestamp": _iso_now()})
     readiness = _compute_readiness(chat_history)
     context_budget = get_context_budget(to_public_plan(user.subscription_plan))
-    assistant_reply, usage = _generate_assistant_reply(
+    assistant_reply, usage, actions = _generate_assistant_reply(
         user_message,
         chat_history,
         readiness,
         model_selection,
         context_budget=context_budget,
+        user=user,
+        user_id=user_id,
+        thread_id=thread_id,
     )
 
     credits_charged = _estimate_usage_credit_charge(usage.get("total_tokens"), model_selection["model_type"])
@@ -1433,7 +1727,7 @@ def conversation_continue():
         "message": assistant_reply,
         "model_type": model_selection["model_type"],
         "allowed_model_types": model_selection["allowed_model_types"],
-        "actions": [],
+        "actions": actions if isinstance(actions, list) else [],
         "usage": usage,
         "context_budget": context_budget,
         "credits": {

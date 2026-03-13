@@ -45,6 +45,9 @@ export const endpoints = {
   aiWbs:            (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/ai-wbs`,
   threadWbs:        (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/wbs`,
   analyzeData:      `${API_BASE}/api/ai-agent/analyze-data`,
+  insightsUpload:   `${API_BASE}/api/insights/upload`,
+  insightsAnalyze:  `${API_BASE}/api/insights/analyze`,
+  insightsDatasets: `${API_BASE}/api/insights/datasets`,
   deleteAnalysis:   (analysisId) => `${API_BASE}/api/strategy/analyses/${encodeURIComponent(analysisId)}`,
   // Connector settings and PM sync profile
   connectorStatus: `${API_BASE}/api/connectors/status`,
@@ -445,8 +448,12 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
       { withSid: true }
     ),
 
-  generateAiScenario: async (threadId, payload = {}) =>
-    postJSON(endpoints.aiScenario(threadId), payload, { withSid: true }),
+  generateAiScenario: async (threadId, promptOrPayload = '') => {
+    const payload = (promptOrPayload && typeof promptOrPayload === 'object')
+      ? promptOrPayload
+      : { prompt: String(promptOrPayload || '').trim() };
+    return postJSON(endpoints.aiScenario(threadId), payload, { withSid: true });
+  },
 
   setThreadObjective: async (threadId, strategy_objective, objective_explicitly_set = true) =>
     patchJSON(
@@ -455,8 +462,12 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
       { withSid: true }
     ),
 
-  generateAiWbs: async (threadId, payload = {}) =>
-    postJSON(endpoints.aiWbs(threadId), payload, { withSid: true }),
+  generateAiWbs: async (threadId, scenarioIdOrPayload = null) => {
+    const payload = (scenarioIdOrPayload && typeof scenarioIdOrPayload === 'object')
+      ? scenarioIdOrPayload
+      : { scenario_id: scenarioIdOrPayload || null };
+    return postJSON(endpoints.aiWbs(threadId), payload, { withSid: true });
+  },
 
   getThreadWbs: async (threadId) =>
     getJSON(endpoints.threadWbs(threadId), { withSid: true }),
@@ -491,6 +502,40 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
     }
     return data;
   },
+
+  uploadInsightsDataset: async (file) => {
+    if (!file) throw new Error('file is required');
+    const token = getToken();
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(endpoints.insightsUpload, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Session-ID': getSid(),
+      },
+      body: form,
+    });
+    const data = await _json(res);
+    if (!res.ok) {
+      const err = new Error(data?.error || data?.detail || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  },
+
+  listInsightsDatasets: async () =>
+    getJSON(endpoints.insightsDatasets, { withSid: true }),
+
+  analyzeInsightsDataset: async ({ dataset_id, question = '' } = {}) =>
+    postJSON(
+      endpoints.insightsAnalyze,
+      { dataset_id, question: String(question || '').trim() },
+      { withSid: true }
+    ),
   
   async getLevers(threadId) {
     return getJSON(endpoints.getLevers(threadId));

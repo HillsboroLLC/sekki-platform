@@ -612,27 +612,53 @@ const refreshThreadWbs = useCallback(async (tid) => {
 const normalizeMutationResults = (payload) => {
   if (!payload || typeof payload !== 'object') return [];
 
-  const direct =
-    payload.mutations ||
-    payload.tool_results ||
-    payload.toolResults;
+  const out = [];
+  const seen = new Set();
+  const pushMutation = (entry) => {
+    if (!entry || typeof entry !== 'object') return;
+    const result = entry.result && typeof entry.result === 'object' ? entry.result : {};
+    const tool = String(
+      entry.tool ||
+      entry.name ||
+      entry?.result?.tool ||
+      entry?.result_summary?.tool ||
+      ''
+    ).trim();
+    if (!tool) return;
 
-  if (Array.isArray(direct)) return direct;
+    const success = typeof entry.success === 'boolean'
+      ? entry.success
+      : (typeof result.success === 'boolean'
+        ? result.success
+        : (typeof result.ok === 'boolean'
+          ? result.ok
+          : !(entry.error || result.error)));
 
-  const fallbackActions = Array.isArray(payload.actions) ? payload.actions : [];
-  return fallbackActions
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') return null;
-      const tool = entry.tool || entry.name || entry?.result?.tool;
-      if (!tool) return null;
-      const result = entry.result && typeof entry.result === 'object' ? entry.result : {};
-      return {
-        tool,
-        success: typeof entry.success === 'boolean' ? entry.success : Boolean(result.ok),
-        result_summary: entry.result_summary || result,
-      };
-    })
-    .filter(Boolean);
+    const normalized = {
+      tool,
+      success,
+      result_summary: entry.result_summary || result || {},
+      error: entry.error || result.error || null,
+      code: entry.code || result.code || null,
+    };
+
+    const sig = `${normalized.tool}:${JSON.stringify(normalized.result_summary || {})}`;
+    if (seen.has(sig)) return;
+    seen.add(sig);
+    out.push(normalized);
+  };
+
+  const directMutations = Array.isArray(payload.mutations) ? payload.mutations : [];
+  const toolResults = Array.isArray(payload.tool_results)
+    ? payload.tool_results
+    : (Array.isArray(payload.toolResults) ? payload.toolResults : []);
+  const actionRows = Array.isArray(payload.actions) ? payload.actions : [];
+
+  directMutations.forEach(pushMutation);
+  toolResults.forEach(pushMutation);
+  actionRows.forEach(pushMutation);
+
+  return out;
 };
 
 const applyMutationRefreshes = async (payload, fallbackThreadId = null) => {
@@ -2965,6 +2991,7 @@ useEffect(() => {
       }
       setStrategyObjective(normalizeStrategyObjective(data?.strategy_objective || strategyObjective));
       setObjectiveExplicitlySet(Boolean(data?.objective_explicitly_set) || objectiveExplicitlySet);
+      await applyMutationRefreshes(data, sid);
       setSelectedStarterId('');
 
 

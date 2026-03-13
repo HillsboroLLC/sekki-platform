@@ -28,6 +28,18 @@ def _now():
     return datetime.utcnow()
 
 
+def _deep_merge_dict(existing, incoming):
+    base = dict(existing) if isinstance(existing, dict) else {}
+    if not isinstance(incoming, dict):
+        return base
+    for key, value in incoming.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            base[key] = _deep_merge_dict(base.get(key), value)
+        else:
+            base[key] = value
+    return base
+
+
 def _normalize_role(value, default=ROLE_COLLABORATOR):
     role = str(value or "").strip().lower()
     return role if role in ROLE_SET else default
@@ -164,6 +176,7 @@ def _org_payload(org, membership_role=None):
         "max_admin_seats": getattr(org, "max_admin_seats", None),
         "max_creator_seats": getattr(org, "max_creator_seats", None),
         "max_collaborator_seats": getattr(org, "max_collaborator_seats", None),
+        "settings": org.settings if isinstance(org.settings, dict) else {},
         "created_at": org.created_at.isoformat() if org.created_at else None,
         "updated_at": org.updated_at.isoformat() if org.updated_at else None,
         "user_role": _normalize_role(membership_role, default=ROLE_VIEWER),
@@ -341,17 +354,59 @@ def update_team_org(org_id):
         return jsonify({"error": "Only owner/admin can update organization"}), 403
 
     data = request.get_json() or {}
-    next_name = str(data.get("name") or "").strip()
-    if not next_name:
-        return jsonify({"error": "name is required"}), 400
+    touched = False
+    if "name" in data:
+        next_name = str(data.get("name") or "").strip()
+        if not next_name:
+            return jsonify({"error": "name cannot be empty"}), 400
+        org.name = next_name
+        touched = True
+        if data.get("regenerate_slug"):
+            org.slug = _unique_slug(next_name)
 
-    org.name = next_name
-    if data.get("regenerate_slug"):
-        org.slug = _unique_slug(next_name)
+    if "settings" in data:
+        incoming_settings = data.get("settings")
+        if not isinstance(incoming_settings, dict):
+            return jsonify({"error": "settings must be an object"}), 400
+        current_settings = org.settings if isinstance(org.settings, dict) else {}
+        org.settings = _deep_merge_dict(current_settings, incoming_settings)
+        touched = True
+
+    if not touched:
+        return jsonify({"error": "name or settings is required"}), 400
+
     org.updated_at = _now()
     db.session.commit()
 
-    return jsonify({"organization": _org_payload(org, membership_role=membership.role)}), 200
+    return jsonify({
+        "organization": _org_payload(org, membership_role=membership.role),
+        "seat_usage": _seat_usage(org),
+    }), 200
+
+
+@teams_bp.route("/<org_id>/settings", methods=["PATCH"])
+@jwt_required()
+def update_team_org_settings(org_id):
+    _, org, membership, err = _require_org_access(org_id)
+    if err:
+        return err
+    if _normalize_role(membership.role) not in MANAGE_ROLES:
+        return jsonify({"error": "Only owner/admin can update organization settings"}), 403
+
+    data = request.get_json() or {}
+    incoming_settings = data.get("settings")
+    if not isinstance(incoming_settings, dict):
+        return jsonify({"error": "settings must be an object"}), 400
+
+    current_settings = org.settings if isinstance(org.settings, dict) else {}
+    org.settings = _deep_merge_dict(current_settings, incoming_settings)
+    org.updated_at = _now()
+    db.session.commit()
+
+    return jsonify({
+        "organization": _org_payload(org, membership_role=membership.role),
+        "settings": org.settings if isinstance(org.settings, dict) else {},
+    }), 200
 
 
 @teams_bp.route("/<org_id>/invite", methods=["POST"])

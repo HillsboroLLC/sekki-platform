@@ -231,23 +231,37 @@ def list_activity():
     limit = _parse_int(request.args.get('limit'), default=50, minimum=1, maximum=500)
     offset = _parse_int(request.args.get('offset'), default=0, minimum=0, maximum=5000)
     type_filter = str(request.args.get('type') or '').strip().lower()
+    scope = str(request.args.get('scope') or 'user').strip().lower()
     if type_filter and type_filter not in ALLOWED_TYPES:
         return jsonify({'error': f"type must be one of {', '.join(sorted(ALLOWED_TYPES))}"}), 400
+    if scope not in {'user', 'organization'}:
+        return jsonify({'error': "scope must be 'user' or 'organization'"}), 400
 
     requested_user_id = str(request.args.get('user_id') or '').strip()
 
     org, membership = resolve_active_org_for_user(requester)
     member_ids = [requester_id]
+    org_member_ids = [requester_id]
     if org and membership:
         org_members = OrganizationMember.query.filter_by(organization_id=org.id, status='active').all()
-        member_ids = [str(item.user_id) for item in org_members if item.user_id]
+        org_member_ids = [str(item.user_id) for item in org_members if item.user_id]
+
+    if scope == 'organization':
+        if not org or not membership:
+            return jsonify({'error': 'No active organization found'}), 404
+        if not can_manage_org(membership.role):
+            return jsonify({'error': 'Only organization owner/admin can access organization-scoped activity'}), 403
+        member_ids = list(org_member_ids)
 
     if requested_user_id:
-        if requested_user_id not in member_ids:
-            return jsonify({'error': 'user_id is not a member of the active organization'}), 400
-        if requested_user_id != requester_id and not (membership and can_manage_org(membership.role)):
-            return jsonify({'error': 'Only organization owner/admin can filter by another user_id'}), 403
-        member_ids = [requested_user_id]
+        if scope != 'organization':
+            if requested_user_id != requester_id:
+                return jsonify({'error': "user_id filter is only available for scope=organization"}), 403
+            member_ids = [requester_id]
+        else:
+            if requested_user_id not in org_member_ids:
+                return jsonify({'error': 'user_id is not a member of the active organization'}), 400
+            member_ids = [requested_user_id]
 
     users = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
     user_name_by_id = {str(item.id): (item.name or item.email or str(item.id)) for item in users}
@@ -299,6 +313,8 @@ def list_activity():
             .all()
         )
         for member_row in joins:
+            if str(member_row.user_id or '') not in set(member_ids):
+                continue
             joined_ts = member_row.joined_at or member_row.created_at
             if not joined_ts:
                 continue
@@ -331,4 +347,5 @@ def list_activity():
         'total': total,
         'limit': limit,
         'offset': offset,
+        'scope': scope,
     }), 200

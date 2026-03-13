@@ -461,4 +461,5 @@ def org_payload(org):
         "seat_policy_defaults": serialize_seat_policy(org.plan_key),
         "seat_policy": serialize_seat_policy(org),
         "seat_policy_overrides": seat_policy_overrides_for_org(org),
+        "settings": org.settings if isinstance(org.settings, dict) else {},
     }

@@ -157,6 +157,11 @@ class Organization(db.Model):
         db.JSON,
         nullable=True,
     )
+    settings = db.Column(
+        db.JSON,
+        nullable=True,
+        default=dict,
+    )
     created_at = db.Column(
         db.DateTime,
         nullable=False,
@@ -200,6 +205,7 @@ class Organization(db.Model):
             'max_creator_seats': self.max_creator_seats,
             'max_collaborator_seats': self.max_collaborator_seats,
             'seat_policy_overrides': self.seat_policy_overrides if isinstance(self.seat_policy_overrides, dict) else {},
+            'settings': self.settings if isinstance(self.settings, dict) else {},
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

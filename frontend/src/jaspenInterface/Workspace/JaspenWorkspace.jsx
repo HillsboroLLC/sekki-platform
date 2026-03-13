@@ -666,7 +666,6 @@ const refreshBundle = async (tid) => {
   const userInitials = getInitials(displayName || user?.name || user?.email || savedEmail || 'User');
   const userName = displayName || user?.name || user?.email?.split('@')[0] || savedEmail?.split?.('@')[0] || 'User';
   const userEmail = user?.email || savedEmail || 'user@example.com';
-  const canAccessTeam = Boolean(user?.can_access_team);
   const notificationsStorageKey = useMemo(() => {
     if (user?.id) return `jaspen_notifications_id_${user.id}`;
     if (user?.email) return `jaspen_notifications_email_${String(user.email).toLowerCase()}`;
@@ -722,8 +721,10 @@ const refreshBundle = async (tid) => {
   }, [toolEntitlementById, fallbackMinPlanByTool, currentPlanKey]);
   const canUseScenarios = canUseTool('scenario_create', 'write');
   const canUseWbsWrite = canUseTool('wbs_write', 'write');
-  const isGlobalAdmin = Boolean(billingStatus?.is_admin);
-  const canAccessEnterpriseAdmin = isGlobalAdmin || currentPlanKey === 'enterprise';
+  const isGlobalAdmin = Boolean(user?.is_admin || billingStatus?.is_admin);
+  const canAccessTeamAdmin = isGlobalAdmin || Boolean(user?.can_access_team);
+  const canAccessEnterpriseAdmin =
+    isGlobalAdmin || Boolean(user?.can_access_enterprise_admin) || currentPlanKey === 'enterprise';
   const monthlyCreditLimit = billingStatus?.monthly_credit_limit;
   const creditsRemaining = billingStatus?.credits_remaining;
   const monthlyCreditsUsed = billingStatus?.credits_used;
@@ -1526,9 +1527,9 @@ const refreshBundle = async (tid) => {
           <button type="button" onClick={() => { openExternal('/login'); setAccountQuickMenuOpen(false); }}>
             Gift Jaspen
           </button>
-          {canAccessTeam && (
+          {canAccessTeamAdmin && (
             <button type="button" onClick={() => { navigate('/team'); setAccountQuickMenuOpen(false); }}>
-              Team
+              Team Admin
             </button>
           )}
           {canAccessEnterpriseAdmin && (
@@ -1618,10 +1619,6 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faChartLine} />
             <span className="jas-ud-item-label">Scores</span>
           </button>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions'); }}>
-            <FontAwesomeIcon icon={faLayerGroup} />
-            <span className="jas-ud-item-label">Sessions</span>
-          </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/insights'); }}>
             <FontAwesomeIcon icon={faChartLine} />
             <span className="jas-ud-item-label">Insights</span>
@@ -1634,10 +1631,10 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faClockRotateLeft} />
             <span className="jas-ud-item-label">Activity</span>
           </button>
-          {canAccessTeam && (
+          {canAccessTeamAdmin && (
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
               <FontAwesomeIcon icon={faUser} />
-              <span className="jas-ud-item-label">Team</span>
+              <span className="jas-ud-item-label">Team Admin</span>
             </button>
           )}
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/connectors-manage'); }}>
@@ -1684,10 +1681,6 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faBolt} />
             <span className="jas-ud-item-label">Credits</span>
             <span className="jas-ud-item-badge">{billingLoading ? '...' : creditsBadge}</span>
-          </button>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions?view=queue'); }}>
-            <FontAwesomeIcon icon={faClockRotateLeft} />
-            <span className="jas-ud-item-label">In Queue</span>
           </button>
           {canAccessEnterpriseAdmin && (
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>

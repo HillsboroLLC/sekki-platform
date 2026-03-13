@@ -30,7 +30,6 @@ import PluginsPage from './pages/Resources/PluginsPage';
 // Jaspen
 import PricingResult from './jaspenInterface/PricingResult/PricingResult';
 import Dashboard     from './jaspenInterface/Jaspen Cleanup/Dashboard/Dashboard';
-import Sessions      from './jaspenInterface/Sessions/Sessions';
 import Projects      from './jaspenInterface/Projects/Projects';
 import Scores        from './jaspenInterface/Scores/Scores';
 import Insights      from './jaspenInterface/Insights/Insights';
@@ -111,7 +110,6 @@ export default function App() {
         />
         <Route path="/strategy" element={<Navigate to="/new" replace />} />
         <Route path="/projects"  element={<ProtectedRoute>{withShell(<Projects />, { showHeader: false, fullBleed: true, noPadding: true })}</ProtectedRoute>} />
-        <Route path="/sessions"  element={<ProtectedRoute>{withShell(<Sessions />)}</ProtectedRoute>} />
         <Route
           path="/scores"
           element={

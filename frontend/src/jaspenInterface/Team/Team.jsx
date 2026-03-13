@@ -13,6 +13,20 @@ const SEAT_MODE_UNLIMITED = 'unlimited';
 const PREVIEW_ROLE_ACTUAL = '__actual__';
 const MANAGE_ROLE_SET = new Set(['owner', 'admin']);
 const EDIT_ROLE_SET = new Set(['owner', 'admin', 'creator', 'collaborator']);
+const PLAN_SEAT_MATRIX = {
+  team: {
+    admin: 2,
+    creator: 5,
+    collaborator: 10,
+    viewer: null,
+  },
+  enterprise: {
+    admin: 5,
+    creator: 25,
+    collaborator: null,
+    viewer: null,
+  },
+};
 
 async function teamFetch(path, options = {}) {
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -60,20 +74,40 @@ function normalizeCsvIds(value) {
   return [...new Set(values)];
 }
 
-function buildSeatDraft(organization) {
+function planSeatSummary(planKey) {
+  const map = PLAN_SEAT_MATRIX?.[planKey] || PLAN_SEAT_MATRIX.team;
+  const fmt = (value) => (value == null ? 'Unlimited' : String(value));
+  return `Admin ${fmt(map.admin)} • Creator ${fmt(map.creator)} • Collaborator ${fmt(map.collaborator)} • Viewer ${fmt(map.viewer)}`;
+}
+
+function seatLimitForPlanRole(planKey, role) {
+  if (role === 'owner') return 1;
+  const matrix = PLAN_SEAT_MATRIX?.[planKey] || PLAN_SEAT_MATRIX.team;
+  return Object.prototype.hasOwnProperty.call(matrix, role) ? matrix[role] : null;
+}
+
+function limitsEqual(a, b) {
+  const aUnlimited = a == null;
+  const bUnlimited = b == null;
+  if (aUnlimited || bUnlimited) return aUnlimited === bUnlimited;
+  return Number(a) === Number(b);
+}
+
+function buildSeatDraft(organization, profilePlanKey) {
   const policy = organization?.seat_policy || {};
-  const defaults = organization?.seat_policy_defaults || {};
   const next = {};
   SEAT_EDITABLE_ROLES.forEach((role) => {
     const row = policy?.[role] || {};
-    const baseline = defaults?.[role] || {};
+    const routeLimit = seatLimitForPlanRole(profilePlanKey, role);
+    const baseline = {
+      is_unlimited: routeLimit == null,
+      limit: routeLimit,
+    };
     const unlimited = Boolean(row?.is_unlimited || row?.limit == null);
     const baselineUnlimited = Boolean(baseline?.is_unlimited || baseline?.limit == null);
-    const baselineLimit = baselineUnlimited ? null : Number(baseline?.limit);
-    const rowLimit = unlimited ? null : Number(row?.limit);
-    const sameAsDefault =
-      (baselineUnlimited && unlimited) ||
-      (!baselineUnlimited && !unlimited && Number.isFinite(baselineLimit) && Number.isFinite(rowLimit) && baselineLimit === rowLimit);
+    const baselineLimit = baselineUnlimited ? null : baseline?.limit;
+    const rowLimit = unlimited ? null : row?.limit;
+    const sameAsDefault = limitsEqual(baselineLimit, rowLimit);
 
     const mode = sameAsDefault
       ? (baselineUnlimited ? SEAT_MODE_UNLIMITED : SEAT_MODE_DEFAULT)
@@ -113,6 +147,7 @@ export default function Team({ mode = 'team' }) {
   const canManageMembers = MANAGE_ROLE_SET.has(effectiveRole);
   const canEditProjects = EDIT_ROLE_SET.has(effectiveRole);
   const isEnterpriseMode = String(mode || '').toLowerCase() === 'enterprise';
+  const routePlanForCopy = isEnterpriseMode ? 'enterprise' : 'team';
   const activeOrg = summary?.organization || null;
   const activeOrgPlanKey = String(activeOrg?.plan_key || '').toLowerCase();
   const canAccessEnterpriseView = isGlobalAdmin || activeOrgPlanKey === 'enterprise';
@@ -147,7 +182,7 @@ export default function Team({ mode = 'team' }) {
       const adminCapsData = await teamFetch('/api/admin/capabilities').catch(() => ({}));
 
       setSummary(summaryData || null);
-      const nextSeatDraft = buildSeatDraft(summaryData?.organization || null);
+      const nextSeatDraft = buildSeatDraft(summaryData?.organization || null, routePlanForCopy);
       setSeatDraft(nextSeatDraft);
       setSavedSeatDraft(nextSeatDraft);
       setMembers(Array.isArray(membersData?.members) ? membersData.members : []);
@@ -177,7 +212,7 @@ export default function Team({ mode = 'team' }) {
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [routePlanForCopy]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -319,9 +354,9 @@ export default function Team({ mode = 'team' }) {
 
   const onSeatModeChange = (role, nextMode) => {
     if (!SEAT_EDITABLE_ROLES.includes(role)) return;
-    const baseline = seatPolicyDefaults?.[role] || {};
-    const baselineUnlimited = Boolean(baseline?.is_unlimited || baseline?.limit == null);
-    const baselineLimit = baselineUnlimited ? '' : String(baseline?.limit ?? '');
+    const routeDefaultLimit = seatLimitForPlanRole(routePlanForCopy, role);
+    const baselineUnlimited = routeDefaultLimit == null;
+    const baselineLimit = baselineUnlimited ? '' : String(routeDefaultLimit);
     setSeatDraft((prev) => ({
       ...prev,
       [role]: {
@@ -351,17 +386,27 @@ export default function Team({ mode = 'team' }) {
   };
 
   const onResetSeatPolicy = async () => {
-    if (!canManageMembers || previewModeActive) return;
+    if (!canEditSeatPolicy) return;
+    const payload = {};
+    for (const role of SEAT_EDITABLE_ROLES) {
+      const routeDefaultLimit = seatLimitForPlanRole(routePlanForCopy, role);
+      const activeBaseline = seatPolicyDefaults?.[role] || {};
+      const activeBaselineUnlimited = Boolean(activeBaseline?.is_unlimited || activeBaseline?.limit == null);
+      const activeBaselineLimit = activeBaselineUnlimited ? null : Number(activeBaseline?.limit);
+      const shouldUseNull = limitsEqual(activeBaselineLimit, routeDefaultLimit);
+      payload[role] = shouldUseNull ? null : routeDefaultLimit;
+    }
+
     setBusy(true);
     setNotice('');
     setError('');
     try {
       await teamFetch('/api/team/seat-policy', {
         method: 'PATCH',
-        body: JSON.stringify({ seat_policy_overrides: {} }),
+        body: JSON.stringify({ seat_policy_overrides: payload }),
       });
       await loadAll();
-      setNotice('Seat policy reset to plan defaults.');
+      setNotice(`Seat policy reset to ${routePlanForCopy} defaults.`);
     } catch (err) {
       setError(err?.message || 'Failed to reset seat policy');
     } finally {
@@ -375,17 +420,20 @@ export default function Team({ mode = 'team' }) {
     const payload = {};
     for (const role of SEAT_EDITABLE_ROLES) {
       const draft = seatDraft?.[role] || {};
-      const baseline = seatPolicyDefaults?.[role] || {};
-      const baselineUnlimited = Boolean(baseline?.is_unlimited || baseline?.limit == null);
-      const baselineLimit = baselineUnlimited ? null : Number(baseline?.limit);
+      const activeBaseline = seatPolicyDefaults?.[role] || {};
+      const activeBaselineUnlimited = Boolean(activeBaseline?.is_unlimited || activeBaseline?.limit == null);
+      const activeBaselineLimit = activeBaselineUnlimited ? null : Number(activeBaseline?.limit);
+      const routeDefaultLimit = seatLimitForPlanRole(routePlanForCopy, role);
+      const routeDefaultUnlimited = routeDefaultLimit == null;
+      const routeDefaultNumber = routeDefaultUnlimited ? null : Number(routeDefaultLimit);
 
       if (draft.mode === SEAT_MODE_DEFAULT) {
-        payload[role] = null;
+        payload[role] = limitsEqual(activeBaselineLimit, routeDefaultLimit) ? null : routeDefaultLimit;
         continue;
       }
       if (draft.mode === SEAT_MODE_UNLIMITED) {
-        if (!baselineUnlimited) {
-          setError(`Unlimited is not available for ${role} on the ${activeOrgPlanKey || 'current'} plan.`);
+        if (!routeDefaultUnlimited) {
+          setError(`Unlimited is not available for ${role} in ${routePlanForCopy} policy.`);
           return;
         }
         payload[role] = null;
@@ -396,12 +444,12 @@ export default function Team({ mode = 'team' }) {
         setError(`Seat limit for ${role} must be a non-negative integer.`);
         return;
       }
-      if (!baselineUnlimited && Number.isFinite(baselineLimit) && next > baselineLimit) {
-        setError(`Seat limit for ${role} cannot exceed plan cap (${baselineLimit}).`);
+      if (!routeDefaultUnlimited && Number.isFinite(routeDefaultNumber) && next > routeDefaultNumber) {
+        setError(`Seat limit for ${role} cannot exceed ${routePlanForCopy} cap (${routeDefaultNumber}).`);
         return;
       }
-      if (!baselineUnlimited && Number.isFinite(baselineLimit) && next === baselineLimit) {
-        payload[role] = null;
+      if (limitsEqual(next, routeDefaultLimit)) {
+        payload[role] = limitsEqual(activeBaselineLimit, routeDefaultLimit) ? null : routeDefaultLimit;
         continue;
       }
       payload[role] = next;
@@ -463,6 +511,8 @@ export default function Team({ mode = 'team' }) {
   const activePlanLabel = activeOrgPlanKey
     ? `${activeOrgPlanKey.charAt(0).toUpperCase()}${activeOrgPlanKey.slice(1)}`
     : 'Current';
+  const activePolicyPlanKey = PLAN_SEAT_MATRIX?.[activeOrgPlanKey] ? activeOrgPlanKey : null;
+  const showingPlanMismatch = Boolean(activePolicyPlanKey && activePolicyPlanKey !== routePlanForCopy);
 
   return (
     <div className="team-page">
@@ -534,11 +584,17 @@ export default function Team({ mode = 'team' }) {
         </div>
       )}
 
+      {showingPlanMismatch && (
+        <div className="team-state team-state-preview">
+          Active organization is <strong>{activePlanLabel}</strong>, but this page is using <strong>{routePlanForCopy}</strong> seat policy for preview and editing.
+        </div>
+      )}
+
       {canManageMembers && (
         <section className={`team-seat-policy-bar ${seatDraftDirty ? 'is-dirty' : ''}`}>
           <div className="team-seat-policy-copy">
             <strong>{seatDraftDirty ? 'Unsaved seat policy changes' : 'Seat policy saved'}</strong>
-            <span>Plan defaults ({activePlanLabel}) are enforced: Team (2/5/10/Unlimited), Enterprise (5/25/Unlimited/Unlimited).</span>
+            <span>{routePlanForCopy.charAt(0).toUpperCase() + routePlanForCopy.slice(1)} defaults: {planSeatSummary(routePlanForCopy)}.</span>
           </div>
           <div className="team-seat-policy-actions">
             <button
@@ -574,10 +630,12 @@ export default function Team({ mode = 'team' }) {
           const row = seatUsage?.[role] || {};
           const draft = seatDraft?.[role] || {};
           const saved = savedSeatDraft?.[role] || {};
-          const defaultRow = seatPolicyDefaults?.[role] || {};
-          const defaultLabel = limitLabel(defaultRow?.limit, defaultRow?.is_unlimited);
-          const baselineUnlimited = Boolean(defaultRow?.is_unlimited || defaultRow?.limit == null);
-          const maxCap = baselineUnlimited ? null : Number(defaultRow?.limit);
+          const routeDefaultLimit = seatLimitForPlanRole(routePlanForCopy, role);
+          const baselineUnlimited = routeDefaultLimit == null;
+          const defaultLabel = limitLabel(routeDefaultLimit, baselineUnlimited);
+          const maxCap = baselineUnlimited ? null : Number(routeDefaultLimit);
+          const used = Number(row?.used || 0);
+          const displayedAvailable = baselineUnlimited ? null : Math.max(maxCap - used, 0);
           const canEditSeatRole = canEditSeatPolicy && role !== 'owner';
           const roleIsDirty = role !== 'owner' && JSON.stringify(draft || {}) !== JSON.stringify(saved || {});
           const pendingLabel = draft?.mode === SEAT_MODE_LIMITED
@@ -588,10 +646,10 @@ export default function Team({ mode = 'team' }) {
             <article key={role} className="team-seat-card">
               <h3>{row?.label || role}</h3>
               <p className="team-seat-main">
-                {row?.used ?? 0} / {limitLabel(row?.limit, row?.is_unlimited)}
+                {used} / {defaultLabel}
               </p>
               <p className="team-seat-sub">
-                {row?.is_unlimited ? 'No cap for this role' : `${row?.available ?? 0} seats remaining`}
+                {baselineUnlimited ? 'No cap for this role' : `${displayedAvailable} seats remaining`}
               </p>
               <p className="team-seat-meta">Plan default: {defaultLabel}</p>
               {role !== 'owner' && (
@@ -616,16 +674,16 @@ export default function Team({ mode = 'team' }) {
                   {roleMode === SEAT_MODE_LIMITED && (
                     <input
                       type="number"
-                      min={Math.max(0, Number(row?.used || 0))}
+                      min={Math.max(0, used)}
                       value={draft?.limit || ''}
                       onChange={(event) => onSeatLimitChange(role, event.target.value)}
                       disabled={busy}
                       max={maxCap == null ? undefined : String(maxCap)}
-                      placeholder={`Min ${Math.max(0, Number(row?.used || 0))}`}
+                      placeholder={`Min ${Math.max(0, used)}`}
                     />
                   )}
                   {maxCap != null && roleMode === SEAT_MODE_LIMITED && (
-                    <p className="team-seat-cap-note">Max for {activePlanLabel}: {maxCap}</p>
+                    <p className="team-seat-cap-note">Max for {routePlanForCopy}: {maxCap}</p>
                   )}
                 </div>
               )}

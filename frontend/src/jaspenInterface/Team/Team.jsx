@@ -132,6 +132,7 @@ export default function Team({ mode = 'team' }) {
   const [invitations, setInvitations] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [orgNameDraft, setOrgNameDraft] = useState('');
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('collaborator');
@@ -149,6 +150,7 @@ export default function Team({ mode = 'team' }) {
   const isEnterpriseMode = String(mode || '').toLowerCase() === 'enterprise';
   const routePlanForCopy = isEnterpriseMode ? 'enterprise' : 'team';
   const activeOrg = summary?.organization || null;
+  const activeOrgId = String(activeOrg?.id || '');
   const activeOrgPlanKey = String(activeOrg?.plan_key || '').toLowerCase();
   const canAccessEnterpriseView = isGlobalAdmin || activeOrgPlanKey === 'enterprise';
   const seatPolicyDefaults = activeOrg?.seat_policy_defaults || {};
@@ -182,6 +184,7 @@ export default function Team({ mode = 'team' }) {
       const adminCapsData = await teamFetch('/api/admin/capabilities').catch(() => ({}));
 
       setSummary(summaryData || null);
+      setOrgNameDraft(String(summaryData?.organization?.name || ''));
       const nextSeatDraft = buildSeatDraft(summaryData?.organization || null, routePlanForCopy);
       setSeatDraft(nextSeatDraft);
       setSavedSeatDraft(nextSeatDraft);
@@ -225,9 +228,8 @@ export default function Team({ mode = 'team' }) {
       setNotice('');
       setError('');
       try {
-        await teamFetch('/api/team/invitations/accept', {
+        await teamFetch(`/api/teams/invitations/${encodeURIComponent(inviteToken)}/accept`, {
           method: 'POST',
-          body: JSON.stringify({ token: inviteToken }),
         });
         if (cancelled) return;
         setNotice('Invitation accepted. You are now part of this organization.');
@@ -264,22 +266,46 @@ export default function Team({ mode = 'team' }) {
     }
   };
 
-  const onInvite = async (event) => {
-    event.preventDefault();
-    if (!canManageMembers || previewModeActive) return;
+  const onSaveOrganizationName = async () => {
+    if (!canManageMembers || previewModeActive || !activeOrgId) return;
+    const nextName = String(orgNameDraft || '').trim();
+    if (!nextName) {
+      setError('Organization name is required.');
+      return;
+    }
+    if (nextName === String(activeOrg?.name || '').trim()) return;
     setBusy(true);
     setNotice('');
     setError('');
     try {
-      const result = await teamFetch('/api/team/invitations', {
+      await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: nextName }),
+      });
+      await loadAll();
+      setNotice('Organization name updated.');
+    } catch (err) {
+      setError(err?.message || 'Failed to update organization name');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onInvite = async (event) => {
+    event.preventDefault();
+    if (!canManageMembers || previewModeActive || !activeOrgId) return;
+    setBusy(true);
+    setNotice('');
+    setError('');
+    try {
+      const result = await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}/invite`, {
         method: 'POST',
         body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       setInviteEmail('');
       setInviteRole('collaborator');
       await loadAll();
-      const token = result?.invitation?.token;
-      setNotice(token ? `Invite sent. Token: ${token}` : 'Invite sent.');
+      setNotice(result?.email_error ? `Invite saved, but email failed: ${result.email_error}` : 'Invite sent.');
     } catch (err) {
       setError(err?.message || 'Failed to send invite');
     } finally {
@@ -288,12 +314,12 @@ export default function Team({ mode = 'team' }) {
   };
 
   const onRoleChange = async (memberId, role) => {
-    if (!canManageMembers || previewModeActive) return;
+    if (!canManageMembers || previewModeActive || !activeOrgId) return;
     setBusy(true);
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/team/members/${memberId}`, {
+      await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}/members/${encodeURIComponent(memberId)}`, {
         method: 'PATCH',
         body: JSON.stringify({ role }),
       });
@@ -307,14 +333,14 @@ export default function Team({ mode = 'team' }) {
   };
 
   const onRemoveMember = async (member) => {
-    if (!canManageMembers || previewModeActive) return;
+    if (!canManageMembers || previewModeActive || !activeOrgId) return;
     const label = member?.user?.name || member?.user?.email || member?.user_id;
     if (!window.confirm(`Remove ${label} from this team?`)) return;
     setBusy(true);
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/team/members/${member.id}`, { method: 'DELETE' });
+      await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}/members/${encodeURIComponent(member.id)}`, { method: 'DELETE' });
       await loadAll();
       setNotice('Member removed.');
     } catch (err) {
@@ -324,18 +350,40 @@ export default function Team({ mode = 'team' }) {
     }
   };
 
-  const onRevokeInvitation = async (invitationId) => {
-    if (!canManageMembers || previewModeActive) return;
-    if (!window.confirm('Revoke this invitation?')) return;
+  const onResendInvitation = async (invitationId) => {
+    if (!canManageMembers || previewModeActive || !activeOrgId) return;
     setBusy(true);
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/team/invitations/${invitationId}/revoke`, { method: 'POST' });
+      const result = await teamFetch(
+        `/api/teams/${encodeURIComponent(activeOrgId)}/invitations/${encodeURIComponent(invitationId)}/resend`,
+        { method: 'POST' }
+      );
       await loadAll();
-      setNotice('Invitation revoked.');
+      setNotice(result?.email_error ? `Invite resent, but email failed: ${result.email_error}` : 'Invitation resent.');
     } catch (err) {
-      setError(err?.message || 'Failed to revoke invitation');
+      setError(err?.message || 'Failed to resend invitation');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onCancelInvitation = async (invitationId) => {
+    if (!canManageMembers || previewModeActive || !activeOrgId) return;
+    if (!window.confirm('Cancel this invitation?')) return;
+    setBusy(true);
+    setNotice('');
+    setError('');
+    try {
+      await teamFetch(
+        `/api/teams/${encodeURIComponent(activeOrgId)}/invitations/${encodeURIComponent(invitationId)}`,
+        { method: 'DELETE' }
+      );
+      await loadAll();
+      setNotice('Invitation cancelled.');
+    } catch (err) {
+      setError(err?.message || 'Failed to cancel invitation');
     } finally {
       setBusy(false);
     }
@@ -511,6 +559,12 @@ export default function Team({ mode = 'team' }) {
   const activePlanLabel = activeOrgPlanKey
     ? `${activeOrgPlanKey.charAt(0).toUpperCase()}${activeOrgPlanKey.slice(1)}`
     : 'Current';
+  const seatSummaryLabel = [
+    `Admin: ${(seatUsage?.admin?.used ?? 0)}/${seatUsage?.admin?.limit ?? '∞'}`,
+    `Creator: ${(seatUsage?.creator?.used ?? 0)}/${seatUsage?.creator?.limit ?? '∞'}`,
+    `Collaborator: ${(seatUsage?.collaborator?.used ?? 0)}/${seatUsage?.collaborator?.limit ?? '∞'}`,
+    `Viewer: ${(seatUsage?.viewer?.used ?? 0)}/${seatUsage?.viewer?.limit ?? '∞'}`,
+  ].join(' · ');
   const activePolicyPlanKey = PLAN_SEAT_MATRIX?.[activeOrgPlanKey] ? activeOrgPlanKey : null;
   const showingPlanMismatch = Boolean(activePolicyPlanKey && activePolicyPlanKey !== routePlanForCopy);
 
@@ -535,6 +589,26 @@ export default function Team({ mode = 'team' }) {
       <section className="team-toolbar">
         <div className="team-toolbar-fields">
           <label className="team-inline-field">
+            <span>Organization name</span>
+            <div style={{ display: 'inline-flex', gap: 8 }}>
+              <input
+                type="text"
+                value={orgNameDraft}
+                onChange={(event) => setOrgNameDraft(event.target.value)}
+                disabled={busy || !canManageMembers || previewModeActive}
+                style={{ minWidth: 240 }}
+              />
+              <button
+                type="button"
+                className="team-btn ghost"
+                onClick={onSaveOrganizationName}
+                disabled={busy || !canManageMembers || previewModeActive || !activeOrgId}
+              >
+                Save
+              </button>
+            </div>
+          </label>
+          <label className="team-inline-field">
             <span>Organization</span>
             <select
               value={activeOrg?.id || ''}
@@ -547,6 +621,10 @@ export default function Team({ mode = 'team' }) {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="team-inline-field">
+            <span>Plan</span>
+            <input type="text" value={activePlanLabel} disabled style={{ minWidth: 120 }} />
           </label>
           {isGlobalAdmin && (
             <label className="team-inline-field">
@@ -564,6 +642,10 @@ export default function Team({ mode = 'team' }) {
             </label>
           )}
         </div>
+      </section>
+
+      <section className="team-state">
+        <strong>Seat usage:</strong> {seatSummaryLabel}
       </section>
 
       {(error || notice) && (
@@ -704,6 +786,7 @@ export default function Team({ mode = 'team' }) {
                   <th>Role</th>
                   <th>Status</th>
                   <th>Last active</th>
+                  <th>Joined</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -713,8 +796,8 @@ export default function Team({ mode = 'team' }) {
                   const isOwner = role === 'owner';
                   return (
                     <tr key={member.id}>
-                      <td>{member?.user?.name || 'Unknown'}</td>
-                      <td>{member?.user?.email || '—'}</td>
+                      <td>{member?.name || member?.user?.name || 'Unknown'}</td>
+                      <td>{member?.email || member?.user?.email || '—'}</td>
                       <td>
                         {canManageMembers && !isOwner ? (
                           <select
@@ -731,7 +814,8 @@ export default function Team({ mode = 'team' }) {
                         )}
                       </td>
                       <td>{member?.status || 'active'}</td>
-                      <td>{formatDate(member?.last_active_at || member?.updated_at)}</td>
+                      <td>{formatDate(member?.last_active || member?.last_active_at || member?.updated_at)}</td>
+                      <td>{formatDate(member?.joined_at || member?.created_at)}</td>
                       <td>
                         {canManageMembers && !isOwner ? (
                           <button
@@ -780,39 +864,55 @@ export default function Team({ mode = 'team' }) {
           </form>
 
           <h3 className="team-subhead">Pending Invitations</h3>
-          <div className="team-list">
-            {pendingInvitations.map((row) => (
-              <article key={row.id} className="team-list-item">
-                <div>
-                  <strong>{row.email}</strong>
-                  <p>{row.role} • expires {formatDate(row.expires_at)}</p>
-                </div>
-                <div className="team-inline-actions">
-                  {canManageMembers && (
-                    <button
-                      type="button"
-                      className="team-btn tiny ghost"
-                      onClick={() => navigator.clipboard?.writeText?.(`${window.location.origin}/team?invite=${row.token}`)}
-                    >
-                      Copy link
-                    </button>
-                  )}
-                  {canManageMembers && (
-                    <button
-                      type="button"
-                      className="team-btn tiny danger"
-                      onClick={() => onRevokeInvitation(row.id)}
-                      disabled={busy || previewModeActive}
-                    >
-                      Revoke
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))}
-            {pendingInvitations.length === 0 && (
-              <p className="team-empty">No pending invites.</p>
-            )}
+          <div className="team-table-wrap">
+            <table className="team-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Invited by</th>
+                  <th>Sent</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingInvitations.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="team-empty">No pending invites.</td>
+                  </tr>
+                )}
+                {pendingInvitations.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.email}</td>
+                    <td>{row.role}</td>
+                    <td>{row.invited_by_name || row.invited_by || '—'}</td>
+                    <td>{formatDate(row.created_at)}</td>
+                    <td>{row.status}</td>
+                    <td>
+                      <div className="team-inline-actions">
+                        <button
+                          type="button"
+                          className="team-btn tiny ghost"
+                          onClick={() => onResendInvitation(row.id)}
+                          disabled={!canManageMembers || busy || previewModeActive}
+                        >
+                          Resend
+                        </button>
+                        <button
+                          type="button"
+                          className="team-btn tiny danger"
+                          onClick={() => onCancelInvitation(row.id)}
+                          disabled={!canManageMembers || busy || previewModeActive}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

@@ -79,6 +79,15 @@
   background: #ffffff;
 }
 
+.team-inline-field input {
+  min-width: 220px;
+  border: 1px solid #c9d6ec;
+  border-radius: 9px;
+  min-height: 36px;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
 .team-state {
   background: #fff;
   border: 1px solid #d8e1f0;

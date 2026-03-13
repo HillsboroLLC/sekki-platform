@@ -125,7 +125,7 @@ class Organization(db.Model):
         default=lambda: str(uuid.uuid4())
     )
     name = db.Column(db.String(255), nullable=False)
-    slug = db.Column(db.String(128), unique=True, nullable=True)
+    slug = db.Column(db.String(255), unique=True, nullable=True)
     owner_user_id = db.Column(
         db.String(36),
         db.ForeignKey('users.id', ondelete='SET NULL'),
@@ -135,8 +135,23 @@ class Organization(db.Model):
     plan_key = db.Column(
         db.String(50),
         nullable=False,
-        default='free',
+        default='team',
         index=True,
+    )
+    max_admin_seats = db.Column(
+        db.Integer,
+        nullable=False,
+        default=2,
+    )
+    max_creator_seats = db.Column(
+        db.Integer,
+        nullable=False,
+        default=5,
+    )
+    max_collaborator_seats = db.Column(
+        db.Integer,
+        nullable=False,
+        default=10,
     )
     seat_policy_overrides = db.Column(
         db.JSON,
@@ -153,14 +168,36 @@ class Organization(db.Model):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+    members = db.relationship('OrganizationMember', backref='organization', lazy='dynamic')
+
+    @property
+    def owner_id(self):
+        return self.owner_user_id
+
+    @owner_id.setter
+    def owner_id(self, value):
+        self.owner_user_id = value
+
+    @property
+    def plan(self):
+        return self.plan_key
+
+    @plan.setter
+    def plan(self, value):
+        self.plan_key = value
 
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
             'slug': self.slug,
+            'owner_id': self.owner_user_id,
+            'plan': self.plan_key,
             'owner_user_id': self.owner_user_id,
             'plan_key': self.plan_key,
+            'max_admin_seats': self.max_admin_seats,
+            'max_creator_seats': self.max_creator_seats,
+            'max_collaborator_seats': self.max_collaborator_seats,
             'seat_policy_overrides': self.seat_policy_overrides if isinstance(self.seat_policy_overrides, dict) else {},
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
@@ -183,7 +220,7 @@ class OrganizationMember(db.Model):
         nullable=False,
         index=True,
     )
-    role = db.Column(db.String(32), nullable=False, default='viewer', index=True)
+    role = db.Column(db.String(32), nullable=False, default='collaborator', index=True)
     status = db.Column(db.String(32), nullable=False, default='active', index=True)
     invited_by_user_id = db.Column(
         db.String(36),
@@ -216,6 +253,7 @@ class OrganizationMember(db.Model):
             'user_id': self.user_id,
             'role': self.role,
             'status': self.status,
+            'invited_by': self.invited_by_user_id,
             'invited_by_user_id': self.invited_by_user_id,
             'joined_at': self.joined_at.isoformat() if self.joined_at else None,
             'last_active_at': self.last_active_at.isoformat() if self.last_active_at else None,
@@ -239,8 +277,8 @@ class OrganizationInvitation(db.Model):
         index=True,
     )
     email = db.Column(db.String(255), nullable=False, index=True)
-    role = db.Column(db.String(32), nullable=False, default='viewer')
-    token = db.Column(db.String(128), nullable=False, unique=True, index=True)
+    role = db.Column(db.String(32), nullable=False, default='collaborator')
+    token = db.Column(db.String(128), nullable=False, unique=True, index=True, default=lambda: str(uuid.uuid4()))
     status = db.Column(db.String(32), nullable=False, default='pending', index=True)
     invited_by_user_id = db.Column(
         db.String(36),
@@ -276,6 +314,7 @@ class OrganizationInvitation(db.Model):
             'role': self.role,
             'token': self.token,
             'status': self.status,
+            'invited_by': self.invited_by_user_id,
             'invited_by_user_id': self.invited_by_user_id,
             'accepted_by_user_id': self.accepted_by_user_id,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
@@ -283,6 +322,10 @@ class OrganizationInvitation(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+# Compatibility alias for refined naming.
+Invitation = OrganizationInvitation
 
 
 class UserSession(db.Model):

@@ -1684,10 +1684,6 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faClockRotateLeft} />
             <span className="jas-ud-item-label">In Queue</span>
           </button>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
-            <FontAwesomeIcon icon={faUser} />
-            <span className="jas-ud-item-label">Team</span>
-          </button>
           {canAccessEnterpriseAdmin && (
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
               <FontAwesomeIcon icon={faGaugeHigh} />
@@ -1710,6 +1706,10 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faBell} />
             <span className="jas-ud-item-label">Notifications</span>
             <span className="jas-ud-item-badge">{unreadNotificationCount}</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
+            <FontAwesomeIcon icon={faUser} />
+            <span className="jas-ud-item-label">Team</span>
           </button>
           <button className="jas-ud-item" onClick={openDisplayNameEditor}>
             <FontAwesomeIcon icon={faUser} />

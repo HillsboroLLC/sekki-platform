@@ -41,6 +41,10 @@ DEFAULT_PLAN_CATALOG = {
         'self_serve': False,
         'sales_only': True,
         'description': 'Sales-led pooled usage for collaborating teams.',
+        'max_admin_seats': 2,
+        'max_creator_seats': 5,
+        'max_collaborator_seats': 10,
+        'max_viewer_seats': None,
     },
     'enterprise': {
         'label': 'Enterprise',
@@ -49,6 +53,10 @@ DEFAULT_PLAN_CATALOG = {
         'self_serve': False,
         'sales_only': True,
         'description': 'Sales-led deployment with governance and security controls.',
+        'max_admin_seats': 5,
+        'max_creator_seats': 25,
+        'max_collaborator_seats': None,
+        'max_viewer_seats': None,
     },
 }
 

@@ -327,8 +327,12 @@ def build_seat_usage(org):
 
     policy = seat_policy_for_org(org)
     usage = {}
+    owner_used = int(role_counts.get(ORG_ROLE_OWNER, 0))
     for role in ORG_ROLES:
         used = int(role_counts.get(role, 0))
+        if role == ORG_ROLE_ADMIN:
+            # Owner counts against admin seat capacity.
+            used += owner_used
         limit = policy.get(role)
         usage[role] = {
             "label": role_label(role),
@@ -346,15 +350,31 @@ def role_has_capacity(org, role, exclude_member_id=None):
     if limit is None:
         return True
 
-    query = OrganizationMember.query.filter_by(
-        organization_id=org.id,
-        role=role,
-        status="active",
-    )
-    if exclude_member_id is not None:
-        query = query.filter(OrganizationMember.id != int(exclude_member_id))
+    if role == ORG_ROLE_ADMIN:
+        query = OrganizationMember.query.filter(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.status == "active",
+            OrganizationMember.role.in_([ORG_ROLE_OWNER, ORG_ROLE_ADMIN]),
+        )
+        used = query.count()
+        if exclude_member_id is not None:
+            excluded = OrganizationMember.query.filter_by(
+                id=int(exclude_member_id),
+                organization_id=org.id,
+                status="active",
+            ).first()
+            if excluded and normalize_org_role(excluded.role) in {ORG_ROLE_OWNER, ORG_ROLE_ADMIN}:
+                used = max(0, used - 1)
+    else:
+        query = OrganizationMember.query.filter_by(
+            organization_id=org.id,
+            role=role,
+            status="active",
+        )
+        if exclude_member_id is not None:
+            query = query.filter(OrganizationMember.id != int(exclude_member_id))
+        used = query.count()
 
-    used = query.count()
     return used < int(limit)
 
 

@@ -441,6 +441,7 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
   analysisId,
   baseAnalysis,
   scenarioLevers = [],
+  refreshVersion = 0,
   onAdopt,
   onAdoptScenario = () => {},
   onAdoptScorecard = () => {},
@@ -519,7 +520,7 @@ const ScenarioModeler = forwardRef(function ScenarioModeler({
     }
 
     fetchLevers();
-  }, [threadId]);
+  }, [threadId, refreshVersion]);
 
   const [resultA, setResultA] = useState(null);
   const [resultB, setResultB] = useState(null);

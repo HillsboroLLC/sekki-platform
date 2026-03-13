@@ -356,6 +356,9 @@ const selectedVariant = useMemo(() => {
   const [analysisHistory, setAnalysisHistory] = useState([]);
   const [clearingHistory, setClearingHistory] = useState(false);
   const [savedScenarios, setSavedScenarios] = useState([]);
+  const [scenarioMutationVersion, setScenarioMutationVersion] = useState(0);
+  const [wbsMutationVersion, setWbsMutationVersion] = useState(0);
+  const [, setThreadWbs] = useState(null);
   const [savedStarterConfigs, setSavedStarterConfigs] = useState([]);
   const [startersLoading, setStartersLoading] = useState(false);
   const [selectedStarterId, setSelectedStarterId] = useState('');
@@ -590,6 +593,91 @@ const refreshBundle = async (tid) => {
     console.debug('[refreshBundle] skipped', e);
   }
 };
+
+const refreshThreadWbs = useCallback(async (tid) => {
+  if (!tid) return null;
+  try {
+    const response = await Jaspen.getThreadWbs(tid);
+    const nextWbs = (response?.project_wbs && typeof response.project_wbs === 'object')
+      ? response.project_wbs
+      : null;
+    setThreadWbs(nextWbs);
+    return nextWbs;
+  } catch (e) {
+    console.debug('[refreshThreadWbs] skipped', e);
+    return null;
+  }
+}, []);
+
+const normalizeMutationResults = (payload) => {
+  if (!payload || typeof payload !== 'object') return [];
+
+  const direct =
+    payload.mutations ||
+    payload.tool_results ||
+    payload.toolResults;
+
+  if (Array.isArray(direct)) return direct;
+
+  const fallbackActions = Array.isArray(payload.actions) ? payload.actions : [];
+  return fallbackActions
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const tool = entry.tool || entry.name || entry?.result?.tool;
+      if (!tool) return null;
+      const result = entry.result && typeof entry.result === 'object' ? entry.result : {};
+      return {
+        tool,
+        success: typeof entry.success === 'boolean' ? entry.success : Boolean(result.ok),
+        result_summary: entry.result_summary || result,
+      };
+    })
+    .filter(Boolean);
+};
+
+const applyMutationRefreshes = async (payload, fallbackThreadId = null) => {
+  const mutations = normalizeMutationResults(payload);
+  if (!mutations.length) return;
+
+  let scenarioChanged = false;
+  let wbsChanged = false;
+  mutations.forEach((mutation) => {
+    const tool = String(mutation?.tool || '').trim();
+    const success = mutation?.success !== false;
+    if (!success) return;
+    if (tool === 'create_scenario') {
+      scenarioChanged = true;
+    }
+    if (['update_wbs_task', 'add_wbs_task', 'remove_wbs_task'].includes(tool)) {
+      wbsChanged = true;
+    }
+  });
+
+  if (!scenarioChanged && !wbsChanged) return;
+
+  const threadIdForRefresh = String(
+    payload?.thread_id ||
+    payload?.session_id ||
+    payload?.sessionId ||
+    fallbackThreadId ||
+    currentSessionId ||
+    sessionId ||
+    ''
+  ).trim();
+  if (!threadIdForRefresh) return;
+
+  if (scenarioChanged) setScenarioMutationVersion((prev) => prev + 1);
+  if (wbsChanged) setWbsMutationVersion((prev) => prev + 1);
+
+  await refreshBundle(threadIdForRefresh);
+};
+
+useEffect(() => {
+  if (wbsMutationVersion <= 0) return;
+  const tid = String(currentSessionId || sessionId || '').trim();
+  if (!tid) return;
+  refreshThreadWbs(tid);
+}, [wbsMutationVersion, currentSessionId, sessionId, refreshThreadWbs]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -2027,12 +2115,18 @@ const [aiScenarioBusy, setAiScenarioBusy] = useState(false);
     });
 
     const json = await resp.json();
-return {
-  text: json.reply || "",
-  readiness: json.readiness || null,
-  sessionId: json.session_id || sid,
-  actions: json.actions || json.ui_actions || json.uiActions || []
-};
+    return {
+      ...json,
+      text: json.reply || json.message || '',
+      readiness: json.readiness || null,
+      sessionId: json.session_id || sid,
+      actions: json.actions || json.ui_actions || json.uiActions || [],
+      mutations: Array.isArray(json.mutations)
+        ? json.mutations
+        : (Array.isArray(json.tool_results) ? json.tool_results : []),
+      model_type: json.model_type || null,
+      strategy_objective: json.strategy_objective || null,
+    };
 
   };
 
@@ -2954,6 +3048,7 @@ async function continueConversation(userText) {
     }
     setStrategyObjective(normalizeStrategyObjective(data?.strategy_objective || strategyObjective));
     setObjectiveExplicitlySet(Boolean(data?.objective_explicitly_set) || objectiveExplicitlySet);
+    await applyMutationRefreshes(data, sessionId);
 
     console.log('[continueConversation] about to call fetchReadinessFor with sessionId:', sessionId);
 
@@ -4268,6 +4363,8 @@ const sendAIMessage = async () => {
       setMessages(prev => [...prev, { role: 'ai', text: resp.text }]);
     }
 
+    await applyMutationRefreshes(resp, resp?.sessionId || currentSessionId || sessionId);
+
     // 4) Refresh readiness (authoritative) and persist the full updated thread
     const sidForAudit = resp?.sessionId || currentSessionId || sessionId;
     const auditPayload = await fetchReadinessFor(sidForAudit);
@@ -5561,6 +5658,7 @@ setView(id === 'chat' ? 'intake' : id);
   analysisId={sessionId}
   baseAnalysis={bundleBaselineScorecard || baselineRef.current || analysisResult}
   scenarioLevers={scenarioLevers}
+  refreshVersion={scenarioMutationVersion}
   savedScenarios={savedScenarios}
   onAdoptScenario={handleScenarioAdopt}
   onAdoptScorecard={handleAdoptScorecard}

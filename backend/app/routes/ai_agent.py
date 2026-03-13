@@ -144,6 +144,123 @@ def _intake_context_prompt_suffix(intake_context):
     return "\n" + "\n".join(context_lines)
 
 
+def _format_component_label(key):
+    token = str(key or "").replace("_", " ").strip()
+    return token.title() if token else "Component"
+
+
+def _thread_session_record(sessions, thread_id):
+    if not isinstance(sessions, dict):
+        return None
+    if thread_id in sessions and isinstance(sessions.get(thread_id), dict):
+        return sessions.get(thread_id)
+    for candidate in sessions.values():
+        if str((candidate or {}).get("session_id") or "") == str(thread_id):
+            return candidate if isinstance(candidate, dict) else None
+    return None
+
+
+def _thread_scorecard_summary(user_id, thread_id):
+    if not user_id or not thread_id:
+        return {"has_scorecard": False, "scenario_count": 0, "low_components": []}
+
+    session = _thread_session_record(load_user_sessions(user_id), thread_id)
+    if not isinstance(session, dict):
+        return {"has_scorecard": False, "scenario_count": 0, "low_components": []}
+
+    result = session.get("result") if isinstance(session.get("result"), dict) else {}
+    if not result:
+        history = session.get("analysis_history")
+        if isinstance(history, list):
+            for item in reversed(history):
+                if isinstance(item, dict) and isinstance(item.get("result"), dict):
+                    result = item.get("result")
+                    break
+
+    component_scores = {}
+    if isinstance(result, dict):
+        raw_components = result.get("component_scores") if isinstance(result.get("component_scores"), dict) else {}
+        if not raw_components and isinstance(result.get("scores"), dict):
+            raw_components = result.get("scores")
+        component_scores = raw_components if isinstance(raw_components, dict) else {}
+
+    has_scorecard = bool(component_scores) or result.get("jaspen_score") is not None
+
+    low_components = []
+    for key, value in (component_scores or {}).items():
+        try:
+            score_value = float(value)
+        except Exception:
+            continue
+        if score_value < 50:
+            low_components.append({"key": str(key), "label": _format_component_label(key), "score": round(score_value, 2)})
+    low_components.sort(key=lambda item: item.get("score", 100))
+
+    scenario_count = 0
+    try:
+        from .strategy import _load_scenarios
+        all_data = _load_scenarios(user_id) if user_id else {}
+        thread_entry = all_data.get(thread_id) if isinstance(all_data, dict) else {}
+        scenarios = thread_entry.get("scenarios") if isinstance(thread_entry, dict) else []
+        if isinstance(scenarios, list):
+            scenario_count = len(scenarios)
+    except Exception:
+        scenario_count = 0
+
+    return {
+        "has_scorecard": has_scorecard,
+        "scenario_count": scenario_count,
+        "low_components": low_components[:3],
+    }
+
+
+def _scenario_modeling_prompt_suffix(user_id, thread_id):
+    summary = _thread_scorecard_summary(user_id, thread_id)
+    if not summary.get("has_scorecard"):
+        return ""
+
+    lines = [
+        "Scenario coaching guidance:",
+        "- A scorecard exists for this thread.",
+        "- After a scorecard is generated, proactively suggest scenario modeling.",
+        "- If the user agrees, use the create_scenario tool and explain rationale for each lever adjustment.",
+        "- If the user asks how to improve score/performance, suggest and offer to run a scenario before giving generic advice.",
+    ]
+    if int(summary.get("scenario_count") or 0) == 0:
+        lines.append("- No scenarios exist yet; propose a first what-if scenario instead of waiting.")
+    low_components = summary.get("low_components") or []
+    if low_components:
+        hints = ", ".join(f"{item['label']} ({item['score']})" for item in low_components)
+        lines.append(
+            f"- Weak components detected below 50: {hints}. "
+            "Reference these directly when suggesting improvements."
+        )
+    return "\n" + "\n".join(lines)
+
+
+def _mutation_result_summary(tool_name, result_payload):
+    if not isinstance(result_payload, dict):
+        return {}
+
+    summary = {"confirmation": str(result_payload.get("confirmation") or "").strip()}
+    if tool_name == "create_scenario":
+        scenario = result_payload.get("scenario") if isinstance(result_payload.get("scenario"), dict) else {}
+        scenario_result = scenario.get("result") if isinstance(scenario.get("result"), dict) else {}
+        summary.update({
+            "scenario_id": scenario.get("scenario_id") or scenario.get("id"),
+            "label": scenario.get("label"),
+            "jaspen_score": scenario_result.get("jaspen_score"),
+        })
+    elif tool_name in {"update_wbs_task", "add_wbs_task", "remove_wbs_task"}:
+        project_wbs = result_payload.get("project_wbs") if isinstance(result_payload.get("project_wbs"), dict) else {}
+        tasks = project_wbs.get("tasks") if isinstance(project_wbs.get("tasks"), list) else []
+        summary.update({
+            "task_count": len(tasks),
+            "wbs_name": project_wbs.get("name") or "Execution WBS",
+        })
+    return summary
+
+
 def _sanitize_lever_defaults(raw_defaults):
     if not isinstance(raw_defaults, dict):
         return {}
@@ -1040,12 +1157,12 @@ def _generate_assistant_reply(
     fallback_reply = _next_question(readiness)
     api_key = _anthropic_api_key()
     if not api_key:
-        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, []
+        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, [], []
 
     try:
         import anthropic
     except Exception:
-        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, []
+        return fallback_reply, {"provider": "heuristic", "model": None, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, [], []
 
     model_name = _anthropic_model_for_selection(model_selection)
     max_tokens = int(
@@ -1062,9 +1179,17 @@ def _generate_assistant_reply(
     system_prompt = (
         "You are Jaspen's intake agent. Ask one concise next question that advances readiness when intake is incomplete. "
         "When the user asks to modify scenarios or WBS tasks, call the relevant tools instead of only describing steps. "
-        "After a tool succeeds, summarize exactly what was changed."
+        "After a tool succeeds, summarize exactly what was changed. "
+        "After a scorecard is generated, proactively suggest scenario modeling when it can improve outcomes. "
+        "For example: 'Your Resource Allocation score is 42 — would you like me to create a scenario "
+        "exploring what happens if you increase budget by 15%?' "
+        "Use the create_scenario tool when the user agrees and always explain the rationale for lever adjustments."
     )
-    system_prompt = f"{system_prompt}{_intake_context_prompt_suffix(intake_context)}"
+    system_prompt = (
+        f"{system_prompt}"
+        f"{_intake_context_prompt_suffix(intake_context)}"
+        f"{_scenario_modeling_prompt_suffix(user_id, thread_id)}"
+    )
     max_turns = int((context_budget or {}).get("recent_turns") or 16)
     max_turns = max(8, min(80, max_turns))
     messages = _anthropic_messages_from_history(chat_history, max_turns=max_turns)
@@ -1084,6 +1209,7 @@ def _generate_assistant_reply(
     total_input_tokens = 0
     total_output_tokens = 0
     executed_actions = []
+    executed_mutations = []
     tool_confirmations = []
 
     response = client.messages.create(
@@ -1135,6 +1261,13 @@ def _generate_assistant_reply(
                         "input": tool_input,
                         "result": result_payload,
                     })
+                    executed_mutations.append({
+                        "tool": tool_name,
+                        "success": bool(result_payload.get("ok")),
+                        "result_summary": _mutation_result_summary(tool_name, result_payload),
+                        "error": result_payload.get("error"),
+                        "code": result_payload.get("code"),
+                    })
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
@@ -1166,7 +1299,7 @@ def _generate_assistant_reply(
         "output_tokens": total_output_tokens,
         "total_tokens": total_input_tokens + total_output_tokens,
     }
-    return reply, usage, executed_actions
+    return reply, usage, executed_actions, executed_mutations
 
 
 def _record_usage(session, usage, credits_charged):
@@ -1687,7 +1820,7 @@ def conversation_start():
     chat_history.append({"role": "user", "content": user_message, "timestamp": _iso_now()})
     readiness = _compute_readiness(chat_history)
     context_budget = get_context_budget(to_public_plan(user.subscription_plan))
-    assistant_reply, usage, actions = _generate_assistant_reply(
+    assistant_reply, usage, actions, mutations = _generate_assistant_reply(
         user_message,
         chat_history,
         readiness,
@@ -1731,6 +1864,8 @@ def conversation_start():
         "model_type": model_selection["model_type"],
         "allowed_model_types": model_selection["allowed_model_types"],
         "actions": actions if isinstance(actions, list) else [],
+        "mutations": mutations if isinstance(mutations, list) else [],
+        "tool_results": mutations if isinstance(mutations, list) else [],
         "usage": usage,
         "context_budget": context_budget,
         "credits": {
@@ -1846,7 +1981,7 @@ def conversation_continue():
     chat_history.append({"role": "user", "content": user_message, "timestamp": _iso_now()})
     readiness = _compute_readiness(chat_history)
     context_budget = get_context_budget(to_public_plan(user.subscription_plan))
-    assistant_reply, usage, actions = _generate_assistant_reply(
+    assistant_reply, usage, actions, mutations = _generate_assistant_reply(
         user_message,
         chat_history,
         readiness,
@@ -1889,6 +2024,8 @@ def conversation_continue():
         "model_type": model_selection["model_type"],
         "allowed_model_types": model_selection["allowed_model_types"],
         "actions": actions if isinstance(actions, list) else [],
+        "mutations": mutations if isinstance(mutations, list) else [],
+        "tool_results": mutations if isinstance(mutations, list) else [],
         "usage": usage,
         "context_budget": context_budget,
         "credits": {

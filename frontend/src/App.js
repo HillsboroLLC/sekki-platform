@@ -8,6 +8,7 @@ import './App.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './homeSections/ProtectedRoute';
 import RequireTeamAccess from './shared/auth/RequireTeamAccess';
+import RequireDashboardAccess from './shared/auth/RequireDashboardAccess';
 import { AppShell } from './jaspenInterface/layout';
 
 // Shared
@@ -100,7 +101,9 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              {withShell(<Dashboard />, { showHeader: false, fullBleed: true, noPadding: true })}
+              <RequireDashboardAccess>
+                {withShell(<Dashboard />, { showHeader: false, fullBleed: true, noPadding: true })}
+              </RequireDashboardAccess>
             </ProtectedRoute>
           }
         />

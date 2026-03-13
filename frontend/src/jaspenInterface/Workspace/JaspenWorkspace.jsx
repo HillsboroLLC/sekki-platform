@@ -722,6 +722,13 @@ const refreshBundle = async (tid) => {
   const canUseScenarios = canUseTool('scenario_create', 'write');
   const canUseWbsWrite = canUseTool('wbs_write', 'write');
   const isGlobalAdmin = Boolean(user?.is_admin || billingStatus?.is_admin);
+  const userOrganizationPlanKey = String(user?.active_organization_plan_key || '').toLowerCase();
+  const canAccessDashboard =
+    isGlobalAdmin ||
+    ['team', 'enterprise'].includes(currentPlanKey) ||
+    ['team', 'enterprise'].includes(userOrganizationPlanKey) ||
+    Boolean(user?.can_access_team) ||
+    Boolean(user?.can_access_enterprise_admin);
   const canAccessTeamAdmin = isGlobalAdmin || Boolean(user?.can_access_team);
   const canAccessEnterpriseAdmin =
     isGlobalAdmin || Boolean(user?.can_access_enterprise_admin) || currentPlanKey === 'enterprise';
@@ -1603,10 +1610,12 @@ const refreshBundle = async (tid) => {
       <div className="jas-ud-scroll">
         <div className="jas-ud-section">
           <div className="jas-ud-section-label">Navigate</div>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/dashboard'); }}>
-            <FontAwesomeIcon icon={faListCheck} />
-            <span className="jas-ud-item-label">Dashboard</span>
-          </button>
+          {canAccessDashboard && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/dashboard'); }}>
+              <FontAwesomeIcon icon={faListCheck} />
+              <span className="jas-ud-item-label">Dashboard</span>
+            </button>
+          )}
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/new'); }}>
             <FontAwesomeIcon icon={faPlus} />
             <span className="jas-ud-item-label">New Project</span>
@@ -1635,6 +1644,12 @@ const refreshBundle = async (tid) => {
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
               <FontAwesomeIcon icon={faUser} />
               <span className="jas-ud-item-label">Team Admin</span>
+            </button>
+          )}
+          {canAccessEnterpriseAdmin && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
+              <FontAwesomeIcon icon={faGaugeHigh} />
+              <span className="jas-ud-item-label">Enterprise Admin</span>
             </button>
           )}
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/connectors-manage'); }}>
@@ -1682,12 +1697,6 @@ const refreshBundle = async (tid) => {
             <span className="jas-ud-item-label">Credits</span>
             <span className="jas-ud-item-badge">{billingLoading ? '...' : creditsBadge}</span>
           </button>
-          {canAccessEnterpriseAdmin && (
-            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
-              <FontAwesomeIcon icon={faGaugeHigh} />
-              <span className="jas-ud-item-label">Enterprise Admin</span>
-            </button>
-          )}
         </div>
 
         <div className="jas-ud-section">

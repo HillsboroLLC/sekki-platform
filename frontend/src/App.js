@@ -36,6 +36,7 @@ import PaymentPage   from './jaspenInterface/PaymentPage/PaymentPage';
 import JaspenAdmin   from './jaspenInterface/Admin/JaspenAdmin';
 import Knowledge     from './jaspenInterface/Knowledge/Knowledge';
 import Team          from './jaspenInterface/Team/Team';
+import EnterpriseAdmin from './jaspenInterface/EnterpriseAdmin/EnterpriseAdmin';
 
 // Jaspen.ai Workspace
 import JaspenWorkspace from './jaspenInterface/Workspace/JaspenWorkspace';
@@ -131,6 +132,19 @@ export default function App() {
             <ProtectedRoute>
               {withShell(<Team />, {
                 title: 'Team',
+                showHeader: false,
+                fullBleed: true,
+                noPadding: true,
+              })}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/enterprise-admin"
+          element={
+            <ProtectedRoute>
+              {withShell(<EnterpriseAdmin />, {
+                title: 'Enterprise Admin',
                 showHeader: false,
                 fullBleed: true,
                 noPadding: true,

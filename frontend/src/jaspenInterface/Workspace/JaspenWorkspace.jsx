@@ -777,6 +777,7 @@ const refreshBundle = async (tid) => {
     [connectorCatalog]
   );
   const isGlobalAdmin = Boolean(billingStatus?.is_admin);
+  const canAccessEnterpriseAdmin = isGlobalAdmin || currentPlanKey === 'enterprise';
   const monthlyCreditLimit = billingStatus?.monthly_credit_limit;
   const creditsRemaining = billingStatus?.credits_remaining;
   const monthlyCreditsUsed = billingStatus?.credits_used;
@@ -1590,6 +1591,11 @@ const refreshBundle = async (tid) => {
           <button type="button" onClick={() => { navigate('/team'); setAccountQuickMenuOpen(false); }}>
             Team
           </button>
+          {canAccessEnterpriseAdmin && (
+            <button type="button" onClick={() => { navigate('/enterprise-admin'); setAccountQuickMenuOpen(false); }}>
+              Enterprise Admin
+            </button>
+          )}
           <div
             className="jas-ud-submenu-wrap"
             ref={knowledgeSubmenuWrapRef}
@@ -1673,6 +1679,12 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faUser} />
             <span className="jas-ud-item-label">Team</span>
           </button>
+          {canAccessEnterpriseAdmin && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
+              <FontAwesomeIcon icon={faGaugeHigh} />
+              <span className="jas-ud-item-label">Enterprise Admin</span>
+            </button>
+          )}
         </div>
 
         <div className="jas-ud-section">

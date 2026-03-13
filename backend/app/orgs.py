@@ -72,6 +72,7 @@ _ROLE_ALIAS = {
     "teammate": ORG_ROLE_COLLABORATOR,
     "editor": ORG_ROLE_CREATOR,
 }
+_INVALID_SEAT_LIMIT = object()
 
 
 def utcnow():
@@ -104,8 +105,53 @@ def seat_policy_for_plan(plan_key):
     return TEAM_SEAT_POLICY.get(canonical, TEAM_SEAT_POLICY["essential"])
 
 
-def serialize_seat_policy(plan_key):
-    policy = seat_policy_for_plan(plan_key)
+def normalize_seat_limit_value(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if token in {"", "none", "null", "unlimited"}:
+            return None
+        value = token
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return _INVALID_SEAT_LIMIT
+    if parsed < 0:
+        return _INVALID_SEAT_LIMIT
+    return parsed
+
+
+def seat_policy_overrides_for_org(org):
+    if not isinstance(org, Organization):
+        return {}
+    raw = org.seat_policy_overrides if isinstance(org.seat_policy_overrides, dict) else {}
+    output = {}
+    for role in ORG_ROLES:
+        if role == ORG_ROLE_OWNER:
+            continue
+        if role not in raw:
+            continue
+        parsed = normalize_seat_limit_value(raw.get(role))
+        if parsed is _INVALID_SEAT_LIMIT:
+            continue
+        output[role] = parsed
+    return output
+
+
+def seat_policy_for_org(org):
+    if not isinstance(org, Organization):
+        return dict(seat_policy_for_plan(org))
+
+    policy = dict(seat_policy_for_plan(org.plan_key))
+    for role, limit in seat_policy_overrides_for_org(org).items():
+        policy[role] = limit
+    policy[ORG_ROLE_OWNER] = 1
+    return policy
+
+
+def serialize_seat_policy(plan_or_org):
+    policy = seat_policy_for_org(plan_or_org)
     output = {}
     for role in ORG_ROLES:
         limit = policy.get(role)
@@ -279,7 +325,7 @@ def build_seat_usage(org):
     )
     role_counts = {normalize_org_role(role): int(count or 0) for role, count in counts_query}
 
-    policy = seat_policy_for_plan(org.plan_key)
+    policy = seat_policy_for_org(org)
     usage = {}
     for role in ORG_ROLES:
         used = int(role_counts.get(role, 0))
@@ -296,7 +342,7 @@ def build_seat_usage(org):
 
 def role_has_capacity(org, role, exclude_member_id=None):
     role = normalize_org_role(role)
-    limit = seat_policy_for_plan(org.plan_key).get(role)
+    limit = seat_policy_for_org(org).get(role)
     if limit is None:
         return True
 
@@ -358,5 +404,6 @@ def org_payload(org):
         "slug": org.slug,
         "owner_user_id": org.owner_user_id,
         "plan_key": to_public_plan(org.plan_key),
-        "seat_policy": serialize_seat_policy(org.plan_key),
+        "seat_policy": serialize_seat_policy(org),
+        "seat_policy_overrides": seat_policy_overrides_for_org(org),
     }

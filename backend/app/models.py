@@ -138,6 +138,10 @@ class Organization(db.Model):
         default='free',
         index=True,
     )
+    seat_policy_overrides = db.Column(
+        db.JSON,
+        nullable=True,
+    )
     created_at = db.Column(
         db.DateTime,
         nullable=False,
@@ -157,6 +161,7 @@ class Organization(db.Model):
             'slug': self.slug,
             'owner_user_id': self.owner_user_id,
             'plan_key': self.plan_key,
+            'seat_policy_overrides': self.seat_policy_overrides if isinstance(self.seat_policy_overrides, dict) else {},
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

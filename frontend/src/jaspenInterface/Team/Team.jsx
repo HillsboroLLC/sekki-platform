@@ -6,6 +6,7 @@ import './Team.css';
 const ROLE_OPTIONS = ['owner', 'admin', 'creator', 'collaborator', 'viewer'];
 const INVITE_ROLE_OPTIONS = ['admin', 'creator', 'collaborator', 'viewer'];
 const VISIBILITY_OPTIONS = ['private', 'team', 'specific'];
+const SEAT_EDITABLE_ROLES = ROLE_OPTIONS.filter((role) => role !== 'owner');
 const PREVIEW_ROLE_ACTUAL = '__actual__';
 const MANAGE_ROLE_SET = new Set(['owner', 'admin']);
 const EDIT_ROLE_SET = new Set(['owner', 'admin', 'creator', 'collaborator']);
@@ -56,7 +57,21 @@ function normalizeCsvIds(value) {
   return [...new Set(values)];
 }
 
-export default function Team() {
+function buildSeatDraft(organization) {
+  const policy = organization?.seat_policy || {};
+  const next = {};
+  SEAT_EDITABLE_ROLES.forEach((role) => {
+    const row = policy?.[role] || {};
+    const unlimited = Boolean(row?.is_unlimited || row?.limit == null);
+    next[role] = {
+      mode: unlimited ? 'unlimited' : 'limited',
+      limit: unlimited ? '' : String(row?.limit ?? ''),
+    };
+  });
+  return next;
+}
+
+export default function Team({ mode = 'team' }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -74,14 +89,23 @@ export default function Team() {
   const [sharingDrafts, setSharingDrafts] = useState({});
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
   const [previewRole, setPreviewRole] = useState(PREVIEW_ROLE_ACTUAL);
+  const [seatDraft, setSeatDraft] = useState({});
+  const [savedSeatDraft, setSavedSeatDraft] = useState({});
 
   const actualRole = String(summary?.membership?.role || 'viewer');
   const previewModeActive = Boolean(isGlobalAdmin && previewRole !== PREVIEW_ROLE_ACTUAL);
   const effectiveRole = previewModeActive ? previewRole : actualRole;
   const canManageMembers = MANAGE_ROLE_SET.has(effectiveRole);
   const canEditProjects = EDIT_ROLE_SET.has(effectiveRole);
+  const isEnterpriseMode = String(mode || '').toLowerCase() === 'enterprise';
   const activeOrg = summary?.organization || null;
+  const activeOrgPlanKey = String(activeOrg?.plan_key || '').toLowerCase();
+  const canAccessEnterpriseView = isGlobalAdmin || activeOrgPlanKey === 'enterprise';
   const seatUsage = summary?.seat_usage || {};
+  const seatDraftDirty = useMemo(
+    () => JSON.stringify(seatDraft || {}) !== JSON.stringify(savedSeatDraft || {}),
+    [seatDraft, savedSeatDraft]
+  );
 
   const memberIdSet = useMemo(
     () => new Set((members || []).map((member) => String(member?.user_id || ''))),
@@ -102,6 +126,9 @@ export default function Team() {
       const adminCapsData = await teamFetch('/api/admin/capabilities').catch(() => ({}));
 
       setSummary(summaryData || null);
+      const nextSeatDraft = buildSeatDraft(summaryData?.organization || null);
+      setSeatDraft(nextSeatDraft);
+      setSavedSeatDraft(nextSeatDraft);
       setMembers(Array.isArray(membersData?.members) ? membersData.members : []);
       setInvitations(Array.isArray(invitationsData?.invitations) ? invitationsData.invitations : []);
       setOrganizations(Array.isArray(organizationsData?.organizations) ? organizationsData.organizations : []);
@@ -269,6 +296,84 @@ export default function Team() {
     }));
   };
 
+  const onSeatModeChange = (role, nextMode) => {
+    if (!SEAT_EDITABLE_ROLES.includes(role)) return;
+    setSeatDraft((prev) => ({
+      ...prev,
+      [role]: {
+        mode: nextMode === 'limited' ? 'limited' : 'unlimited',
+        limit: nextMode === 'limited'
+          ? (prev?.[role]?.limit || String((seatUsage?.[role]?.used ?? 1)))
+          : '',
+      },
+    }));
+  };
+
+  const onSeatLimitChange = (role, nextLimit) => {
+    if (!SEAT_EDITABLE_ROLES.includes(role)) return;
+    setSeatDraft((prev) => ({
+      ...prev,
+      [role]: {
+        mode: prev?.[role]?.mode === 'limited' ? 'limited' : 'limited',
+        limit: nextLimit,
+      },
+    }));
+  };
+
+  const onResetSeatPolicy = async () => {
+    if (!canManageMembers || previewModeActive) return;
+    setBusy(true);
+    setNotice('');
+    setError('');
+    try {
+      await teamFetch('/api/team/seat-policy', {
+        method: 'PATCH',
+        body: JSON.stringify({ seat_policy_overrides: {} }),
+      });
+      await loadAll();
+      setNotice('Seat policy reset to plan defaults.');
+    } catch (err) {
+      setError(err?.message || 'Failed to reset seat policy');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onSaveSeatPolicy = async () => {
+    if (!canManageMembers || previewModeActive) return;
+
+    const payload = {};
+    for (const role of SEAT_EDITABLE_ROLES) {
+      const draft = seatDraft?.[role] || {};
+      if (draft.mode !== 'limited') {
+        payload[role] = null;
+        continue;
+      }
+      const next = Number.parseInt(String(draft.limit || '').trim(), 10);
+      if (!Number.isFinite(next) || next < 0) {
+        setError(`Seat limit for ${role} must be a non-negative integer.`);
+        return;
+      }
+      payload[role] = next;
+    }
+
+    setBusy(true);
+    setNotice('');
+    setError('');
+    try {
+      await teamFetch('/api/team/seat-policy', {
+        method: 'PATCH',
+        body: JSON.stringify({ seat_policy_overrides: payload }),
+      });
+      await loadAll();
+      setNotice('Seat policy updated.');
+    } catch (err) {
+      setError(err?.message || 'Failed to update seat policy');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onSaveSharing = async (sessionId) => {
     if (!canEditProjects || previewModeActive) return;
     const draft = sharingDrafts?.[sessionId] || {};
@@ -309,8 +414,12 @@ export default function Team() {
 
       <header className="team-header">
         <div>
-          <h1>Team</h1>
-          <p>Manage members, invitations, role capacity, and shared project visibility.</p>
+          <h1>{isEnterpriseMode ? 'Enterprise Admin' : 'Team'}</h1>
+          <p>
+            {isEnterpriseMode
+              ? 'Manage enterprise role capacity, members, invitations, and shared project visibility.'
+              : 'Manage members, invitations, role capacity, and shared project visibility.'}
+          </p>
         </div>
         <div className="team-header-actions">
           <label className="team-inline-field">
@@ -357,9 +466,38 @@ export default function Team() {
         </div>
       )}
 
+      {isEnterpriseMode && !canAccessEnterpriseView && (
+        <div className="team-state error">
+          Enterprise Admin requires an Enterprise organization. Switch to an Enterprise org or upgrade in Billing.
+        </div>
+      )}
+
+      {canManageMembers && (
+        <div className="team-seat-actions">
+          <button
+            type="button"
+            className="team-btn"
+            onClick={onSaveSeatPolicy}
+            disabled={busy || previewModeActive || !seatDraftDirty || (isEnterpriseMode && !canAccessEnterpriseView)}
+          >
+            Save seat policy
+          </button>
+          <button
+            type="button"
+            className="team-btn ghost"
+            onClick={onResetSeatPolicy}
+            disabled={busy || previewModeActive || (isEnterpriseMode && !canAccessEnterpriseView)}
+          >
+            Reset to plan defaults
+          </button>
+        </div>
+      )}
+
       <section className="team-seat-grid">
         {ROLE_OPTIONS.map((role) => {
           const row = seatUsage?.[role] || {};
+          const draft = seatDraft?.[role] || {};
+          const canEditSeatRole = canManageMembers && role !== 'owner';
           return (
             <article key={role} className="team-seat-card">
               <h3>{row?.label || role}</h3>
@@ -369,6 +507,28 @@ export default function Team() {
               <p className="team-seat-sub">
                 {row?.is_unlimited ? 'No cap for this role' : `${row?.available ?? 0} seats remaining`}
               </p>
+              {canEditSeatRole && (
+                <div className="team-seat-editor">
+                  <select
+                    value={draft?.mode || 'unlimited'}
+                    onChange={(event) => onSeatModeChange(role, event.target.value)}
+                    disabled={busy || previewModeActive || (isEnterpriseMode && !canAccessEnterpriseView)}
+                  >
+                    <option value="unlimited">Unlimited</option>
+                    <option value="limited">Custom cap</option>
+                  </select>
+                  {draft?.mode === 'limited' && (
+                    <input
+                      type="number"
+                      min={Math.max(0, Number(row?.used || 0))}
+                      value={draft?.limit || ''}
+                      onChange={(event) => onSeatLimitChange(role, event.target.value)}
+                      disabled={busy || previewModeActive || (isEnterpriseMode && !canAccessEnterpriseView)}
+                      placeholder={`Min ${Math.max(0, Number(row?.used || 0))}`}
+                    />
+                  )}
+                </div>
+              )}
             </article>
           );
         })}

@@ -52,6 +52,13 @@
   margin-bottom: 16px;
 }
 
+.team-seat-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .team-seat-card {
   background: #fff;
   border: 1px solid var(--jas-border);
@@ -74,6 +81,13 @@
   margin: 0;
   color: var(--jas-gray-500);
   font-size: 0.78rem;
+}
+
+.team-seat-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .team-layout {
@@ -265,5 +279,10 @@
 
   .team-invite-form {
     grid-template-columns: 1fr;
+  }
+
+  .team-seat-actions {
+    justify-content: stretch;
+    flex-direction: column;
   }
 }

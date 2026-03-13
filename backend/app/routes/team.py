@@ -17,11 +17,13 @@ from app.orgs import (
     invitation_is_expired,
     invitation_payload,
     new_invitation_expiry,
+    normalize_seat_limit_value,
     normalize_org_role,
     org_payload,
     resolve_active_org_for_user,
     role_has_capacity,
     role_label,
+    seat_policy_overrides_for_org,
     touch_member_activity,
 )
 from app.models import Organization, OrganizationInvitation, OrganizationMember, User, UserSession
@@ -33,6 +35,35 @@ PROJECT_VISIBILITY_VALUES = {"private", "team", "specific"}
 
 def _now_iso():
     return datetime.utcnow().isoformat()
+
+
+def _normalized_role_key(value):
+    key = str(value or "").strip().lower()
+    return key if key in ORG_ROLES else None
+
+
+def _parse_seat_overrides(raw_overrides, used_by_role):
+    if not isinstance(raw_overrides, dict):
+        return None, "seat_policy_overrides must be an object keyed by role"
+
+    normalized = {}
+    for raw_role, raw_limit in raw_overrides.items():
+        role = _normalized_role_key(raw_role)
+        if not role:
+            return None, f"Unknown role '{raw_role}'"
+        if role == ORG_ROLE_OWNER:
+            return None, "Owner seat limit is fixed and cannot be edited"
+
+        parsed = normalize_seat_limit_value(raw_limit)
+        if parsed is not None and not isinstance(parsed, int):
+            return None, f"Seat limit for '{role}' must be a non-negative integer or null"
+
+        used = int(used_by_role.get(role, 0))
+        if parsed is not None and parsed < used:
+            return None, f"Seat limit for '{role}' cannot be lower than current usage ({used})"
+
+        normalized[role] = parsed
+    return normalized, None
 
 
 def _auth_context():
@@ -171,6 +202,37 @@ def team_summary():
             "can_manage_members": can_manage_org(membership.role),
         },
         "timestamp": _now_iso(),
+    }), 200
+
+
+@team_bp.route("/seat-policy", methods=["PATCH"])
+@jwt_required()
+def update_seat_policy():
+    _, org, membership, error = _auth_context()
+    if error:
+        return error
+    if not can_manage_org(membership.role):
+        return jsonify({"error": "Only org owners/admins can update seat policy"}), 403
+
+    data = request.get_json() or {}
+    raw_overrides = data.get("seat_policy_overrides")
+    if raw_overrides is None:
+        return jsonify({"error": "seat_policy_overrides is required"}), 400
+
+    usage = build_seat_usage(org)
+    used_by_role = {role: int((usage.get(role) or {}).get("used") or 0) for role in ORG_ROLES}
+    parsed, parse_error = _parse_seat_overrides(raw_overrides, used_by_role)
+    if parse_error:
+        return jsonify({"error": parse_error}), 400
+
+    org.seat_policy_overrides = parsed or None
+    touch_member_activity(membership)
+
+    return jsonify({
+        "success": True,
+        "organization": org_payload(org),
+        "seat_usage": build_seat_usage(org),
+        "seat_policy_overrides": seat_policy_overrides_for_org(org),
     }), 200
 
 

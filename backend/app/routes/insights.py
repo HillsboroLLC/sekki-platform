@@ -7,7 +7,7 @@ import re
 import uuid
 from datetime import datetime
 
-import openai
+import anthropic
 import pandas as pd
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -175,8 +175,19 @@ def _heuristic_analysis(summary, question=''):
 
 
 def _llm_analysis(summary, question=''):
-    api_key = current_app.config.get('OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
-    model_name = current_app.config.get('AI_DATA_INSIGHTS_MODEL') or os.getenv('AI_DATA_INSIGHTS_MODEL') or 'gpt-4o-mini'
+    api_key = (
+        current_app.config.get('ANTHROPIC_API_KEY')
+        or current_app.config.get('CLAUDE_API_KEY')
+        or os.getenv('ANTHROPIC_API_KEY')
+        or os.getenv('CLAUDE_API_KEY')
+    )
+    model_name = (
+        current_app.config.get('AI_DATA_INSIGHTS_MODEL')
+        or os.getenv('AI_DATA_INSIGHTS_MODEL')
+        or current_app.config.get('AI_AGENT_ANTHROPIC_MODEL')
+        or os.getenv('AI_AGENT_ANTHROPIC_MODEL')
+        or 'claude-3-7-sonnet-latest'
+    )
     if not api_key:
         return _heuristic_analysis(summary, question)
 
@@ -211,20 +222,21 @@ Return strict JSON with this shape:
 """.strip()
 
     try:
-        client = openai.OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
             model=model_name,
             temperature=0.2,
             max_tokens=1200,
-            messages=[
-                {
-                    'role': 'system',
-                    'content': 'You are a concise analytics assistant. Return JSON only.',
-                },
-                {'role': 'user', 'content': prompt},
-            ],
+            system='You are a concise analytics assistant. Return JSON only.',
+            messages=[{'role': 'user', 'content': prompt}],
         )
-        payload = _extract_json_object(response.choices[0].message.content)
+        text_parts = []
+        for block in getattr(response, 'content', []) or []:
+            if getattr(block, 'type', None) == 'text':
+                text = str(getattr(block, 'text', '') or '').strip()
+                if text:
+                    text_parts.append(text)
+        payload = _extract_json_object('\n'.join(text_parts))
         if not isinstance(payload, dict):
             raise ValueError('Invalid analysis response')
 

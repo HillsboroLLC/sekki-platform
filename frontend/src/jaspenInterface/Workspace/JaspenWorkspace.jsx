@@ -5474,18 +5474,18 @@ setView(id === 'chat' ? 'intake' : id);
 
             {activeTab === 'chat' && (
               <div className="jas-chat-tab">
-                <div className="chatgpt-content">
-                  <div className="chatgpt-messages">
+                <div className="agent-chat-content">
+                  <div className="agent-chat-messages">
                     {error && (
-                      <div className="chatgpt-error">
+                      <div className="agent-chat-error">
                         <FontAwesomeIcon icon={faExclamationTriangle} />
                         <span>{error}</span>
                       </div>
                     )}
 
-                    <div className="chatgpt-conversation">
+                    <div className="agent-chat-conversation">
                       {messages.map((m, idx) => (
-                        <div key={idx} className={`chatgpt-message ${m.role === 'ai' ? 'ai' : 'user'}`}>
+                        <div key={idx} className={`agent-chat-message ${m.role === 'ai' ? 'ai' : 'user'}`}>
                           <div className="message-content">{m.text}</div>
 
                           {Array.isArray(m.attachments) && m.attachments.length > 0 && (
@@ -5532,7 +5532,7 @@ setView(id === 'chat' ? 'intake' : id);
                     </div>
                   </div>
 
-                  <div className="chatgpt-input-area">
+                  <div className="agent-chat-input-area">
                     <input
                       ref={fileInputRef}
                       id="jas-file-input"
@@ -5563,23 +5563,23 @@ setView(id === 'chat' ? 'intake' : id);
                       </div>
                     )}
 
-                    <div className="chatgpt-input-container">
+                    <div className="agent-chat-input-container">
                       <textarea
                         ref={chatTabInputRef}
                         value={input}
                         onChange={handleComposerInputChange}
                         onKeyDown={onKey}
                         placeholder="Refine the conversation to improve your scorecard..."
-                        className="chatgpt-input"
+                        className="agent-chat-input"
                         rows={2}
                         disabled={busy}
                       />
 
-                      <div className="chatgpt-input-toolbar">
-                        <div className="chatgpt-input-left-controls">
+                      <div className="agent-chat-input-toolbar">
+                        <div className="agent-chat-input-left-controls">
                           <button
                             type="button"
-                            className="chatgpt-plus"
+                            className="agent-chat-plus"
                             aria-label="Attach files"
                             title="Attach files"
                             disabled={busy}
@@ -5591,10 +5591,10 @@ setView(id === 'chat' ? 'intake' : id);
                           {renderSelectedObjectivePill()}
                         </div>
 
-                        <div className="chatgpt-input-right-controls">
+                        <div className="agent-chat-input-right-controls">
                           <button
                             type="button"
-                            className={`chatgpt-mic ${isRecording ? 'is-recording' : ''}`}
+                            className={`agent-chat-mic ${isRecording ? 'is-recording' : ''}`}
                             aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                             aria-pressed={isRecording}
                             title={isRecording ? 'Stop recording' : 'Start recording'}
@@ -5605,7 +5605,7 @@ setView(id === 'chat' ? 'intake' : id);
                           </button>
 
                           <button
-                            className="chatgpt-send"
+                            className="agent-chat-send"
                             onClick={onSubmit}
                             disabled={busy || (!input.trim() && pendingFiles.length === 0)}
                             title="Send"
@@ -5616,10 +5616,10 @@ setView(id === 'chat' ? 'intake' : id);
                       </div>
                     </div>
 
-                    {renderObjectiveTags('chatgpt-objective-tags')}
+                    {renderObjectiveTags('agent-chat-objective-tags')}
 
                     {sessionId && hasConversationMessages && (
-                      <div className="chatgpt-footer">
+                      <div className="agent-chat-footer">
                         <div className="progress-indicator">
                           <div className="progress-bar-container">
                             <div className="progress-bar-fill" style={{ width: `${uiReadiness}%` }}></div>
@@ -5715,7 +5715,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
   return (
     <div className={`jas jas-shell ${intakeShellOpen ? 'drawer-open' : ''}`}>
       <main className="jas-main">
-        <div className="chatgpt-interface">
+        <div className="agent-chat-interface">
       {busy && (
         <div className="thinking-overlay">
           <div className="thinking-content">
@@ -6010,7 +6010,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
         ) : (
           <div className="jas-messages">
             {error && (
-              <div className="chatgpt-error">
+              <div className="agent-chat-error">
                 <FontAwesomeIcon icon={faExclamationTriangle} />
                 <span>{error}</span>
               </div>
@@ -6108,7 +6108,7 @@ onResultC={(res) => { setResultC(res); setSelectedVariantId('scenarioC'); }}
           {renderObjectiveTags('jas-chat-objective-tags')}
 
           {sessionId && hasConversationMessages && (
-            <div className="chatgpt-footer">
+            <div className="agent-chat-footer">
               <div className="progress-indicator">
                 <div className="progress-bar-container">
                   <div className="progress-bar-fill" style={{ width: `${uiReadiness}%` }}></div>

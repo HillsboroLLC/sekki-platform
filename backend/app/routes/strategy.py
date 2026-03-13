@@ -1,12 +1,13 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-import openai
+import anthropic
 import json
 import os
 import re
 import time
 from datetime import datetime, timedelta
 import uuid
+from types import SimpleNamespace
 from app import db
 from app.models import User
 from app.billing_config import (
@@ -190,10 +191,105 @@ def _scores_analysis_entries(session, thread_id):
         }]
     return []
 
-# Set OpenAI API key from config
-def get_openai_client():
-    openai.api_key = current_app.config['OPENAI_API_KEY']
-    return openai
+def _anthropic_api_key():
+    return (
+        current_app.config.get('ANTHROPIC_API_KEY')
+        or current_app.config.get('CLAUDE_API_KEY')
+        or os.getenv('ANTHROPIC_API_KEY')
+        or os.getenv('CLAUDE_API_KEY')
+    )
+
+
+def _anthropic_model_candidates(preferred_model=None):
+    configured = (
+        preferred_model,
+        current_app.config.get('AI_AGENT_ANTHROPIC_MODEL'),
+        os.getenv('AI_AGENT_ANTHROPIC_MODEL'),
+    )
+    fallbacks = (
+        'claude-3-7-sonnet-latest',
+        'claude-3-7-sonnet-20250219',
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-haiku-latest',
+    )
+    seen = set()
+    out = []
+    for model_name in [*configured, *fallbacks]:
+        cleaned = str(model_name or '').strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        out.append(cleaned)
+    return out
+
+
+class _AnthropicCompatClient:
+    def __init__(self, api_key):
+        self._client = anthropic.Anthropic(api_key=api_key)
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, model=None, messages=None, max_tokens=800, temperature=0.2, **_kwargs):
+        prompt_messages = messages if isinstance(messages, list) else []
+        system_parts = []
+        turn_messages = []
+        for msg in prompt_messages:
+            if not isinstance(msg, dict):
+                continue
+            role = str(msg.get('role') or '').strip().lower()
+            content = str(msg.get('content') or '').strip()
+            if not content:
+                continue
+            if role == 'system':
+                system_parts.append(content)
+                continue
+            if role in {'user', 'assistant'}:
+                turn_messages.append({'role': role, 'content': content})
+        if not turn_messages:
+            turn_messages = [{'role': 'user', 'content': ''}]
+
+        last_error = None
+        for candidate in _anthropic_model_candidates(model):
+            try:
+                response = self._client.messages.create(
+                    model=candidate,
+                    system='\n'.join(system_parts).strip() or None,
+                    messages=turn_messages,
+                    max_tokens=max(64, int(max_tokens or 800)),
+                    temperature=float(temperature if temperature is not None else 0.2),
+                )
+                text_parts = []
+                for block in getattr(response, 'content', []) or []:
+                    if getattr(block, 'type', None) == 'text':
+                        txt = str(getattr(block, 'text', '') or '')
+                        if txt:
+                            text_parts.append(txt)
+                text = '\n'.join(text_parts).strip()
+                usage = getattr(response, 'usage', None)
+                prompt_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
+                completion_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
+                total_tokens = prompt_tokens + completion_tokens
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content=text))],
+                    usage=SimpleNamespace(
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                    ),
+                    model=candidate,
+                )
+            except Exception as exc:
+                last_error = exc
+                continue
+        if last_error:
+            raise last_error
+        raise RuntimeError('No valid Anthropic model candidates configured')
+
+
+def get_llm_client():
+    api_key = _anthropic_api_key()
+    if not api_key:
+        raise RuntimeError('ANTHROPIC_API_KEY not set in environment')
+    return _AnthropicCompatClient(api_key)
 
 
 def _extract_json_object(text):
@@ -203,7 +299,7 @@ def _extract_json_object(text):
     except json.JSONDecodeError:
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
         if not json_match:
-            raise ValueError("Could not parse JSON from OpenAI response")
+            raise ValueError("Could not parse JSON from LLM response")
         return json.loads(json_match.group())
 
 
@@ -520,7 +616,7 @@ def analyze_project():
         if model_error:
             return jsonify(model_error), 403
 
-        client = get_openai_client()
+        client = get_llm_client()
         analysis_result = _generate_jaspen_scorecard(
             client,
             effective_description,
@@ -699,8 +795,8 @@ def chat_with_analysis():
         if model_error:
             return jsonify(model_error), 403
         
-        # Initialize OpenAI
-        client = get_openai_client()
+        # Initialize Anthropic-backed LLM client
+        client = get_llm_client()
         
         # Create context from analysis
         context_prompt = f"""
@@ -722,7 +818,7 @@ Provide a detailed, helpful response that:
 Keep responses concise but comprehensive (2-3 paragraphs maximum).
 """
 
-        # Call OpenAI API
+        # Call LLM API
         response = client.chat.completions.create(
             model=model_selection['llm_model'],
             messages=[
@@ -2174,7 +2270,7 @@ def create_ai_scenario(thread_id):
                 },
             }
         else:
-            client = get_openai_client()
+            client = get_llm_client()
             suggestion = _generate_ai_scenario_suggestion(
                 client,
                 model_selection['llm_model'],
@@ -2339,7 +2435,7 @@ def generate_ai_wbs(thread_id):
         if not isinstance(current_scorecard, dict):
             return jsonify({'error': 'No scorecard context found for this thread.'}), 404
 
-        client = get_openai_client()
+        client = get_llm_client()
         raw_wbs = _generate_ai_wbs_suggestion(
             client,
             model_selection['llm_model'],

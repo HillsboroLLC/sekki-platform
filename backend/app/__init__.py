@@ -71,8 +71,7 @@ def create_app():
         STRIPE_SECRET_KEY              = os.getenv('STRIPE_SECRET_KEY'),
         STRIPE_WEBHOOK_SECRET          = os.getenv('STRIPE_WEBHOOK_SECRET'),
 
-        # OpenAI / Claude
-        OPENAI_API_KEY                 = os.getenv('OPENAI_API_KEY'),
+        # Anthropic
         ANTHROPIC_API_KEY              = os.getenv('ANTHROPIC_API_KEY') or os.getenv('CLAUDE_API_KEY'),
         # Backward-compatible alias for old references.
         CLAUDE_API_KEY                 = os.getenv('CLAUDE_API_KEY') or os.getenv('ANTHROPIC_API_KEY'),
@@ -121,11 +120,11 @@ def create_app():
         'pack_20000':      os.getenv('PRICE_ID_OVERAGE_20000'),
     }
     app.config['MODEL_TYPE_BACKING_IDS'] = {
-        'pluto': os.getenv('MODEL_PLUTO_ID') or os.getenv('OPENAI_MODEL_PLUTO') or 'gpt-4o-mini',
-        'orbit': os.getenv('MODEL_ORBIT_ID') or os.getenv('OPENAI_MODEL_ORBIT') or 'gpt-4o',
-        'titan': os.getenv('MODEL_TITAN_ID') or os.getenv('OPENAI_MODEL_TITAN') or 'gpt-4',
+        'pluto': os.getenv('MODEL_PLUTO_ID') or os.getenv('ANTHROPIC_MODEL_PLUTO') or 'claude-3-5-haiku-latest',
+        'orbit': os.getenv('MODEL_ORBIT_ID') or os.getenv('ANTHROPIC_MODEL_ORBIT') or 'claude-3-7-sonnet-latest',
+        'titan': os.getenv('MODEL_TITAN_ID') or os.getenv('ANTHROPIC_MODEL_TITAN') or 'claude-3-7-sonnet-latest',
     }
-    app.config['AI_AGENT_ANTHROPIC_MODEL'] = os.getenv('AI_AGENT_ANTHROPIC_MODEL') or 'claude-3-5-sonnet-latest'
+    app.config['AI_AGENT_ANTHROPIC_MODEL'] = os.getenv('AI_AGENT_ANTHROPIC_MODEL') or 'claude-3-7-sonnet-latest'
     app.config['AI_AGENT_MAX_OUTPUT_TOKENS'] = int(os.getenv('AI_AGENT_MAX_OUTPUT_TOKENS', '260'))
     app.config['AI_AGENT_TEMPERATURE'] = float(os.getenv('AI_AGENT_TEMPERATURE', '0.2'))
     app.config['AI_AGENT_CREDITS_PER_1K_TOKENS'] = float(os.getenv('AI_AGENT_CREDITS_PER_1K_TOKENS', '1.0'))

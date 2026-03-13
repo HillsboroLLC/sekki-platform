@@ -92,21 +92,21 @@ DEFAULT_MODEL_CATALOG = {
         'version': '1.0',
         'description': 'Fastest model for core intake and scorecard workflows.',
         'min_plan': 'free',
-        'default_llm_model': 'gpt-4o-mini',
+        'default_llm_model': 'claude-3-5-haiku-latest',
     },
     'orbit': {
         'label': 'Orbit',
         'version': '1.0',
         'description': 'Balanced depth and speed for broader cross-functional synthesis.',
         'min_plan': 'team',
-        'default_llm_model': 'gpt-4o',
+        'default_llm_model': 'claude-3-7-sonnet-latest',
     },
     'titan': {
         'label': 'Titan',
         'version': '1.0',
         'description': 'Highest-depth reasoning for complex multi-team initiatives.',
         'min_plan': 'enterprise',
-        'default_llm_model': 'gpt-4',
+        'default_llm_model': 'claude-3-7-sonnet-latest',
     },
 }
 

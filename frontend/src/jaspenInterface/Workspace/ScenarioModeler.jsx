@@ -769,7 +769,7 @@ if (label === 'Scenario B') onResultB?.(snapshot);
     setResultB(null);
   }
 
-  function openAiSuggest() {
+  function aiScenarioSuggest() {
     setAiSuggestError('');
     setAiSuggestDraft(null);
     setAiSuggestPrompt('');
@@ -914,7 +914,7 @@ if (label === 'Scenario B') onResultB?.(snapshot);
         <Button variant="outline" icon="fa-solid fa-rotate-left" onClick={resetAllToBaseline} disabled={busy}>
           Reset All to Baseline
         </Button>
-        <Button variant="outline" icon="fa-solid fa-wand-magic-sparkles" onClick={openAiSuggest} disabled={busy || aiSuggestBusy || !threadId}>
+        <Button variant="outline" icon="fa-solid fa-wand-magic-sparkles" onClick={aiScenarioSuggest} disabled={busy || aiSuggestBusy || !threadId}>
           AI Suggest
         </Button>
         <Button variant="primary" icon="fa-solid fa-play" onClick={runAllScenarios} disabled={busy}>

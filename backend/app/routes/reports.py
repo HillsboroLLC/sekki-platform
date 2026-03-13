@@ -6,7 +6,7 @@ import textwrap
 import uuid
 from datetime import datetime
 
-import openai
+import anthropic
 from flask import Blueprint, current_app, jsonify, request, send_file
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -151,8 +151,19 @@ def _fallback_markdown(report_type, analysis):
 
 
 def _llm_report_markdown(report_type, analysis):
-    api_key = current_app.config.get('OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
-    model_name = current_app.config.get('AI_REPORT_MODEL') or os.getenv('AI_REPORT_MODEL') or 'gpt-4o-mini'
+    api_key = (
+        current_app.config.get('ANTHROPIC_API_KEY')
+        or current_app.config.get('CLAUDE_API_KEY')
+        or os.getenv('ANTHROPIC_API_KEY')
+        or os.getenv('CLAUDE_API_KEY')
+    )
+    model_name = (
+        current_app.config.get('AI_REPORT_MODEL')
+        or os.getenv('AI_REPORT_MODEL')
+        or current_app.config.get('AI_AGENT_ANTHROPIC_MODEL')
+        or os.getenv('AI_AGENT_ANTHROPIC_MODEL')
+        or 'claude-3-7-sonnet-latest'
+    )
     if not api_key:
         return _fallback_markdown(report_type, analysis)
 
@@ -174,17 +185,21 @@ Output requirements:
 """.strip()
 
     try:
-        client = openai.OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
             model=model_name,
             temperature=0.2,
             max_tokens=1800,
-            messages=[
-                {'role': 'system', 'content': 'You are a strategy reporting assistant. Return markdown only.'},
-                {'role': 'user', 'content': prompt},
-            ],
+            system='You are a strategy reporting assistant. Return markdown only.',
+            messages=[{'role': 'user', 'content': prompt}],
         )
-        content = _safe_text(response.choices[0].message.content, max_len=20000)
+        text_parts = []
+        for block in getattr(response, 'content', []) or []:
+            if getattr(block, 'type', None) == 'text':
+                text = str(getattr(block, 'text', '') or '').strip()
+                if text:
+                    text_parts.append(text)
+        content = _safe_text('\n'.join(text_parts), max_len=20000)
         return content or _fallback_markdown(report_type, analysis)
     except Exception:
         return _fallback_markdown(report_type, analysis)

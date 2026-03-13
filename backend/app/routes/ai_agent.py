@@ -4,7 +4,6 @@ from datetime import datetime
 import io
 import json
 import math
-import openai
 import os
 import re
 import uuid
@@ -705,7 +704,7 @@ def _anthropic_model_for_selection(model_selection):
     return str(
         current_app.config.get("AI_AGENT_ANTHROPIC_MODEL")
         or os.getenv("AI_AGENT_ANTHROPIC_MODEL")
-        or "claude-3-5-sonnet-latest"
+        or "claude-3-7-sonnet-latest"
     ).strip()
 
 
@@ -1212,70 +1211,7 @@ def _generate_assistant_reply(
     executed_mutations = []
     tool_confirmations = []
 
-    response = client.messages.create(
-        model=model_name,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        system=system_prompt,
-        tools=tools,
-        messages=messages,
-    )
-    total_input_tokens += int(getattr(getattr(response, "usage", None), "input_tokens", 0) or 0)
-    total_output_tokens += int(getattr(getattr(response, "usage", None), "output_tokens", 0) or 0)
-
-    # Tool loop: allow Claude to call local readiness/data-contract tools.
-    for _ in range(3):
-        tool_blocks = [b for b in (response.content or []) if getattr(b, "type", None) == "tool_use" or (isinstance(b, dict) and b.get("type") == "tool_use")]
-        if not tool_blocks:
-            break
-
-        tool_results = []
-        for block in tool_blocks:
-            if isinstance(block, dict):
-                tool_name = str(block.get("name") or "").strip()
-                tool_use_id = block.get("id")
-                tool_input = block.get("input") if isinstance(block.get("input"), dict) else {}
-            else:
-                tool_name = str(getattr(block, "name", "") or "").strip()
-                tool_use_id = getattr(block, "id", None)
-                raw_input = getattr(block, "input", None)
-                tool_input = raw_input if isinstance(raw_input, dict) else {}
-
-            if tool_name in {"get_readiness_snapshot", "get_data_contract"}:
-                result_payload = _anthropic_tool_output(tool_name, readiness)
-            else:
-                result_payload = _execute_mutation_tool(
-                    tool_name,
-                    tool_input,
-                    user=user,
-                    user_id=user_id,
-                    thread_id=thread_id,
-                )
-                if isinstance(result_payload, dict) and result_payload.get("ok"):
-                    confirmation = str(result_payload.get("confirmation") or "").strip()
-                    if confirmation:
-                        tool_confirmations.append(confirmation)
-                if isinstance(result_payload, dict):
-                    executed_actions.append({
-                        "tool": tool_name,
-                        "input": tool_input,
-                        "result": result_payload,
-                    })
-                    executed_mutations.append({
-                        "tool": tool_name,
-                        "success": bool(result_payload.get("ok")),
-                        "result_summary": _mutation_result_summary(tool_name, result_payload),
-                        "error": result_payload.get("error"),
-                        "code": result_payload.get("code"),
-                    })
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": json.dumps(result_payload),
-            })
-
-        messages.append({"role": "assistant", "content": _anthropic_content_to_dicts(response.content)})
-        messages.append({"role": "user", "content": tool_results})
+    try:
         response = client.messages.create(
             model=model_name,
             max_tokens=max_tokens,
@@ -1287,19 +1223,86 @@ def _generate_assistant_reply(
         total_input_tokens += int(getattr(getattr(response, "usage", None), "input_tokens", 0) or 0)
         total_output_tokens += int(getattr(getattr(response, "usage", None), "output_tokens", 0) or 0)
 
-    reply = _anthropic_text(response.content) or fallback_reply
-    if tool_confirmations:
-        confirmations_text = "\n".join(f"- {item}" for item in tool_confirmations)
-        if confirmations_text and confirmations_text not in reply:
-            reply = f"{reply}\n\nApplied changes:\n{confirmations_text}".strip()
-    usage = {
-        "provider": "anthropic",
-        "model": model_name,
-        "input_tokens": total_input_tokens,
-        "output_tokens": total_output_tokens,
-        "total_tokens": total_input_tokens + total_output_tokens,
-    }
-    return reply, usage, executed_actions, executed_mutations
+        # Tool loop: allow Claude to call local readiness/data-contract tools.
+        for _ in range(3):
+            tool_blocks = [b for b in (response.content or []) if getattr(b, "type", None) == "tool_use" or (isinstance(b, dict) and b.get("type") == "tool_use")]
+            if not tool_blocks:
+                break
+
+            tool_results = []
+            for block in tool_blocks:
+                if isinstance(block, dict):
+                    tool_name = str(block.get("name") or "").strip()
+                    tool_use_id = block.get("id")
+                    tool_input = block.get("input") if isinstance(block.get("input"), dict) else {}
+                else:
+                    tool_name = str(getattr(block, "name", "") or "").strip()
+                    tool_use_id = getattr(block, "id", None)
+                    raw_input = getattr(block, "input", None)
+                    tool_input = raw_input if isinstance(raw_input, dict) else {}
+
+                if tool_name in {"get_readiness_snapshot", "get_data_contract"}:
+                    result_payload = _anthropic_tool_output(tool_name, readiness)
+                else:
+                    result_payload = _execute_mutation_tool(
+                        tool_name,
+                        tool_input,
+                        user=user,
+                        user_id=user_id,
+                        thread_id=thread_id,
+                    )
+                    if isinstance(result_payload, dict) and result_payload.get("ok"):
+                        confirmation = str(result_payload.get("confirmation") or "").strip()
+                        if confirmation:
+                            tool_confirmations.append(confirmation)
+                    if isinstance(result_payload, dict):
+                        executed_actions.append({
+                            "tool": tool_name,
+                            "input": tool_input,
+                            "result": result_payload,
+                        })
+                        executed_mutations.append({
+                            "tool": tool_name,
+                            "success": bool(result_payload.get("ok")),
+                            "result_summary": _mutation_result_summary(tool_name, result_payload),
+                            "error": result_payload.get("error"),
+                            "code": result_payload.get("code"),
+                        })
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_use_id,
+                    "content": json.dumps(result_payload),
+                })
+
+            messages.append({"role": "assistant", "content": _anthropic_content_to_dicts(response.content)})
+            messages.append({"role": "user", "content": tool_results})
+            response = client.messages.create(
+                model=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                system=system_prompt,
+                tools=tools,
+                messages=messages,
+            )
+            total_input_tokens += int(getattr(getattr(response, "usage", None), "input_tokens", 0) or 0)
+            total_output_tokens += int(getattr(getattr(response, "usage", None), "output_tokens", 0) or 0)
+
+        reply = _anthropic_text(response.content) or fallback_reply
+        if tool_confirmations:
+            confirmations_text = "\n".join(f"- {item}" for item in tool_confirmations)
+            if confirmations_text and confirmations_text not in reply:
+                reply = f"{reply}\n\nApplied changes:\n{confirmations_text}".strip()
+        usage = {
+            "provider": "anthropic",
+            "model": model_name,
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens,
+        }
+        return reply, usage, executed_actions, executed_mutations
+    except Exception:
+        current_app.logger.exception("ai_agent anthropic generation failed")
+        return fallback_reply, {"provider": "heuristic", "model": model_name, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, [], []
 
 
 def _record_usage(session, usage, credits_charged):
@@ -1511,12 +1514,10 @@ def _data_insights_model():
     return (
         current_app.config.get("AI_DATA_INSIGHTS_MODEL")
         or os.getenv("AI_DATA_INSIGHTS_MODEL")
-        or "gpt-4o-mini"
+        or current_app.config.get("AI_AGENT_ANTHROPIC_MODEL")
+        or os.getenv("AI_AGENT_ANTHROPIC_MODEL")
+        or "claude-3-7-sonnet-latest"
     )
-
-
-def _openai_api_key():
-    return current_app.config.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 
 def _dataset_from_upload(uploaded_file):
@@ -1664,12 +1665,14 @@ def _heuristic_insight_text(summary):
 
 
 def _llm_data_insight_text(summary, user_prompt):
-    api_key = _openai_api_key()
+    api_key = _anthropic_api_key()
     if not api_key:
         return _heuristic_insight_text(summary), "heuristic"
 
     try:
-        client = openai.OpenAI(api_key=api_key)
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=api_key)
         prompt = f"""
 You are a strategy data analyst. Summarize dataset trends, risk indicators, and opportunity recommendations.
 
@@ -1685,19 +1688,23 @@ Return concise plain text with:
 3) Top opportunities
 4) Recommended next actions (3 bullets inline)
 """.strip()
-        response = client.chat.completions.create(
+        response = client.messages.create(
             model=_data_insights_model(),
-            messages=[
-                {"role": "system", "content": "You are a concise strategy analytics assistant."},
-                {"role": "user", "content": prompt},
-            ],
             max_tokens=600,
             temperature=0.2,
+            system="You are a concise strategy analytics assistant.",
+            messages=[{"role": "user", "content": prompt}],
         )
-        text = str((response.choices[0].message.content or "")).strip()
+        text_parts = []
+        for block in getattr(response, "content", []) or []:
+            if getattr(block, "type", None) == "text":
+                txt = str(getattr(block, "text", "") or "").strip()
+                if txt:
+                    text_parts.append(txt)
+        text = "\n".join(text_parts).strip()
         if not text:
             raise ValueError("empty_llm_response")
-        return text, "openai"
+        return text, "anthropic"
     except Exception:
         return _heuristic_insight_text(summary), "heuristic"
 
@@ -2095,7 +2102,7 @@ def provider_status():
         "anthropic_model": str(
             current_app.config.get("AI_AGENT_ANTHROPIC_MODEL")
             or os.getenv("AI_AGENT_ANTHROPIC_MODEL")
-            or "claude-3-5-sonnet-latest"
+            or "claude-3-7-sonnet-latest"
         ),
     }), 200
 

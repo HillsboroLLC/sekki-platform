@@ -109,6 +109,7 @@ def _user_payload(user):
         'id': user.id,
         'email': user.email,
         'name': user.name,
+        'is_admin': is_global_admin_email(user.email, current_app.config),
         'subscription_plan': to_public_plan(user.subscription_plan),
         'credits_remaining': user.credits_remaining,
         'active_organization_id': user.active_organization_id,

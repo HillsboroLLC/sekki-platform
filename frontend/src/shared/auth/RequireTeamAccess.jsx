@@ -9,8 +9,11 @@ export default function RequireTeamAccess({ children }) {
   const params = new URLSearchParams(location.search);
   const hasInviteToken = Boolean(String(params.get('invite') || '').trim());
   const canAccessTeam = Boolean(user?.can_access_team);
+  const isAdminPreview = Boolean(
+    user?.is_admin && ['team', 'enterprise'].includes(String(params.get('admin_preview') || '').trim().toLowerCase())
+  );
 
-  if (canAccessTeam || hasInviteToken) {
+  if (canAccessTeam || hasInviteToken || isAdminPreview) {
     return children;
   }
 

@@ -6,7 +6,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useReducer, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../config/apiBase';
 import { useChatCommands, parseUIActions, ChatActionTypes } from "../../shared/hooks/useChatCommands"
 import { useToast, ToastContainer } from '../../shared/components/Toast';
@@ -43,6 +43,7 @@ const PM_VARIANT  = "monitor-check";
 const LSS_VARIANT = "chart-scatter";
 const MODEL_DISPLAY_ORDER = ['pluto', 'orbit', 'titan'];
 const MODEL_VERSION_BY_TYPE = { pluto: '1.0', orbit: '1.0', titan: '1.0' };
+const ADMIN_PREVIEW_PLAN_KEYS = new Set(['free', 'essential', 'team', 'enterprise']);
 const OBJECTIVE_OPTIONS = [
   { key: 'balanced', label: 'Balanced' },
   { key: 'cost', label: 'Cost Optimization' },
@@ -635,6 +636,7 @@ const refreshBundle = async (tid) => {
 };
 
   const navigate = useNavigate();
+  const location = useLocation();
   const handleUnauthorized = useCallback(async () => {
     const status = await checkAuthStatus({ silent: true });
     if (!status?.authenticated) {
@@ -698,6 +700,13 @@ const refreshBundle = async (tid) => {
   const savedEmail = (() => {
     try { return localStorage.getItem('jaspen_last_email'); } catch { return null; }
   })();
+  const adminWorkspacePreviewPlan = useMemo(() => {
+    if (!Boolean(user?.is_admin)) return '';
+    const params = new URLSearchParams(location.search);
+    if (String(params.get('admin_preview') || '').trim().toLowerCase() !== 'workspace') return '';
+    const planKey = String(params.get('plan_key') || '').trim().toLowerCase();
+    return ADMIN_PREVIEW_PLAN_KEYS.has(planKey) ? planKey : '';
+  }, [location.search, user?.is_admin]);
   const userInitials = getInitials(displayName || user?.name || user?.email || savedEmail || 'User');
   const userName = displayName || user?.name || user?.email?.split('@')[0] || savedEmail?.split?.('@')[0] || 'User';
   const userEmail = user?.email || savedEmail || 'user@example.com';
@@ -712,6 +721,9 @@ const refreshBundle = async (tid) => {
   const modelTypes = useMemo(() => billingCatalog?.model_types || {}, [billingCatalog]);
   const currentPlanKey = String(billingStatus?.plan_key || 'free').toLowerCase();
   const currentPlanLabel = plans[currentPlanKey]?.label || (currentPlanKey[0]?.toUpperCase() + currentPlanKey.slice(1));
+  const adminWorkspacePreviewActive = Boolean(
+    billingStatus?.preview && String(billingStatus?.preview_type || '').toLowerCase() === 'workspace'
+  );
   const toolEntitlements = useMemo(
     () => (Array.isArray(billingStatus?.tool_entitlements) ? billingStatus.tool_entitlements : []),
     [billingStatus]
@@ -1030,8 +1042,11 @@ const refreshBundle = async (tid) => {
     const token = getAuthToken();
     setBillingLoading(true);
     try {
+      const statusPath = adminWorkspacePreviewPlan
+        ? `/api/admin/preview/workspace?plan_key=${encodeURIComponent(adminWorkspacePreviewPlan)}`
+        : '/api/billing/status';
       const [statusRes, catalogRes] = await Promise.all([
-        fetch(`${API_BASE}/api/billing/status`, {
+        fetch(`${API_BASE}${statusPath}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include'
         }),
@@ -1053,7 +1068,7 @@ const refreshBundle = async (tid) => {
     } finally {
       setBillingLoading(false);
     }
-  }, [getAuthToken, handleUnauthorized]);
+  }, [adminWorkspacePreviewPlan, getAuthToken, handleUnauthorized]);
 
   useEffect(() => {
     loadBilling();
@@ -1694,6 +1709,12 @@ const refreshBundle = async (tid) => {
             <FontAwesomeIcon icon={faClockRotateLeft} />
             <span className="jas-ud-item-label">In Queue</span>
           </button>
+          {canAccessTeam && (
+            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
+              <FontAwesomeIcon icon={faUser} />
+              <span className="jas-ud-item-label">Team</span>
+            </button>
+          )}
           {canAccessEnterpriseAdmin && (
             <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/enterprise-admin'); }}>
               <FontAwesomeIcon icon={faGaugeHigh} />
@@ -1717,12 +1738,6 @@ const refreshBundle = async (tid) => {
             <span className="jas-ud-item-label">Notifications</span>
             <span className="jas-ud-item-badge">{unreadNotificationCount}</span>
           </button>
-          {canAccessTeam && (
-            <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
-              <FontAwesomeIcon icon={faUser} />
-              <span className="jas-ud-item-label">Team</span>
-            </button>
-          )}
           <button className="jas-ud-item" onClick={openDisplayNameEditor}>
             <FontAwesomeIcon icon={faUser} />
             <span className="jas-ud-item-label">Edit display name</span>
@@ -5234,6 +5249,11 @@ setView(id === 'chat' ? 'intake' : id);
 
         <div className={`jas-workspace ${aiDrawerOpen ? 'jas-ai-open' : ''} ${isReadinessOpen ? 'jas-readiness-open' : ''} ${isSettingsOpen ? 'jas-settings-open' : ''}`}>
           <div className="jas-workspace-header">
+            {adminWorkspacePreviewActive && (
+              <div className="jas-admin-preview-banner">
+                Previewing Workspace as <strong>{currentPlanLabel}</strong> from Jaspen Admin. Live billing, connector, and organization state are hidden.
+              </div>
+            )}
             <div className="jas-workspace-header-top">
               <div className="jas-workspace-title">
                 <h2 className="jas-project-title">

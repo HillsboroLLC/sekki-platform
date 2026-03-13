@@ -10,6 +10,19 @@ const CREDIT_MODE_OPTIONS = [
   { value: 'set', label: 'Set exact value' },
   { value: 'reset_plan', label: 'Reset to plan default' },
 ];
+const WORKSPACE_PREVIEW_OPTIONS = [
+  { label: 'Free', planKey: 'free' },
+  { label: 'Essential', planKey: 'essential' },
+  { label: 'Team', planKey: 'team' },
+  { label: 'Enterprise', planKey: 'enterprise' },
+];
+const TEAM_ROLE_PREVIEW_OPTIONS = [
+  { label: 'Owner', role: 'owner' },
+  { label: 'Admin', role: 'admin' },
+  { label: 'Creator', role: 'creator' },
+  { label: 'Collaborator', role: 'collaborator' },
+  { label: 'Viewer', role: 'viewer' },
+];
 
 
 function getToken() {
@@ -86,6 +99,10 @@ export default function JaspenAdmin() {
     reason: '',
   });
   const [recoveryReason, setRecoveryReason] = useState('');
+
+  const openPreview = (path) => {
+    navigate(path);
+  };
 
   const selectedUser = useMemo(
     () => (users || []).find((u) => u.id === selectedId) || null,
@@ -440,6 +457,62 @@ export default function JaspenAdmin() {
         </div>
 
         {message && <p className="jas-admin-message">{message}</p>}
+
+        <section className="jas-admin-subsection">
+          <h3>Experience Preview</h3>
+          <p className="jas-admin-empty">
+            Launch support previews for customer-facing interfaces without loading real organization data.
+          </p>
+          <div className="jas-admin-preview-groups">
+            <div className="jas-admin-preview-group">
+              <strong>Workspace</strong>
+              <div className="jas-admin-preview-actions">
+                {WORKSPACE_PREVIEW_OPTIONS.map((option) => (
+                  <button
+                    key={option.planKey}
+                    type="button"
+                    className="jas-admin-secondary"
+                    onClick={() => openPreview(`/new?admin_preview=workspace&plan_key=${encodeURIComponent(option.planKey)}`)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="jas-admin-preview-group">
+              <strong>Team</strong>
+              <div className="jas-admin-preview-actions">
+                {TEAM_ROLE_PREVIEW_OPTIONS.map((option) => (
+                  <button
+                    key={`team-${option.role}`}
+                    type="button"
+                    className="jas-admin-secondary"
+                    onClick={() => openPreview(`/team?admin_preview=team&role=${encodeURIComponent(option.role)}`)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="jas-admin-preview-group">
+              <strong>Enterprise</strong>
+              <div className="jas-admin-preview-actions">
+                {TEAM_ROLE_PREVIEW_OPTIONS.map((option) => (
+                  <button
+                    key={`enterprise-${option.role}`}
+                    type="button"
+                    className="jas-admin-secondary"
+                    onClick={() => openPreview(`/enterprise-admin?admin_preview=enterprise&role=${encodeURIComponent(option.role)}`)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
         <div className="jas-admin-layout">
           <div className="jas-admin-users">

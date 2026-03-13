@@ -7,6 +7,8 @@ from app.admin_audit import append_admin_audit_event, list_admin_audit_events
 from app.admin_policy import is_global_admin_email
 from app.billing_config import (
     apply_plan_to_user,
+    get_allowed_model_types,
+    get_default_model_type,
     get_monthly_credit_limit,
     get_plan_catalog,
     normalize_plan_key,
@@ -22,7 +24,7 @@ from app.connector_store import (
     update_connector_settings,
 )
 from app.models import User, UserSession
-from app.tool_registry import get_tool_entitlements
+from app.tool_registry import get_context_budget, get_tool_entitlements
 
 
 admin_bp = Blueprint("admin", __name__)
@@ -194,6 +196,39 @@ def capabilities():
         "email": user.email,
         "admin_scope": "global",
         "org_admin_enabled": False,
+    }), 200
+
+
+@admin_bp.route("/preview/workspace", methods=["GET"])
+@jwt_required()
+def workspace_preview():
+    _, err = _require_admin()
+    if err:
+        return err
+
+    plan_key = normalize_plan_key(request.args.get("plan_key") or "free")
+    plan_catalog = get_plan_catalog(current_app.config)
+    if plan_key not in plan_catalog:
+        return jsonify({"error": f"Unknown plan '{plan_key}'"}), 400
+
+    monthly_limit = get_monthly_credit_limit(plan_key, current_app.config)
+    return jsonify({
+        "preview": True,
+        "preview_type": "workspace",
+        "preview_plan_key": plan_key,
+        "plan_key": plan_key,
+        "plan": plan_catalog.get(plan_key) or {},
+        # Hide admin affordances while previewing the customer-facing surface.
+        "is_admin": False,
+        "credits_remaining": monthly_limit,
+        "monthly_credit_limit": monthly_limit,
+        "credits_used": 0 if monthly_limit is not None else None,
+        "allowed_model_types": get_allowed_model_types(plan_key, current_app.config),
+        "default_model_type": get_default_model_type(plan_key, current_app.config),
+        "context_budget": get_context_budget(plan_key),
+        "tool_entitlements": get_tool_entitlements(plan_key),
+        "stripe_customer_id": None,
+        "stripe_subscription_id": None,
     }), 200
 
 

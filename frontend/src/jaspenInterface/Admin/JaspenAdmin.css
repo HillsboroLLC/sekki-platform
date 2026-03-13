@@ -327,6 +327,31 @@
   color: #6a7ea8;
 }
 
+.jas-admin-preview-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.jas-admin-preview-group {
+  border: 1px solid #e5ecf8;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.jas-admin-preview-group strong {
+  display: block;
+  color: #17244a;
+  margin-bottom: 10px;
+}
+
+.jas-admin-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .jas-admin-selected {
   margin: 14px 0 0;
   color: #5b6f99;
@@ -368,6 +393,10 @@
   }
 
   .jas-admin-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jas-admin-preview-groups {
     grid-template-columns: 1fr;
   }
 }

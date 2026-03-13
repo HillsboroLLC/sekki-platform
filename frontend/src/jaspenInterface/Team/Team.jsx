@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../../config/apiBase';
+import { useAuth } from '../../shared/auth/AuthContext';
 import './Team.css';
 
 const ROLE_OPTIONS = ['owner', 'admin', 'creator', 'collaborator', 'viewer'];
@@ -120,8 +121,180 @@ function buildSeatDraft(organization, profilePlanKey) {
   return next;
 }
 
+function roleLabel(role) {
+  const token = String(role || '').trim();
+  return token ? token.charAt(0).toUpperCase() + token.slice(1) : 'Viewer';
+}
+
+function buildSerializedSeatPolicy(planKey) {
+  const next = {};
+  ROLE_OPTIONS.forEach((role) => {
+    const limit = seatLimitForPlanRole(planKey, role);
+    next[role] = {
+      label: roleLabel(role),
+      limit,
+      is_unlimited: limit == null,
+    };
+  });
+  return next;
+}
+
+function buildSupportSeatUsage(planKey, previewRole) {
+  const counts = {
+    owner: 1,
+    admin: previewRole === 'admin' ? 2 : 1,
+    creator: previewRole === 'creator' ? 1 : 2,
+    collaborator: previewRole === 'collaborator' ? 3 : 4,
+    viewer: previewRole === 'viewer' ? 2 : 1,
+  };
+
+  return ROLE_OPTIONS.reduce((acc, role) => {
+    const limit = seatLimitForPlanRole(planKey, role);
+    const used = role === 'admin' ? counts.admin + counts.owner : counts[role];
+    acc[role] = {
+      label: roleLabel(role),
+      used,
+      limit,
+      available: limit == null ? null : Math.max(Number(limit) - used, 0),
+      is_unlimited: limit == null,
+    };
+    return acc;
+  }, {});
+}
+
+function buildSupportPreviewState(planKey, previewRole) {
+  const previewOrgId = `support-preview-${planKey}`;
+  const previewUserId = `support-preview-${previewRole}`;
+  const seatPolicy = buildSerializedSeatPolicy(planKey);
+  const organization = {
+    id: previewOrgId,
+    name: planKey === 'enterprise' ? 'Enterprise Support Preview' : 'Team Support Preview',
+    plan_key: planKey,
+    seat_policy_defaults: seatPolicy,
+    seat_policy: seatPolicy,
+    seat_policy_overrides: {},
+  };
+  const members = [
+    {
+      id: `${previewOrgId}-owner`,
+      user_id: 'org-owner',
+      name: 'Olivia Owner',
+      email: 'owner@example.com',
+      role: 'owner',
+      status: 'active',
+      joined_at: '2026-02-01T13:00:00Z',
+      last_active_at: '2026-03-13T12:00:00Z',
+    },
+    {
+      id: `${previewOrgId}-admin`,
+      user_id: 'org-admin',
+      name: 'Avery Admin',
+      email: 'admin@example.com',
+      role: 'admin',
+      status: 'active',
+      joined_at: '2026-02-11T13:00:00Z',
+      last_active_at: '2026-03-13T10:45:00Z',
+    },
+    {
+      id: `${previewOrgId}-current`,
+      user_id: previewUserId,
+      name: `Preview ${roleLabel(previewRole)}`,
+      email: `${previewRole}@preview.jaspen.ai`,
+      role: previewRole,
+      status: 'active',
+      joined_at: '2026-02-20T13:00:00Z',
+      last_active_at: '2026-03-13T09:15:00Z',
+    },
+    {
+      id: `${previewOrgId}-viewer`,
+      user_id: 'org-viewer',
+      name: 'Vera Viewer',
+      email: 'viewer@example.com',
+      role: 'viewer',
+      status: 'active',
+      joined_at: '2026-02-23T13:00:00Z',
+      last_active_at: '2026-03-12T18:30:00Z',
+    },
+  ];
+  const invitations = [
+    {
+      id: `${previewOrgId}-invite-1`,
+      email: 'collab@company.com',
+      role: 'collaborator',
+      invited_by_name: 'Olivia Owner',
+      created_at: '2026-03-12T14:10:00Z',
+      status: 'pending',
+    },
+  ];
+  const projects = [
+    {
+      session_id: `${previewOrgId}-project-1`,
+      name: 'Support Preview Rollout',
+      owner_name: 'Olivia Owner',
+      created_by_user_id: 'org-owner',
+      status: 'active',
+      visibility: 'team',
+      shared_with_user_ids: [previewUserId],
+      comment_count: 4,
+      updated_at: '2026-03-13T11:40:00Z',
+    },
+    {
+      session_id: `${previewOrgId}-project-2`,
+      name: 'Executive Scorecard Refresh',
+      owner_name: `Preview ${roleLabel(previewRole)}`,
+      created_by_user_id: previewUserId,
+      status: 'in_review',
+      visibility: previewRole === 'viewer' ? 'private' : 'specific',
+      shared_with_user_ids: ['org-admin', 'org-viewer'],
+      comment_count: 2,
+      updated_at: '2026-03-13T08:55:00Z',
+    },
+  ];
+  const sharingDrafts = projects.reduce((acc, project) => {
+    acc[project.session_id] = {
+      visibility: project.visibility || 'private',
+      sharedWithCsv: (project.shared_with_user_ids || []).join(', '),
+    };
+    return acc;
+  }, {});
+
+  return {
+    summary: {
+      organization,
+      membership: {
+        id: `${previewOrgId}-membership`,
+        organization_id: previewOrgId,
+        user_id: previewUserId,
+        role: previewRole,
+        role_label: roleLabel(previewRole),
+        status: 'active',
+      },
+      seat_usage: buildSupportSeatUsage(planKey, previewRole),
+    },
+    members,
+    invitations,
+    organizations: [
+      {
+        organization,
+        membership: {
+          organization_id: previewOrgId,
+          user_id: previewUserId,
+          role: previewRole,
+          status: 'active',
+        },
+        is_active: true,
+      },
+    ],
+    projects,
+    orgNameDraft: organization.name,
+    sharingDrafts,
+  };
+}
+
 export default function Team({ mode = 'team' }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -142,17 +315,37 @@ export default function Team({ mode = 'team' }) {
   const [seatDraft, setSeatDraft] = useState({});
   const [savedSeatDraft, setSavedSeatDraft] = useState({});
 
-  const actualRole = String(summary?.membership?.role || 'viewer');
-  const previewModeActive = Boolean(isGlobalAdmin && previewRole !== PREVIEW_ROLE_ACTUAL);
-  const effectiveRole = previewModeActive ? previewRole : actualRole;
-  const canManageMembers = MANAGE_ROLE_SET.has(effectiveRole);
-  const canEditProjects = EDIT_ROLE_SET.has(effectiveRole);
   const isEnterpriseMode = String(mode || '').toLowerCase() === 'enterprise';
   const routePlanForCopy = isEnterpriseMode ? 'enterprise' : 'team';
+  const supportPreviewConfig = useMemo(() => {
+    if (!Boolean(user?.is_admin)) return null;
+    const params = new URLSearchParams(location.search);
+    const previewType = String(params.get('admin_preview') || '').trim().toLowerCase();
+    const expectedType = isEnterpriseMode ? 'enterprise' : 'team';
+    if (previewType !== expectedType) return null;
+    const role = ROLE_OPTIONS.includes(String(params.get('role') || '').trim().toLowerCase())
+      ? String(params.get('role') || '').trim().toLowerCase()
+      : 'viewer';
+    return {
+      type: previewType,
+      role,
+      planKey: routePlanForCopy,
+    };
+  }, [isEnterpriseMode, location.search, routePlanForCopy, user?.is_admin]);
+  const supportPreviewActive = Boolean(supportPreviewConfig);
+  const actualRole = supportPreviewActive
+    ? String(supportPreviewConfig?.role || 'viewer')
+    : String(summary?.membership?.role || 'viewer');
+  const previewModeActive = supportPreviewActive || Boolean(isGlobalAdmin && previewRole !== PREVIEW_ROLE_ACTUAL);
+  const effectiveRole = supportPreviewActive
+    ? actualRole
+    : (previewModeActive ? previewRole : actualRole);
+  const canManageMembers = MANAGE_ROLE_SET.has(effectiveRole);
+  const canEditProjects = EDIT_ROLE_SET.has(effectiveRole);
   const activeOrg = summary?.organization || null;
   const activeOrgId = String(activeOrg?.id || '');
   const activeOrgPlanKey = String(activeOrg?.plan_key || '').toLowerCase();
-  const canAccessEnterpriseView = isGlobalAdmin || activeOrgPlanKey === 'enterprise';
+  const canAccessEnterpriseView = supportPreviewActive || isGlobalAdmin || activeOrgPlanKey === 'enterprise';
   const seatPolicyDefaults = activeOrg?.seat_policy_defaults || {};
   const seatUsage = summary?.seat_usage || {};
   const seatDraftDirty = useMemo(
@@ -170,10 +363,28 @@ export default function Team({ mode = 'team' }) {
     [members]
   );
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
+      if (supportPreviewActive) {
+        const previewData = buildSupportPreviewState(routePlanForCopy, supportPreviewConfig?.role || 'viewer');
+        setSummary(previewData.summary || null);
+        setOrgNameDraft(String(previewData.orgNameDraft || ''));
+        const nextSeatDraft = buildSeatDraft(previewData.summary?.organization || null, routePlanForCopy);
+        setSeatDraft(nextSeatDraft);
+        setSavedSeatDraft(nextSeatDraft);
+        setMembers(Array.isArray(previewData.members) ? previewData.members : []);
+        setInvitations(Array.isArray(previewData.invitations) ? previewData.invitations : []);
+        setOrganizations(Array.isArray(previewData.organizations) ? previewData.organizations : []);
+        setProjects(Array.isArray(previewData.projects) ? previewData.projects : []);
+        setSharingDrafts(previewData.sharingDrafts || {});
+        setIsGlobalAdmin(false);
+        setPreviewRole(PREVIEW_ROLE_ACTUAL);
+        setNotice('');
+        return;
+      }
+
       const [summaryData, membersData, invitationsData, organizationsData, projectsData] = await Promise.all([
         teamFetch('/api/team/summary'),
         teamFetch('/api/team/members'),
@@ -211,13 +422,14 @@ export default function Team({ mode = 'team' }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [routePlanForCopy, supportPreviewActive, supportPreviewConfig?.role]);
 
   useEffect(() => {
     loadAll();
-  }, [routePlanForCopy]);
+  }, [loadAll]);
 
   useEffect(() => {
+    if (supportPreviewActive) return;
     const params = new URLSearchParams(window.location.search);
     const inviteToken = String(params.get('invite') || '').trim();
     if (!inviteToken) return;
@@ -245,7 +457,7 @@ export default function Team({ mode = 'team' }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAll, supportPreviewActive]);
 
   const onSwitchOrganization = async (orgId) => {
     if (!orgId) return;
@@ -581,8 +793,12 @@ export default function Team({ mode = 'team' }) {
               : 'Manage members, invitations, role capacity, and shared project visibility.'}
           </p>
         </div>
-        <button type="button" className="team-btn ghost team-back-btn" onClick={() => navigate('/new')}>
-          Back to Jaspen
+        <button
+          type="button"
+          className="team-btn ghost team-back-btn"
+          onClick={() => navigate(supportPreviewActive ? '/jaspen-admin' : '/new')}
+        >
+          {supportPreviewActive ? 'Back to Jaspen Admin' : 'Back to Jaspen'}
         </button>
       </header>
 
@@ -654,7 +870,13 @@ export default function Team({ mode = 'team' }) {
         </div>
       )}
 
-      {previewModeActive && (
+      {supportPreviewActive && (
+        <div className="team-state team-state-preview">
+          Jaspen Admin preview: viewing the <strong>{activePlanLabel}</strong> {isEnterpriseMode ? 'Enterprise' : 'Team'} interface as <strong>{effectiveRole}</strong>. All data on this page is synthetic and read-only.
+        </div>
+      )}
+
+      {!supportPreviewActive && previewModeActive && (
         <div className="team-state team-state-preview">
           Preview mode active: viewing Team as <strong>{effectiveRole}</strong>. Mutating actions are disabled in preview mode.
         </div>

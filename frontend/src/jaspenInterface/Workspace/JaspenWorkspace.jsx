@@ -1667,13 +1667,17 @@ const refreshBundle = async (tid) => {
             <span className="jas-ud-item-label">PM Dashboard</span>
             {(PLAN_RANK[currentPlanKey] || 0) < 1 && <span className="jas-ud-item-badge">Essential+</span>}
           </button>
-          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions?view=queue'); }}>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions'); }}>
             <FontAwesomeIcon icon={faLayerGroup} />
-            <span className="jas-ud-item-label">In Queue</span>
+            <span className="jas-ud-item-label">Sessions</span>
           </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/scores'); }}>
             <FontAwesomeIcon icon={faChartLine} />
             <span className="jas-ud-item-label">Scores</span>
+          </button>
+          <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/sessions?view=queue'); }}>
+            <FontAwesomeIcon icon={faClockRotateLeft} />
+            <span className="jas-ud-item-label">In Queue</span>
           </button>
           <button className="jas-ud-item" onClick={() => { onClose?.(); navigate('/team'); }}>
             <FontAwesomeIcon icon={faUser} />
@@ -2305,10 +2309,15 @@ useEffect(() => {
         try { return new URLSearchParams(window.location.search).get('sid'); }
         catch { return null; }
       })();
+      const urlSessionId = (() => {
+        try { return new URLSearchParams(window.location.search).get('session_id'); }
+        catch { return null; }
+      })();
+      const resolvedUrlSessionId = urlSid || urlSessionId;
 
       // GOAL A: If there is no ?sid=, do NOT restore anything.
       // Force the workspace to the default intake state.
-      if (!urlSid) {
+      if (!resolvedUrlSessionId) {
         setSessionId(null);
         setCurrentSessionId(null);
         setAnalysisResult(null);
@@ -2323,7 +2332,7 @@ useEffect(() => {
         dispatchSidebar({ type: 'CLOSE_ALL' });
         return;
       }
-      const sid = urlSid;
+      const sid = resolvedUrlSessionId;
 
 
       // prevent readiness “snap” edge cases during restore

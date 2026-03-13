@@ -62,6 +62,134 @@ def _normalize_strategy_objective(value, default='balanced'):
     compact = text.replace('_', ' ').replace('-', ' ')
     return STRATEGY_OBJECTIVE_ALIASES.get(compact, default)
 
+
+_SCORES_SORT_BY_OPTIONS = {'date', 'score', 'category', 'name'}
+_SCORES_SORT_DIR_OPTIONS = {'asc', 'desc'}
+_SCORES_CATEGORY_OPTIONS = {'Excellent', 'Good', 'Fair', 'At Risk'}
+
+
+def _scores_parse_int(value, default, min_value=0, max_value=None):
+    try:
+        parsed = int(value)
+    except Exception:
+        parsed = default
+    if parsed < min_value:
+        parsed = min_value
+    if max_value is not None and parsed > max_value:
+        parsed = max_value
+    return parsed
+
+
+def _scores_parse_iso(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        candidate = text[:-1] + '+00:00' if text.endswith('Z') else text
+        parsed = datetime.fromisoformat(candidate)
+        return parsed.isoformat()
+    except Exception:
+        return text
+
+
+def _scores_timestamp(value):
+    if not value:
+        return 0.0
+    try:
+        text = str(value).strip()
+        candidate = text[:-1] + '+00:00' if text.endswith('Z') else text
+        return datetime.fromisoformat(candidate).timestamp()
+    except Exception:
+        return 0.0
+
+
+def _scores_extract_numeric_score(result):
+    if not isinstance(result, dict):
+        return None
+    candidates = [
+        result.get('jaspen_score'),
+        result.get('overall_score'),
+        result.get('score'),
+        (result.get('compat') or {}).get('score') if isinstance(result.get('compat'), dict) else None,
+    ]
+    for candidate in candidates:
+        try:
+            parsed = float(candidate)
+        except Exception:
+            continue
+        if parsed == parsed:
+            return int(round(parsed))
+    return None
+
+
+def _scores_category_from_values(score, explicit_category=None):
+    if isinstance(explicit_category, str):
+        cleaned = explicit_category.strip()
+        if cleaned in _SCORES_CATEGORY_OPTIONS:
+            return cleaned
+    if score is None:
+        return 'At Risk'
+    if score >= 80:
+        return 'Excellent'
+    if score >= 60:
+        return 'Good'
+    if score >= 40:
+        return 'Fair'
+    return 'At Risk'
+
+
+def _scores_analysis_entries(session, thread_id):
+    if not isinstance(session, dict):
+        return []
+
+    history = session.get('analysis_history')
+    if not isinstance(history, list):
+        history = session.get('analyses')
+    if not isinstance(history, list):
+        history = []
+
+    normalized = []
+    for item in history:
+        if not isinstance(item, dict):
+            continue
+        analysis_id = item.get('analysis_id') or item.get('id')
+        result = item.get('result')
+        if not isinstance(result, dict):
+            continue
+        if not analysis_id:
+            analysis_id = result.get('analysis_id') or result.get('id') or thread_id
+        normalized.append({
+            'analysis_id': str(analysis_id),
+            'created_at': item.get('created_at') or item.get('timestamp') or result.get('timestamp') or session.get('timestamp') or session.get('created'),
+            'updated_at': item.get('updated_at') or result.get('timestamp') or session.get('timestamp'),
+            'result': result,
+        })
+
+    if normalized:
+        normalized.sort(key=lambda row: _scores_timestamp(row.get('created_at')), reverse=True)
+        return normalized
+
+    session_result = session.get('result')
+    if isinstance(session_result, dict):
+        analysis_id = (
+            session_result.get('analysis_id')
+            or session_result.get('id')
+            or session.get('adopted_analysis_id')
+            or session.get('session_id')
+            or thread_id
+        )
+        return [{
+            'analysis_id': str(analysis_id),
+            'created_at': session_result.get('timestamp') or session.get('timestamp') or session.get('created'),
+            'updated_at': session.get('timestamp') or session_result.get('timestamp'),
+            'result': session_result,
+        }]
+    return []
+
 # Set OpenAI API key from config
 def get_openai_client():
     openai.api_key = current_app.config['OPENAI_API_KEY']
@@ -630,6 +758,162 @@ def get_analysis_history():
     except Exception as e:
         print(f"Error retrieving analysis history: {str(e)}")
         return jsonify({'error': 'Failed to retrieve history.'}), 500
+
+
+@strategy_bp.route('/scores', methods=['GET'])
+@jwt_required()
+def get_completed_scores():
+    """Return completed score rows for the authenticated user."""
+    try:
+        current_user_id = get_jwt_identity()
+
+        sort_by = str(request.args.get('sort_by', 'date') or 'date').strip().lower()
+        if sort_by not in _SCORES_SORT_BY_OPTIONS:
+            sort_by = 'date'
+
+        sort_dir = str(request.args.get('sort_dir', 'desc') or 'desc').strip().lower()
+        if sort_dir not in _SCORES_SORT_DIR_OPTIONS:
+            sort_dir = 'desc'
+
+        category_filter = request.args.get('category')
+        if isinstance(category_filter, str):
+            category_filter = category_filter.strip()
+            if category_filter.lower() in ('', 'all'):
+                category_filter = None
+            elif category_filter not in _SCORES_CATEGORY_OPTIONS:
+                return jsonify({'error': 'category must be one of Excellent, Good, Fair, At Risk'}), 400
+        else:
+            category_filter = None
+
+        search = str(request.args.get('search', '') or '').strip().lower()
+        limit = _scores_parse_int(request.args.get('limit'), default=50, min_value=1, max_value=500)
+        offset = _scores_parse_int(request.args.get('offset'), default=0, min_value=0)
+
+        sessions = load_user_sessions(current_user_id) or {}
+        scenarios_by_thread = _load_scenarios(current_user_id) or {}
+
+        scores = []
+        for key, session in (sessions.items() if isinstance(sessions, dict) else []):
+            if not isinstance(session, dict):
+                continue
+
+            thread_id = str(session.get('session_id') or key or '').strip()
+            if not thread_id:
+                continue
+
+            session_status = str(session.get('status') or '').strip().lower()
+            session_completed = session_status == 'completed'
+
+            thread_data = scenarios_by_thread.get(thread_id) if isinstance(scenarios_by_thread, dict) else None
+            thread_data = thread_data if isinstance(thread_data, dict) else {}
+            scenarios = thread_data.get('scenarios')
+            scenarios = scenarios if isinstance(scenarios, dict) else {}
+            adopted_scenario_id = thread_data.get('adopted_scenario_id')
+            adopted_raw = scenarios.get(adopted_scenario_id) if adopted_scenario_id else None
+            adopted_raw = adopted_raw if isinstance(adopted_raw, dict) else None
+
+            adopted_scenario = None
+            if adopted_raw:
+                adopted_scenario = {
+                    'scenario_id': str(adopted_raw.get('scenario_id') or adopted_scenario_id),
+                    'label': adopted_raw.get('label') or 'Adopted scenario',
+                    'deltas': adopted_raw.get('deltas') if isinstance(adopted_raw.get('deltas'), dict) else {},
+                    'result': adopted_raw.get('result') if isinstance(adopted_raw.get('result'), dict) else None,
+                    'created_at': _scores_parse_iso(adopted_raw.get('created_at')),
+                    'updated_at': _scores_parse_iso(adopted_raw.get('updated_at')),
+                    'adopted': True,
+                }
+
+            analyses = _scores_analysis_entries(session, thread_id)
+            for analysis in analyses:
+                result = analysis.get('result') if isinstance(analysis, dict) else None
+                if not isinstance(result, dict):
+                    continue
+
+                jaspen_score = _scores_extract_numeric_score(result)
+                if jaspen_score is None and not session_completed:
+                    continue
+
+                project_name = str(
+                    result.get('project_name')
+                    or result.get('name')
+                    or result.get('title')
+                    or session.get('name')
+                    or f'Thread {thread_id}'
+                ).strip()
+
+                score_category = _scores_category_from_values(
+                    jaspen_score,
+                    explicit_category=result.get('score_category'),
+                )
+                component_scores = result.get('component_scores')
+                if not isinstance(component_scores, dict):
+                    component_scores = result.get('scores') if isinstance(result.get('scores'), dict) else {}
+                financial_impact = result.get('financial_impact')
+                if not isinstance(financial_impact, dict):
+                    financial_impact = {}
+
+                created_at = _scores_parse_iso(
+                    analysis.get('created_at')
+                    or result.get('timestamp')
+                    or session.get('created')
+                    or session.get('timestamp')
+                )
+                updated_at = _scores_parse_iso(
+                    analysis.get('updated_at')
+                    or session.get('timestamp')
+                    or result.get('timestamp')
+                    or created_at
+                )
+
+                row = {
+                    'thread_id': thread_id,
+                    'project_name': project_name,
+                    'jaspen_score': jaspen_score,
+                    'score_category': score_category,
+                    'component_scores': component_scores,
+                    'adopted_scenario': adopted_scenario,
+                    'financial_impact': financial_impact,
+                    'created_at': created_at,
+                    'updated_at': updated_at,
+                }
+
+                if category_filter and row['score_category'] != category_filter:
+                    continue
+                if search and search not in row['project_name'].lower():
+                    continue
+                scores.append(row)
+
+        reverse = sort_dir == 'desc'
+        if sort_by == 'score':
+            scores.sort(
+                key=lambda row: (
+                    row.get('jaspen_score') is None,
+                    row.get('jaspen_score') if row.get('jaspen_score') is not None else -1,
+                ),
+                reverse=reverse,
+            )
+        elif sort_by == 'category':
+            scores.sort(key=lambda row: str(row.get('score_category') or '').lower(), reverse=reverse)
+        elif sort_by == 'name':
+            scores.sort(key=lambda row: str(row.get('project_name') or '').lower(), reverse=reverse)
+        else:
+            scores.sort(
+                key=lambda row: _scores_timestamp(row.get('updated_at') or row.get('created_at')),
+                reverse=reverse,
+            )
+
+        total = len(scores)
+        paged = scores[offset:offset + limit]
+        return jsonify({
+            'scores': paged,
+            'total': total,
+            'limit': limit,
+            'offset': offset,
+        }), 200
+    except Exception as e:
+        print(f"[get_completed_scores] {e}")
+        return jsonify({'error': 'Failed to load completed scores'}), 500
 
 
 # ============================================================

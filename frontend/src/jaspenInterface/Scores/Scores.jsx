@@ -1,117 +1,84 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowUpRightFromSquare, faDownload, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { API_BASE } from '../../config/apiBase';
 import './Scores.css';
 
 const CATEGORY_OPTIONS = ['All', 'Excellent', 'Good', 'Fair', 'At Risk'];
+const PAGE_LIMIT = 50;
 
-function categoryFromScore(score) {
-  const n = Number(score);
-  if (!Number.isFinite(n)) return 'Unscored';
-  if (n >= 80) return 'Excellent';
-  if (n >= 60) return 'Good';
-  if (n >= 40) return 'Fair';
-  return 'At Risk';
+function getScoreBadgeClass(category) {
+  if (category === 'Excellent') return 'scores-badge excellent';
+  if (category === 'Good') return 'scores-badge good';
+  if (category === 'Fair') return 'scores-badge fair';
+  return 'scores-badge risk';
 }
 
-function parseScore(result = {}, fallback = null) {
-  const candidates = [
-    result?.jaspen_score,
-    result?.overall_score,
-    result?.score,
-    result?.compat?.score,
-    fallback,
-  ];
-  for (const candidate of candidates) {
-    const n = Number(candidate);
-    if (Number.isFinite(n)) return Math.round(n);
-  }
-  return null;
+function parseTimestamp(value) {
+  const ts = new Date(value || 0).getTime();
+  return Number.isFinite(ts) ? ts : 0;
 }
 
-function toIsoDate(value) {
-  if (!value) return null;
-  const ts = new Date(value).getTime();
-  if (!Number.isFinite(ts)) return null;
-  return new Date(ts).toISOString();
-}
-
-function toLocalDate(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (!Number.isFinite(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', {
+function formatFullDate(value) {
+  if (!value) return 'Unknown date';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return String(value);
+  return date.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
-function sortRows(rows, key, dir) {
-  const mult = dir === 'asc' ? 1 : -1;
-  const out = [...rows];
-  out.sort((a, b) => {
-    if (key === 'score') return ((a.score ?? -1) - (b.score ?? -1)) * mult;
-    if (key === 'date') return ((a.dateMs ?? 0) - (b.dateMs ?? 0)) * mult;
-    if (key === 'project') return String(a.projectName || '').localeCompare(String(b.projectName || '')) * mult;
-    if (key === 'category') return String(a.category || '').localeCompare(String(b.category || '')) * mult;
-    if (key === 'adopted') return (Number(a.isAdopted) - Number(b.isAdopted)) * mult;
-    return 0;
-  });
-  return out;
-}
+function formatRelativeTime(value) {
+  const ts = parseTimestamp(value);
+  if (!ts) return 'Unknown';
+  const now = Date.now();
+  const diffMs = ts - now;
+  const past = diffMs < 0;
+  const absMs = Math.abs(diffMs);
 
-function Sparkline({ points = [] }) {
-  const usable = points.filter((p) => Number.isFinite(p.score)).sort((a, b) => a.dateMs - b.dateMs);
-  if (usable.length < 2) return <span className="scores-sparkline-empty">—</span>;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+  const month = 30 * day;
+  const year = 365 * day;
 
-  const width = 84;
-  const height = 22;
-  const min = Math.min(...usable.map((p) => p.score));
-  const max = Math.max(...usable.map((p) => p.score));
-  const range = Math.max(1, max - min);
-  const xStep = usable.length === 1 ? 0 : width / (usable.length - 1);
-  const poly = usable
-    .map((p, idx) => {
-      const x = idx * xStep;
-      const y = height - ((p.score - min) / range) * height;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <svg className="scores-sparkline" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-label="Score trend">
-      <polyline points={poly} fill="none" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function normalizeAnalyses(session = {}, detail = {}) {
-  const fromDetail = Array.isArray(detail?.analyses)
-    ? detail.analyses
-    : Array.isArray(detail?.analysis_history)
-      ? detail.analysis_history
-      : [];
-  if (fromDetail.length > 0) return fromDetail;
-
-  const fromSession = Array.isArray(session?.analysis_history)
-    ? session.analysis_history
-    : Array.isArray(session?.analyses)
-      ? session.analyses
-      : [];
-  if (fromSession.length > 0) return fromSession;
-
-  if (session?.result && typeof session.result === 'object') {
-    return [{
-      analysis_id: session?.result?.analysis_id || session?.result?.id || session?.session_id,
-      created_at: session?.result?.timestamp || session?.timestamp || session?.created,
-      result: session.result,
-    }];
+  let count = 0;
+  let unit = 'minute';
+  if (absMs >= year) {
+    count = Math.floor(absMs / year);
+    unit = 'year';
+  } else if (absMs >= month) {
+    count = Math.floor(absMs / month);
+    unit = 'month';
+  } else if (absMs >= week) {
+    count = Math.floor(absMs / week);
+    unit = 'week';
+  } else if (absMs >= day) {
+    count = Math.floor(absMs / day);
+    unit = 'day';
+  } else if (absMs >= hour) {
+    count = Math.floor(absMs / hour);
+    unit = 'hour';
+  } else {
+    count = Math.max(1, Math.floor(absMs / minute));
+    unit = 'minute';
   }
-  return [];
+
+  const suffix = count === 1 ? unit : `${unit}s`;
+  return past ? `${count} ${suffix} ago` : `in ${count} ${suffix}`;
 }
 
-async function fetchWithAuth(path) {
+function toCsvCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+async function apiFetch(path) {
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -119,421 +86,427 @@ async function fetchWithAuth(path) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+
   if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`${path} -> ${response.status} ${text}`.trim());
+    const message = await response.text().catch(() => '');
+    throw new Error(message || `Request failed (${response.status})`);
   }
+
   return response.json();
+}
+
+function Sparkline({ points = [] }) {
+  const usable = points
+    .filter((point) => Number.isFinite(point?.score))
+    .sort((a, b) => a.ts - b.ts);
+
+  if (usable.length < 2) {
+    return <span className="scores-sparkline-empty">-</span>;
+  }
+
+  const width = 86;
+  const height = 24;
+  const min = Math.min(...usable.map((point) => point.score));
+  const max = Math.max(...usable.map((point) => point.score));
+  const range = Math.max(1, max - min);
+  const step = usable.length === 1 ? 0 : width / (usable.length - 1);
+
+  const polyline = usable
+    .map((point, index) => {
+      const x = index * step;
+      const y = height - ((point.score - min) / range) * height;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <svg className="scores-sparkline" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-label="Score trend">
+      <polyline points={polyline} fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
 }
 
 export default function Scores() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
+
+  const [scores, setScores] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [scoreMin, setScoreMin] = useState('');
-  const [scoreMax, setScoreMax] = useState('');
-  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
-  const [expandedRow, setExpandedRow] = useState(null);
+  const [sortBy, setSortBy] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
+  const [offset, setOffset] = useState(0);
+
+  const [expandedRows, setExpandedRows] = useState({});
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await fetchWithAuth('/api/ai-agent/threads');
-        const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
-        const details = await Promise.all(
-          sessions.map(async (session) => {
-            const sid = session?.session_id;
-            if (!sid) return null;
-            try {
-              return await fetchWithAuth(`/api/ai-agent/threads/${encodeURIComponent(sid)}`);
-            } catch {
-              return null;
-            }
-          })
-        );
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setOffset(0);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
-        const flat = [];
-        sessions.forEach((session, idx) => {
-          const detail = details[idx] || {};
-          const threadId = session?.session_id || detail?.thread?.session_id;
-          if (!threadId) return;
+  const loadScores = useCallback(async () => {
+    setLoading(true);
+    setError('');
 
-          const adoptedAnalysisId = detail?.adopted_analysis_id || session?.adopted_analysis_id || null;
-          const analyses = normalizeAnalyses(session, detail);
+    try {
+      const params = new URLSearchParams({
+        sort_by: sortBy,
+        sort_dir: sortDir,
+        limit: String(PAGE_LIMIT),
+        offset: String(offset),
+      });
+      if (category !== 'All') params.set('category', category);
+      if (search) params.set('search', search);
 
-          analyses.forEach((analysis) => {
-            const analysisId = String(analysis?.analysis_id || analysis?.id || `${threadId}-result`);
-            const result = analysis?.result && typeof analysis.result === 'object'
-              ? analysis.result
-              : (analysis && typeof analysis === 'object' ? analysis : {});
-            const score = parseScore(result, session?.score);
-            if (!Number.isFinite(score)) return;
-
-            const isoDate = toIsoDate(
-              analysis?.created_at ||
-              analysis?.timestamp ||
-              result?.timestamp ||
-              session?.timestamp ||
-              session?.created
-            );
-            const categoryLabel = result?.score_category || categoryFromScore(score);
-            const projectName =
-              result?.project_name ||
-              result?.name ||
-              result?.title ||
-              result?.compat?.title ||
-              session?.name ||
-              `Thread ${threadId}`;
-            const isAdopted = adoptedAnalysisId && String(adoptedAnalysisId) === analysisId;
-            const componentScores = result?.component_scores || result?.scores || {};
-            const financialImpact = result?.financial_impact || {};
-
-            flat.push({
-              id: `${threadId}:${analysisId}`,
-              threadId,
-              analysisId,
-              projectName,
-              score,
-              category: categoryLabel,
-              isAdopted: Boolean(isAdopted),
-              adoptedLabel: isAdopted
-                ? (result?.label || analysis?.label || result?.scenario_id || 'Adopted')
-                : '—',
-              dateIso: isoDate,
-              dateMs: isoDate ? new Date(isoDate).getTime() : 0,
-              componentScores,
-              financialImpact,
-              result,
-            });
-          });
-        });
-
-        if (mounted) setRows(flat);
-      } catch (err) {
-        if (mounted) setError(err?.message || 'Failed to load completed scores');
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      const data = await apiFetch(`/api/strategy/scores?${params.toString()}`);
+      const rows = Array.isArray(data?.scores) ? data.scores : [];
+      setScores(rows);
+      setTotal(Number(data?.total) || 0);
+    } catch (err) {
+      setError(err?.message || 'Failed to load completed scores.');
+      setScores([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  }, [category, offset, search, sortBy, sortDir]);
 
-  const trendsByProject = useMemo(() => {
+  useEffect(() => {
+    loadScores();
+  }, [loadScores]);
+
+  const trendByProject = useMemo(() => {
     const map = new Map();
-    rows.forEach((row) => {
-      const key = String(row.projectName || '').trim() || 'Untitled';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push({ dateMs: row.dateMs, score: row.score });
-    });
-    map.forEach((points, key) => {
-      map.set(key, points.sort((a, b) => a.dateMs - b.dateMs));
+    scores.forEach((row) => {
+      const project = String(row?.project_name || '').trim() || 'Untitled';
+      const scoreValue = Number(row?.jaspen_score);
+      const ts = parseTimestamp(row?.created_at || row?.updated_at);
+      if (!Number.isFinite(scoreValue) || !ts) return;
+      if (!map.has(project)) map.set(project, []);
+      map.get(project).push({ score: scoreValue, ts });
     });
     return map;
-  }, [rows]);
+  }, [scores]);
 
-  const filteredSortedRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const fromTs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
-    const toTs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
-    const min = scoreMin === '' ? null : Number(scoreMin);
-    const max = scoreMax === '' ? null : Number(scoreMax);
+  const start = total === 0 ? 0 : offset + 1;
+  const end = total === 0 ? 0 : Math.min(offset + scores.length, total);
+  const hasPrevious = offset > 0;
+  const hasNext = offset + scores.length < total;
 
-    const filtered = rows.filter((row) => {
-      if (q && !String(row.projectName || '').toLowerCase().includes(q)) return false;
-      if (category !== 'All' && row.category !== category) return false;
-      if (Number.isFinite(fromTs) && row.dateMs < fromTs) return false;
-      if (Number.isFinite(toTs) && row.dateMs > toTs) return false;
-      if (Number.isFinite(min) && row.score < min) return false;
-      if (Number.isFinite(max) && row.score > max) return false;
-      return true;
-    });
-
-    return sortRows(filtered, sort.key, sort.dir);
-  }, [rows, search, category, dateFrom, dateTo, scoreMin, scoreMax, sort]);
-
-  const projectComparison = useMemo(() => {
-    const grouped = new Map();
-    filteredSortedRows.forEach((row) => {
-      const key = row.projectName;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key).push(row.score);
-    });
-    return [...grouped.entries()]
-      .map(([project, scores]) => ({
-        project,
-        count: scores.length,
-        avg: Math.round(scores.reduce((sum, s) => sum + s, 0) / Math.max(1, scores.length)),
-      }))
-      .sort((a, b) => b.avg - a.avg);
-  }, [filteredSortedRows]);
-
-  function toggleSort(key) {
-    setSort((prev) => (
-      prev.key === key
-        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : { key, dir: key === 'date' ? 'desc' : 'asc' }
-    ));
+  function toggleSort(column) {
+    if (sortBy === column) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(column);
+    setSortDir(column === 'date' || column === 'score' ? 'desc' : 'asc');
+    setOffset(0);
   }
 
-  function exportCsv() {
-    const headers = [
-      'Project Name',
-      'Jaspen Score',
-      'Category',
-      'Adopted Scenario',
-      'Analysis ID',
-      'Thread ID',
-      'Date',
-    ];
-    const lines = filteredSortedRows.map((row) => [
-      row.projectName,
-      row.score,
-      row.category,
-      row.isAdopted ? row.adoptedLabel : 'No',
-      row.analysisId,
-      row.threadId,
-      row.dateIso || '',
-    ]);
-    const csv = [headers, ...lines]
-      .map((line) => line.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  function sortIndicator(column) {
+    if (sortBy !== column) return null;
+    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  function toggleExpanded(rowKey) {
+    setExpandedRows((prev) => ({ ...prev, [rowKey]: !prev[rowKey] }));
+  }
+
+  function openAnalysis(threadId) {
+    const encoded = encodeURIComponent(String(threadId || ''));
+    navigate(`/new?session_id=${encoded}&sid=${encoded}`);
+  }
+
+  function exportRowReport(row) {
+    const payload = {
+      project_name: row?.project_name || '',
+      thread_id: row?.thread_id || '',
+      jaspen_score: row?.jaspen_score,
+      score_category: row?.score_category || '',
+      adopted_scenario: row?.adopted_scenario || null,
+      component_scores: row?.component_scores || {},
+      financial_impact: row?.financial_impact || {},
+      created_at: row?.created_at || null,
+      updated_at: row?.updated_at || null,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `jaspen-scores-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${String(row?.project_name || 'analysis').replace(/\s+/g, '-').toLowerCase()}-report.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  async function exportPdf() {
+  async function exportCsv() {
+    setExportingCsv(true);
+    setError('');
+
     try {
-      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
+      const rows = [];
+      let nextOffset = 0;
+      const batchLimit = 250;
+
+      for (;;) {
+        const params = new URLSearchParams({
+          sort_by: sortBy,
+          sort_dir: sortDir,
+          limit: String(batchLimit),
+          offset: String(nextOffset),
+        });
+        if (category !== 'All') params.set('category', category);
+        if (search) params.set('search', search);
+
+        const data = await apiFetch(`/api/strategy/scores?${params.toString()}`);
+        const chunk = Array.isArray(data?.scores) ? data.scores : [];
+        rows.push(...chunk);
+
+        if (chunk.length < batchLimit) break;
+        nextOffset += batchLimit;
+      }
+
+      const csvHeader = ['Project Name', 'Jaspen Score', 'Category', 'Adopted Scenario', 'Date'];
+      const csvRows = rows.map((row) => [
+        row?.project_name || '',
+        row?.jaspen_score ?? '',
+        row?.score_category || '',
+        row?.adopted_scenario?.label || '—',
+        row?.created_at || row?.updated_at || '',
       ]);
 
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-      const title = 'Jaspen Completed Scores';
-      const exportedAt = `Exported ${new Date().toLocaleString()}`;
-      const headers = [[
-        'Project Name',
-        'Jaspen Score',
-        'Category',
-        'Adopted Scenario',
-        'Analysis ID',
-        'Thread ID',
-        'Date',
-      ]];
-      const body = filteredSortedRows.map((row) => [
-        row.projectName,
-        String(row.score ?? ''),
-        row.category,
-        row.isAdopted ? row.adoptedLabel : 'No',
-        row.analysisId,
-        row.threadId,
-        row.dateIso ? toLocalDate(row.dateIso) : '',
-      ]);
+      const csv = [csvHeader, ...csvRows]
+        .map((line) => line.map(toCsvCell).join(','))
+        .join('\n');
 
-      doc.setFontSize(14);
-      doc.text(title, 40, 34);
-      doc.setFontSize(10);
-      doc.text(exportedAt, 40, 52);
-
-      autoTable(doc, {
-        startY: 66,
-        head: headers,
-        body,
-        styles: { fontSize: 8, cellPadding: 4 },
-        headStyles: { fillColor: [14, 27, 63] },
-        margin: { left: 32, right: 32 },
-        didDrawPage: ({ pageNumber }) => {
-          doc.setFontSize(9);
-          doc.text(`Page ${pageNumber}`, doc.internal.pageSize.getWidth() - 70, doc.internal.pageSize.getHeight() - 14);
-        },
-      });
-
-      doc.save(`jaspen-scores-${new Date().toISOString().slice(0, 10)}.pdf`);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `jaspen-completed-scores-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err?.message || 'Failed to export PDF');
+      setError(err?.message || 'Failed to export CSV.');
+    } finally {
+      setExportingCsv(false);
     }
   }
 
   return (
-    <div className="scores-page">
-      <div className="scores-topbar">
-        <button type="button" className="scores-btn ghost" onClick={() => navigate('/new')}>
-          Back to Jaspen
-        </button>
-      </div>
-      <div className="scores-header">
-        <div>
-          <h1>Completed Scores</h1>
-          <p>All completed analyses with history, adopted scenarios, and trends.</p>
-        </div>
-        <div className="scores-header-actions">
-          <button type="button" className="scores-btn" onClick={exportPdf} disabled={filteredSortedRows.length === 0}>
-            Export PDF
-          </button>
-          <button type="button" className="scores-btn" onClick={exportCsv} disabled={filteredSortedRows.length === 0}>
-            Export CSV
-          </button>
-        </div>
-      </div>
-
-      <div className="scores-filters">
-        <input
-          type="text"
-          placeholder="Search project name"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          {CATEGORY_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        <input
-          type="number"
-          min="0"
-          max="100"
-          placeholder="Min score"
-          value={scoreMin}
-          onChange={(e) => setScoreMin(e.target.value)}
-        />
-        <input
-          type="number"
-          min="0"
-          max="100"
-          placeholder="Max score"
-          value={scoreMax}
-          onChange={(e) => setScoreMax(e.target.value)}
-        />
-      </div>
-
-      {projectComparison.length > 1 && (
-        <div className="scores-compare">
-          <h2>Project Comparison</h2>
-          <div className="scores-compare-list">
-            {projectComparison.slice(0, 6).map((item) => (
-              <div key={item.project} className="scores-compare-item">
-                <span className="scores-compare-name">{item.project}</span>
-                <span className="scores-compare-meta">Avg {item.avg} ({item.count})</span>
-              </div>
-            ))}
+    <div className="scores-container">
+      <div className="scores-card">
+        <div className="scores-toolbar">
+          <div>
+            <h1>Completed Scores</h1>
+            <p>All completed analyses and adopted scenarios</p>
+          </div>
+          <div className="scores-toolbar-actions">
+            <button type="button" className="scores-secondary-btn" onClick={() => navigate('/new')}>
+              Back to Jaspen
+            </button>
+            <button type="button" className="scores-primary-btn" onClick={exportCsv} disabled={exportingCsv || loading || total === 0}>
+              {exportingCsv ? 'Exporting...' : 'Export CSV'}
+            </button>
           </div>
         </div>
-      )}
 
-      {loading && <div className="scores-state">Loading completed analyses…</div>}
-      {!loading && error && <div className="scores-state error">{error}</div>}
-      {!loading && !error && filteredSortedRows.length === 0 && (
-        <div className="scores-state">No completed analyses match your filters.</div>
-      )}
-
-      {!loading && !error && filteredSortedRows.length > 0 && (
-        <div className="scores-table-wrap">
-          <table className="scores-table">
-            <thead>
-              <tr>
-                <th onClick={() => toggleSort('project')}>Project Name</th>
-                <th onClick={() => toggleSort('score')}>Jaspen Score</th>
-                <th onClick={() => toggleSort('category')}>Category</th>
-                <th onClick={() => toggleSort('adopted')}>Adopted Scenario</th>
-                <th>Trend</th>
-                <th onClick={() => toggleSort('date')}>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSortedRows.map((row) => {
-                const expanded = expandedRow === row.id;
-                return (
-                  <React.Fragment key={row.id}>
-                    <tr>
-                      <td>{row.projectName}</td>
-                      <td>{row.score}</td>
-                      <td>{row.category}</td>
-                      <td>{row.isAdopted ? row.adoptedLabel : 'No'}</td>
-                      <td><Sparkline points={trendsByProject.get(row.projectName) || []} /></td>
-                      <td>{toLocalDate(row.dateIso)}</td>
-                      <td>
-                        <div className="scores-actions">
-                          <button
-                            type="button"
-                            className="scores-btn small ghost"
-                            onClick={() => navigate(`/sessions?view=review&session_id=${encodeURIComponent(row.threadId)}`)}
-                          >
-                            Open
-                          </button>
-                          <button
-                            type="button"
-                            className="scores-btn small"
-                            onClick={() => setExpandedRow(expanded ? null : row.id)}
-                          >
-                            {expanded ? 'Hide' : 'Expand'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {expanded && (
-                      <tr className="scores-expanded">
-                        <td colSpan={7}>
-                          <div className="scores-expanded-grid">
-                            <div>
-                              <h4>Adopted Scenario Details</h4>
-                              <p><strong>Analysis ID:</strong> {row.analysisId}</p>
-                              <p><strong>Thread ID:</strong> {row.threadId}</p>
-                              <p><strong>Adopted:</strong> {row.isAdopted ? row.adoptedLabel : 'No'}</p>
-                            </div>
-                            <div>
-                              <h4>Component Scores</h4>
-                              {Object.keys(row.componentScores || {}).length === 0 ? (
-                                <p>None available</p>
-                              ) : (
-                                <ul>
-                                  {Object.entries(row.componentScores).map(([k, v]) => (
-                                    <li key={k}>{k}: {String(v)}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                            <div>
-                              <h4>Financial Impact</h4>
-                              {Object.keys(row.financialImpact || {}).length === 0 ? (
-                                <p>None available</p>
-                              ) : (
-                                <ul>
-                                  {Object.entries(row.financialImpact).map(([k, v]) => (
-                                    <li key={k}>{k}: {String(v)}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="scores-filters">
+          <input
+            type="text"
+            placeholder="Search by project name..."
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+          />
+          <select
+            value={category}
+            onChange={(event) => {
+              setCategory(event.target.value);
+              setOffset(0);
+            }}
+          >
+            {CATEGORY_OPTIONS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         </div>
-      )}
+
+        {loading && <div className="scores-state">Loading completed analyses...</div>}
+        {!loading && error && <div className="scores-state scores-state-error">{error}</div>}
+        {!loading && !error && total === 0 && (
+          <div className="scores-state">
+            No completed analyses yet. Start a new project to get your first Jaspen Score.
+          </div>
+        )}
+
+        {!loading && !error && total > 0 && (
+          <>
+            <div className="scores-table-wrap">
+              <table className="scores-table">
+                <thead>
+                  <tr>
+                    <th onClick={() => toggleSort('name')}>Project Name{sortIndicator('name')}</th>
+                    <th onClick={() => toggleSort('score')}>Jaspen Score{sortIndicator('score')}</th>
+                    <th onClick={() => toggleSort('category')}>Category{sortIndicator('category')}</th>
+                    <th>Adopted Scenario</th>
+                    <th>Component Scores</th>
+                    <th onClick={() => toggleSort('date')}>Date{sortIndicator('date')}</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scores.map((row, index) => {
+                    const rowKey = `${row?.thread_id || 'thread'}:${row?.created_at || row?.updated_at || index}`;
+                    const expanded = Boolean(expandedRows[rowKey]);
+                    const scoreValue = Number(row?.jaspen_score);
+                    const projectName = row?.project_name || 'Untitled project';
+                    const adoptedLabel = row?.adopted_scenario?.label || '—';
+                    const trendPoints = trendByProject.get(projectName) || [];
+                    return (
+                      <React.Fragment key={rowKey}>
+                        <tr>
+                          <td>
+                            <button
+                              type="button"
+                              className="scores-link-btn"
+                              onClick={() => openAnalysis(row?.thread_id)}
+                              title="Open analysis in workspace"
+                            >
+                              {projectName}
+                            </button>
+                            <div className="scores-trend-row">
+                              <span className="scores-trend-label">Trend</span>
+                              <Sparkline points={trendPoints} />
+                            </div>
+                          </td>
+                          <td>
+                            <span className={getScoreBadgeClass(row?.score_category)}>
+                              {Number.isFinite(scoreValue) ? scoreValue : '—'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={getScoreBadgeClass(row?.score_category)}>
+                              {row?.score_category || 'At Risk'}
+                            </span>
+                          </td>
+                          <td>{adoptedLabel}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="scores-expand-btn"
+                              onClick={() => toggleExpanded(rowKey)}
+                              aria-expanded={expanded}
+                            >
+                              {expanded ? 'Hide' : 'View'} details{' '}
+                              <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} />
+                            </button>
+                          </td>
+                          <td title={formatFullDate(row?.created_at || row?.updated_at)}>
+                            {formatRelativeTime(row?.created_at || row?.updated_at)}
+                          </td>
+                          <td>
+                            <div className="scores-actions">
+                              <button
+                                type="button"
+                                className="scores-icon-btn"
+                                title="View analysis"
+                                onClick={() => openAnalysis(row?.thread_id)}
+                              >
+                                <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+                              </button>
+                              <button
+                                type="button"
+                                className="scores-icon-btn"
+                                title="Export individual report"
+                                onClick={() => exportRowReport(row)}
+                              >
+                                <FontAwesomeIcon icon={faDownload} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {expanded && (
+                          <tr className="scores-expanded-row">
+                            <td colSpan={7}>
+                              <div className="scores-expanded-grid">
+                                <div>
+                                  <h4>Adopted Scenario</h4>
+                                  <p>{adoptedLabel}</p>
+                                  {row?.adopted_scenario?.deltas && Object.keys(row.adopted_scenario.deltas).length > 0 && (
+                                    <ul>
+                                      {Object.entries(row.adopted_scenario.deltas).map(([key, value]) => (
+                                        <li key={`delta-${rowKey}-${key}`}>{key}: {String(value)}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                                <div>
+                                  <h4>Component Scores</h4>
+                                  {row?.component_scores && Object.keys(row.component_scores).length > 0 ? (
+                                    <ul>
+                                      {Object.entries(row.component_scores).map(([key, value]) => (
+                                        <li key={`component-${rowKey}-${key}`}>{key}: {String(value)}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p>No component scores available.</p>
+                                  )}
+                                </div>
+                                <div>
+                                  <h4>Financial Impact</h4>
+                                  {row?.financial_impact && Object.keys(row.financial_impact).length > 0 ? (
+                                    <ul>
+                                      {Object.entries(row.financial_impact).map(([key, value]) => (
+                                        <li key={`financial-${rowKey}-${key}`}>{key}: {String(value)}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p>No financial impact data.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="scores-pagination">
+              <span>Showing {start}-{end} of {total}</span>
+              <div className="scores-pagination-actions">
+                <button
+                  type="button"
+                  className="scores-secondary-btn"
+                  onClick={() => setOffset((prev) => Math.max(0, prev - PAGE_LIMIT))}
+                  disabled={!hasPrevious}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="scores-secondary-btn"
+                  onClick={() => setOffset((prev) => prev + PAGE_LIMIT)}
+                  disabled={!hasNext}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

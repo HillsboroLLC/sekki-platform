@@ -18,16 +18,25 @@
 
 .activity-controls {
   margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.activity-controls select {
+.activity-controls select,
+.activity-controls input[type='date'] {
   height: 42px;
-  min-width: 260px;
+  min-width: 180px;
   border-radius: 10px;
   border: 1px solid #c0cce2;
   background: #fff;
   color: #24355f;
   padding: 0 12px;
+}
+
+.activity-controls select {
+  min-width: 260px;
 }
 
 .activity-state {

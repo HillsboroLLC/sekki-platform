@@ -48,6 +48,7 @@ export const endpoints = {
   insightsUpload:   `${API_BASE}/api/insights/upload`,
   insightsAnalyze:  `${API_BASE}/api/insights/analyze`,
   insightsDatasets: `${API_BASE}/api/insights/datasets`,
+  insightsDeleteDataset: (datasetId) => `${API_BASE}/api/insights/datasets/${encodeURIComponent(datasetId)}`,
   starters:         `${API_BASE}/api/starters`,
   starterById:      (starterId) => `${API_BASE}/api/starters/${encodeURIComponent(starterId)}`,
   deleteAnalysis:   (analysisId) => `${API_BASE}/api/strategy/analyses/${encodeURIComponent(analysisId)}`,
@@ -542,6 +543,9 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
       { dataset_id, question: String(question || '').trim() },
       { withSid: true }
     ),
+
+  deleteInsightsDataset: async (datasetId) =>
+    del(endpoints.insightsDeleteDataset(datasetId), { withSid: true }),
 
   listStarters: async () =>
     getJSON(endpoints.starters, { withSid: true }),

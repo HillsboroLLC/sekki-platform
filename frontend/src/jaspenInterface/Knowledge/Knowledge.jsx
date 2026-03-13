@@ -78,89 +78,166 @@ const TOPICS = {
     ],
     links: [{ label: 'Workspace', href: '/new' }],
   },
-  scoresHistory: {
-    short: 'SC',
-    label: 'Scores History',
-    title: 'Scores History',
-    summary: 'Completed scorecards across projects with filtering, sorting, trend visibility, and export.',
+  jaspenScore: {
+    short: 'JS',
+    label: 'Jaspen Score',
+    title: 'Jaspen Score',
+    summary: 'What the score measures, how component scores work, and how category bands are interpreted.',
     sections: [
       {
-        heading: 'What You Get',
+        heading: 'Score Meaning',
         body: [
-          'The Scores page lists completed analyses with project name, Jaspen score, category, adopted scenario, component score breakdown, and date.',
+          'Jaspen Score is a 0-100 summary of readiness and execution quality. It is supported by component-level scores so teams can see which capability areas are helping or hurting outcomes.',
         ],
       },
       {
-        heading: 'How To Use',
+        heading: 'Category Bands',
         body: [
-          'Sort by name, score, category, or date. Filter by category/date/search. Export CSV for offline review.',
+          'Excellent: 80-100. Good: 60-79. Fair: 40-59. At Risk: 0-39.',
+          'Use category changes over time to track whether interventions and scenario choices are improving execution confidence.',
+        ],
+      },
+      {
+        heading: 'How To Improve Scores',
+        body: [
+          'Review weak components first, create scenarios that target those constraints, adopt the strongest scenario, then re-run analysis after execution updates.',
         ],
       },
     ],
     links: [{ label: 'Open Scores', href: '/scores' }],
   },
-  aiScenarios: {
-    short: 'AS',
-    label: 'AI Scenarios',
-    title: 'AI Scenario Suggestions',
-    summary: 'Generate lever adjustments from natural language, then accept, modify, or reject.',
+  scenarioModeling: {
+    short: 'SM',
+    label: 'Scenario Modeling',
+    title: 'Scenario Modeling',
+    summary: 'Create manual scenarios, ask AI to suggest lever adjustments, compare outcomes, and adopt a scenario.',
     sections: [
       {
-        heading: 'Prompt Examples',
+        heading: 'Manual Scenarios',
         body: [
-          'Try prompts like "Increase budget by 20%" or "Accelerate timeline by one quarter". The agent returns rationale and lever-by-lever changes.',
+          'Use the scenario modeler to adjust lever values directly. Levers represent controllable drivers such as budget, scope, timeline, staffing, and operational constraints.',
         ],
       },
       {
-        heading: 'Control Model',
+        heading: 'AI-Assisted Scenarios',
         body: [
-          'You always decide final adoption. AI suggestions can be accepted directly or edited in the manual scenario modeler.',
+          'Ask the AI in chat or use AI Suggest in the modeler for proposals like "increase budget by 15%" or "cut timeline by one quarter".',
+          'AI returns rationale plus lever-by-lever adjustments so you can accept as-is or modify before committing.',
+        ],
+      },
+      {
+        heading: 'Adoption',
+        body: [
+          'Adopting a scenario marks it as your chosen path and uses it as the working context for planning, WBS generation, and downstream sync.',
         ],
       },
     ],
     links: [{ label: 'Open Workspace', href: '/new' }],
   },
-  aiWbsGeneration: {
+  projectPlansWbs: {
     short: 'WB',
-    label: 'AI WBS Generation',
-    title: 'AI WBS Generation',
-    summary: 'Generate an initial project plan from scorecard risks and adopted scenario context.',
+    label: 'Project Plans & WBS',
+    title: 'Project Plans & WBS',
+    summary: 'Generate and edit execution-ready plans from your analysis, including dependencies and role assignments.',
     sections: [
       {
-        heading: 'What Is Generated',
+        heading: 'AI WBS Generation',
         body: [
-          'The generated WBS includes phases, tasks, priorities, suggested roles, dependencies, and risk mapping.',
+          'AI can generate a phased work breakdown structure from scorecard insights and adopted scenario context.',
+          'Generated tasks include title, description, priority, estimated duration, suggested owner role, and dependencies.',
         ],
       },
       {
-        heading: 'Post-Generation Editing',
+        heading: 'Editing and Control',
         body: [
-          'All generated tasks remain editable. Teams can refine task titles, owners, durations, and dependencies before syncing.',
+          'All generated tasks remain editable. Teams can refine sequencing, dependencies, role ownership, and risk focus areas before execution.',
+        ],
+      },
+      {
+        heading: 'Sync Targets',
+        body: [
+          'WBS plans can be synced to Jira, Workfront, and Smartsheet when connector credentials and sync settings are configured.',
         ],
       },
     ],
     links: [{ label: 'Open Workspace', href: '/new' }],
   },
-  dataInsights: {
+  aiDataInsights: {
     short: 'DI',
-    label: 'Data Insights',
-    title: 'Data Insights',
-    summary: 'Upload CSV/Excel datasets and run AI-assisted trend, anomaly, risk, and opportunity analysis.',
+    label: 'AI Data Insights',
+    title: 'AI Data Insights',
+    summary: 'Upload datasets, analyze trends and anomalies, and combine uploaded and connected-source insights.',
     sections: [
       {
-        heading: 'Workflow',
+        heading: 'Dataset Upload and Analysis',
         body: [
-          'Upload a dataset, select Analyze, and review structured insight cards and chart recommendations.',
+          'Upload CSV/Excel datasets in Insights, then run AI analysis to produce trend summaries, anomaly detection, opportunity highlights, and risk indicators.',
         ],
       },
       {
-        heading: 'Best Practices',
+        heading: 'Connected Tool Context',
         body: [
-          'Use clean headers and stable metric definitions. Ask targeted questions when you need focused analysis.',
+          'When connectors are enabled, insights can include context from linked systems so recommendations reflect CRM, PM, and data warehouse signals.',
+        ],
+      },
+      {
+        heading: 'How To Read Results',
+        body: [
+          'Trends show sustained directional changes. Anomalies flag outliers or sudden shifts. Opportunities identify upside interventions. Risks identify downside exposure requiring mitigation.',
         ],
       },
     ],
     links: [{ label: 'Open Insights', href: '/insights' }],
+  },
+  reportsGuide: {
+    short: 'RP',
+    label: 'Reports',
+    title: 'Reports',
+    summary: 'Generate PDF reports from analyses and portfolio data for leadership sharing.',
+    sections: [
+      {
+        heading: 'Report Types',
+        body: [
+          'Executive Summary: concise decision-ready overview.',
+          'Detailed Analysis: full breakdown of scorecard, drivers, and recommendations.',
+          'Portfolio Overview: multi-project summary across the workspace.',
+        ],
+      },
+      {
+        heading: 'Generation and Download',
+        body: [
+          'Select a project and report type, generate the report, then download the PDF from the reports list.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Reports', href: '/reports' }],
+  },
+  connectors: {
+    short: 'CN',
+    label: 'Connectors',
+    title: 'Connectors',
+    summary: 'Configure integrations for execution sync and data enrichment across PM, CRM, and warehouse systems.',
+    sections: [
+      {
+        heading: 'Supported Connectors',
+        body: [
+          'Execution: Jira, Workfront, Smartsheet. Data/Insights: Salesforce, Snowflake, Oracle Fusion, ServiceNow, NetSuite.',
+        ],
+      },
+      {
+        heading: 'Sync Modes',
+        body: [
+          'Import pulls external updates into Jaspen. Push sends Jaspen updates to external systems. Two-way runs bidirectional synchronization.',
+        ],
+      },
+      {
+        heading: 'Conflict Policies',
+        body: [
+          'latest_wins applies newest update, prefer_external favors external values, prefer_jaspen keeps Jaspen values, manual_review flags records for explicit resolution.',
+        ],
+      },
+    ],
+    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   teamManagement: {
     short: 'TM',
@@ -203,27 +280,6 @@ const TOPICS = {
       },
     ],
     links: [{ label: 'Open Workspace', href: '/new' }],
-  },
-  connectorSetup: {
-    short: 'CS',
-    label: 'Connector Setup',
-    title: 'Connector Setup',
-    summary: 'Unified setup pattern for execution and data connectors with explicit save behavior.',
-    sections: [
-      {
-        heading: 'Setup Pattern',
-        body: [
-          'Select connector, enter required credentials/settings, choose sync mode and conflict policy, then Save.',
-        ],
-      },
-      {
-        heading: 'Operational Controls',
-        body: [
-          'Use Test Connection for credential validation and Sync Now for on-demand runs. Health and audit history are available per connector.',
-        ],
-      },
-    ],
-    links: [{ label: 'Open Connectors', href: '/connectors-manage' }],
   },
   jira: {
     short: 'JR',
@@ -376,13 +432,14 @@ const TOPIC_GROUPS = [
     items: [
       'agent',
       'components',
-      'scoresHistory',
-      'aiScenarios',
-      'aiWbsGeneration',
-      'dataInsights',
+      'jaspenScore',
+      'scenarioModeling',
+      'projectPlansWbs',
+      'aiDataInsights',
+      'reportsGuide',
+      'connectors',
       'teamManagement',
       'savedStarters',
-      'connectorSetup',
     ],
   },
   {

@@ -17,6 +17,22 @@ const TYPE_OPTIONS = [
 
 const PAGE_SIZE = 50;
 
+function toIsoStart(dateInput) {
+  const value = String(dateInput || '').trim();
+  if (!value) return '';
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString();
+}
+
+function toIsoEnd(dateInput) {
+  const value = String(dateInput || '').trim();
+  if (!value) return '';
+  const parsed = new Date(`${value}T23:59:59.999`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString();
+}
+
 function authHeaders() {
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
   return {
@@ -29,6 +45,8 @@ export default function Activity() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -41,6 +59,10 @@ export default function Activity() {
         offset: String(offset),
       });
       if (typeFilter) params.set('type', typeFilter);
+      const fromIso = toIsoStart(fromDate);
+      const toIso = toIsoEnd(toDate);
+      if (fromIso) params.set('from', fromIso);
+      if (toIso) params.set('to', toIso);
 
       const res = await fetch(`${API_BASE}/api/activity?${params.toString()}`, {
         credentials: 'include',
@@ -60,7 +82,7 @@ export default function Activity() {
     } finally {
       setLoading(false);
     }
-  }, [offset, typeFilter]);
+  }, [fromDate, offset, toDate, typeFilter]);
 
   useEffect(() => {
     loadActivity();
@@ -96,6 +118,24 @@ export default function Activity() {
             <option key={option.value || 'all'} value={option.value}>{option.label}</option>
           ))}
         </select>
+        <input
+          type="date"
+          value={fromDate}
+          onChange={(event) => {
+            setFromDate(event.target.value);
+            setOffset(0);
+          }}
+          aria-label="Filter from date"
+        />
+        <input
+          type="date"
+          value={toDate}
+          onChange={(event) => {
+            setToDate(event.target.value);
+            setOffset(0);
+          }}
+          aria-label="Filter to date"
+        />
       </section>
 
       {loading && <div className="activity-state">Loading activity...</div>}

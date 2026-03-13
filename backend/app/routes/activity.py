@@ -232,10 +232,20 @@ def list_activity():
     offset = _parse_int(request.args.get('offset'), default=0, minimum=0, maximum=5000)
     type_filter = str(request.args.get('type') or '').strip().lower()
     scope = str(request.args.get('scope') or 'user').strip().lower()
+    from_raw = str(request.args.get('from') or '').strip()
+    to_raw = str(request.args.get('to') or '').strip()
+    from_dt = _parse_dt(from_raw) if from_raw else None
+    to_dt = _parse_dt(to_raw) if to_raw else None
     if type_filter and type_filter not in ALLOWED_TYPES:
         return jsonify({'error': f"type must be one of {', '.join(sorted(ALLOWED_TYPES))}"}), 400
     if scope not in {'user', 'organization'}:
         return jsonify({'error': "scope must be 'user' or 'organization'"}), 400
+    if from_raw and from_dt is None:
+        return jsonify({'error': 'from must be an ISO date or datetime string'}), 400
+    if to_raw and to_dt is None:
+        return jsonify({'error': 'to must be an ISO date or datetime string'}), 400
+    if from_dt and to_dt and from_dt > to_dt:
+        return jsonify({'error': 'from must be before or equal to to'}), 400
 
     requested_user_id = str(request.args.get('user_id') or '').strip()
 
@@ -334,6 +344,10 @@ def list_activity():
 
     if type_filter:
         events = [item for item in events if item.get('type') == type_filter]
+    if from_dt:
+        events = [item for item in events if isinstance(item.get('_sort_ts'), datetime) and item.get('_sort_ts') >= from_dt]
+    if to_dt:
+        events = [item for item in events if isinstance(item.get('_sort_ts'), datetime) and item.get('_sort_ts') <= to_dt]
 
     events.sort(key=lambda item: item.get('_sort_ts') or datetime.min, reverse=True)
     total = len(events)

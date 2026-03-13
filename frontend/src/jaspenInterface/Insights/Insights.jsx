@@ -98,6 +98,7 @@ export default function Insights() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [deletingDatasetId, setDeletingDatasetId] = useState('');
   const [error, setError] = useState('');
   const [question, setQuestion] = useState('');
   const [analysis, setAnalysis] = useState(null);
@@ -163,6 +164,30 @@ export default function Insights() {
       setAnalyzing(false);
     }
   }, [question]);
+
+  const onDeleteDataset = useCallback(async (datasetId) => {
+    const id = String(datasetId || '').trim();
+    if (!id) return;
+    const target = datasets.find((row) => String(row?.id || '') === id);
+    const targetName = target?.filename || 'this dataset';
+    const confirmed = window.confirm(`Delete ${targetName}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingDatasetId(id);
+    setError('');
+    try {
+      await Jaspen.deleteInsightsDataset(id);
+      if (String(activeDatasetId || '') === id) {
+        setActiveDatasetId('');
+        setAnalysis(null);
+      }
+      await loadDatasets();
+    } catch (err) {
+      setError(err?.message || 'Delete failed');
+    } finally {
+      setDeletingDatasetId('');
+    }
+  }, [activeDatasetId, datasets, loadDatasets]);
 
   return (
     <div className="insights-page">
@@ -230,14 +255,24 @@ export default function Insights() {
                   <td>{safeList(row.column_names).join(', ') || '—'}</td>
                   <td>{formatDate(row.created_at)}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="insights-btn"
-                      onClick={() => onAnalyze(row.id)}
-                      disabled={analyzing}
-                    >
-                      {analyzing && String(activeDatasetId) === String(row.id) ? 'Analyzing…' : 'Analyze'}
-                    </button>
+                    <div className="insights-actions">
+                      <button
+                        type="button"
+                        className="insights-btn"
+                        onClick={() => onAnalyze(row.id)}
+                        disabled={analyzing || Boolean(deletingDatasetId)}
+                      >
+                        {analyzing && String(activeDatasetId) === String(row.id) ? 'Analyzing…' : 'Analyze'}
+                      </button>
+                      <button
+                        type="button"
+                        className="insights-btn danger"
+                        onClick={() => onDeleteDataset(row.id)}
+                        disabled={analyzing || deletingDatasetId === String(row.id)}
+                      >
+                        {deletingDatasetId === String(row.id) ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

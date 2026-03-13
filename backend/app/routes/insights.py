@@ -347,3 +347,29 @@ def list_datasets():
     return jsonify({
         'datasets': [row.to_dict() for row in rows],
     }), 200
+
+
+@insights_bp.route('/datasets/<dataset_id>', methods=['DELETE'])
+@jwt_required()
+def delete_dataset(dataset_id):
+    user_id = str(get_jwt_identity())
+    dataset_id = str(dataset_id or '').strip()
+    if not dataset_id:
+        return jsonify({'error': 'dataset_id is required'}), 400
+
+    dataset = UserDataset.query.filter_by(id=dataset_id, user_id=user_id).first()
+    if not dataset:
+        return jsonify({'error': 'Dataset not found'}), 404
+
+    csv_path = _dataset_csv_path(user_id, dataset.id)
+
+    try:
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+        db.session.delete(dataset)
+        db.session.commit()
+        return jsonify({'success': True}), 200
+    except Exception as err:
+        db.session.rollback()
+        print(f"[insights.delete] {err}")
+        return jsonify({'error': 'Failed to delete dataset'}), 500

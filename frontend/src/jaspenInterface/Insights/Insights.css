@@ -107,6 +107,19 @@
   border-color: #161f3b;
 }
 
+.insights-btn.danger {
+  background: #fff4f4;
+  color: #8f2730;
+  border-color: #efc4c9;
+}
+
+.insights-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .insights-question-row {
   margin-top: 14px;
   display: flex;

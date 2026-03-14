@@ -1,4 +1,5 @@
 from urllib.parse import urlencode
+import re
 import secrets
 
 import requests
@@ -32,6 +33,21 @@ auth_bp = Blueprint('auth', __name__)
 GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
+
+
+def _validate_password(password):
+    """Enforce password policy. Returns (is_valid, error_message)."""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if len(password) > 128:
+        return False, "Password must not exceed 128 characters."
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter."
+    if not re.search(r'[0-9]', password):
+        return False, "Password must contain at least one digit."
+    return True, None
 
 
 @auth_bp.before_app_request
@@ -128,6 +144,15 @@ def signup():
 
     if not name or not email or not password:
         return jsonify(message='Name, email and password are all required'), 400
+
+    pw_valid, pw_error = _validate_password(password)
+    if not pw_valid:
+        return jsonify(message=pw_error), 400
+
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        return jsonify(message='Please provide a valid email address.'), 400
+
     if User.query.filter_by(email=email).first():
         return jsonify(message='Email already registered'), 409
 

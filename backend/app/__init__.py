@@ -6,6 +6,7 @@ import stripe
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from sqlalchemy import text
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 
@@ -296,5 +297,17 @@ def create_app():
     def handle_exception(e):
         app.logger.exception("Unhandled exception: %s", e)
         return jsonify({"error": "Internal server error"}), 500
+
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        try:
+            db.session.execute(text('SELECT 1'))
+            db_status = "ok"
+        except Exception:
+            db_status = "unavailable"
+        return jsonify({
+            "status": "ok" if db_status == "ok" else "degraded",
+            "database": db_status,
+        }), 200 if db_status == "ok" else 503
 
     return app

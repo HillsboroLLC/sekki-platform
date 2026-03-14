@@ -194,7 +194,7 @@ export default function ConnectorsManage() {
   const [error, setError] = useState('');
 
   const loadConnectors = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/api/connectors/status`, {
+    const res = await fetch(`${API_BASE}/api/v1/connectors/status`, {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -216,7 +216,7 @@ export default function ConnectorsManage() {
   }, [selectedConnectorId]);
 
   const loadThreads = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/api/ai-agent/threads`, {
+    const res = await fetch(`${API_BASE}/api/v1/ai-agent/threads`, {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -242,7 +242,7 @@ export default function ConnectorsManage() {
       setAuditRows([]);
       return;
     }
-    const res = await fetch(`${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}/audit?limit=20`, {
+    const res = await fetch(`${API_BASE}/api/v1/connectors/${encodeURIComponent(connectorId)}/audit?limit=20`, {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -299,7 +299,7 @@ export default function ConnectorsManage() {
     setMessage('');
     try {
       const payload = buildUpdatePayload(selectedConnector.id, selectedDraft);
-      const res = await fetch(`${API_BASE}/api/connectors/${encodeURIComponent(selectedConnector.id)}`, {
+      const res = await fetch(`${API_BASE}/api/v1/connectors/${encodeURIComponent(selectedConnector.id)}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: authHeaders(true),
@@ -324,7 +324,7 @@ export default function ConnectorsManage() {
     setError('');
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/api/connectors/${encodeURIComponent(selectedConnector.id)}/health`, {
+      const res = await fetch(`${API_BASE}/api/v1/connectors/${encodeURIComponent(selectedConnector.id)}/health`, {
         credentials: 'include',
         headers: authHeaders(),
       });
@@ -352,18 +352,18 @@ export default function ConnectorsManage() {
 
       if (selectedConnector.id === 'jira_sync') {
         if (!selectedThreadId) throw new Error('Select a thread for Jira sync.');
-        endpoint = `${API_BASE}/api/connectors/threads/${encodeURIComponent(selectedThreadId)}/jira/sync`;
+        endpoint = `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(selectedThreadId)}/jira/sync`;
       } else if (selectedConnector.id === 'workfront_sync') {
         if (!selectedThreadId) throw new Error('Select a thread for Workfront sync.');
-        endpoint = `${API_BASE}/api/connectors/threads/${encodeURIComponent(selectedThreadId)}/workfront/sync`;
+        endpoint = `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(selectedThreadId)}/workfront/sync`;
       } else if (selectedConnector.id === 'smartsheet_sync') {
         if (!selectedThreadId) throw new Error('Select a thread for Smartsheet sync.');
-        endpoint = `${API_BASE}/api/connectors/threads/${encodeURIComponent(selectedThreadId)}/smartsheet/sync`;
+        endpoint = `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(selectedThreadId)}/smartsheet/sync`;
       } else if (selectedConnector.id === 'salesforce_insights') {
-        endpoint = `${API_BASE}/api/connectors/salesforce/pipeline/summary?days=30&limit=200`;
+        endpoint = `${API_BASE}/api/v1/connectors/salesforce/pipeline/summary?days=30&limit=200`;
         method = 'GET';
       } else {
-        endpoint = `${API_BASE}/api/connectors/${encodeURIComponent(selectedConnector.id)}/health`;
+        endpoint = `${API_BASE}/api/v1/connectors/${encodeURIComponent(selectedConnector.id)}/health`;
         method = 'GET';
       }
 

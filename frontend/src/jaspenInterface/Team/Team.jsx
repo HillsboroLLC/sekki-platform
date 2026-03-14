@@ -386,13 +386,13 @@ export default function Team({ mode = 'team' }) {
       }
 
       const [summaryData, membersData, invitationsData, organizationsData, projectsData] = await Promise.all([
-        teamFetch('/api/team/summary'),
-        teamFetch('/api/team/members'),
-        teamFetch('/api/team/invitations'),
-        teamFetch('/api/team/organizations'),
-        teamFetch('/api/team/projects'),
+        teamFetch('/api/v1/team/summary'),
+        teamFetch('/api/v1/team/members'),
+        teamFetch('/api/v1/team/invitations'),
+        teamFetch('/api/v1/team/organizations'),
+        teamFetch('/api/v1/team/projects'),
       ]);
-      const adminCapsData = await teamFetch('/api/admin/capabilities').catch(() => ({}));
+      const adminCapsData = await teamFetch('/api/v1/admin/capabilities').catch(() => ({}));
 
       setSummary(summaryData || null);
       setOrgNameDraft(String(summaryData?.organization?.name || ''));
@@ -440,7 +440,7 @@ export default function Team({ mode = 'team' }) {
       setNotice('');
       setError('');
       try {
-        await teamFetch(`/api/teams/invitations/${encodeURIComponent(inviteToken)}/accept`, {
+        await teamFetch(`/api/v1/teams/invitations/${encodeURIComponent(inviteToken)}/accept`, {
           method: 'POST',
         });
         if (cancelled) return;
@@ -465,7 +465,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch('/api/team/organizations/active', {
+      await teamFetch('/api/v1/team/organizations/active', {
         method: 'POST',
         body: JSON.stringify({ organization_id: orgId }),
       });
@@ -490,7 +490,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}`, {
+      await teamFetch(`/api/v1/teams/${encodeURIComponent(activeOrgId)}`, {
         method: 'PATCH',
         body: JSON.stringify({ name: nextName }),
       });
@@ -510,7 +510,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      const result = await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}/invite`, {
+      const result = await teamFetch(`/api/v1/teams/${encodeURIComponent(activeOrgId)}/invite`, {
         method: 'POST',
         body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
@@ -531,7 +531,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}/members/${encodeURIComponent(memberId)}`, {
+      await teamFetch(`/api/v1/teams/${encodeURIComponent(activeOrgId)}/members/${encodeURIComponent(memberId)}`, {
         method: 'PATCH',
         body: JSON.stringify({ role }),
       });
@@ -552,7 +552,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/teams/${encodeURIComponent(activeOrgId)}/members/${encodeURIComponent(member.id)}`, { method: 'DELETE' });
+      await teamFetch(`/api/v1/teams/${encodeURIComponent(activeOrgId)}/members/${encodeURIComponent(member.id)}`, { method: 'DELETE' });
       await loadAll();
       setNotice('Member removed.');
     } catch (err) {
@@ -569,7 +569,7 @@ export default function Team({ mode = 'team' }) {
     setError('');
     try {
       const result = await teamFetch(
-        `/api/teams/${encodeURIComponent(activeOrgId)}/invitations/${encodeURIComponent(invitationId)}/resend`,
+        `/api/v1/teams/${encodeURIComponent(activeOrgId)}/invitations/${encodeURIComponent(invitationId)}/resend`,
         { method: 'POST' }
       );
       await loadAll();
@@ -589,7 +589,7 @@ export default function Team({ mode = 'team' }) {
     setError('');
     try {
       await teamFetch(
-        `/api/teams/${encodeURIComponent(activeOrgId)}/invitations/${encodeURIComponent(invitationId)}`,
+        `/api/v1/teams/${encodeURIComponent(activeOrgId)}/invitations/${encodeURIComponent(invitationId)}`,
         { method: 'DELETE' }
       );
       await loadAll();
@@ -661,7 +661,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch('/api/team/seat-policy', {
+      await teamFetch('/api/v1/team/seat-policy', {
         method: 'PATCH',
         body: JSON.stringify({ seat_policy_overrides: payload }),
       });
@@ -719,7 +719,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch('/api/team/seat-policy', {
+      await teamFetch('/api/v1/team/seat-policy', {
         method: 'PATCH',
         body: JSON.stringify({ seat_policy_overrides: payload }),
       });
@@ -742,7 +742,7 @@ export default function Team({ mode = 'team' }) {
     setNotice('');
     setError('');
     try {
-      await teamFetch(`/api/team/projects/${encodeURIComponent(sessionId)}/sharing`, {
+      await teamFetch(`/api/v1/team/projects/${encodeURIComponent(sessionId)}/sharing`, {
         method: 'PATCH',
         body: JSON.stringify({
           visibility,

@@ -303,7 +303,7 @@ export default function JaspenWorkspace() {
   const [messages, setMessages] = useState([]);
 
   // Readiness core state - SINGLE SOURCE OF TRUTH
-  const [readinessAudit, setReadinessAudit] = useState(null); // ONLY source: GET /api/readiness/audit (authoritative)
+  const [readinessAudit, setReadinessAudit] = useState(null); // ONLY source: GET /api/v1/readiness/audit (authoritative)
   const [collectedData, setCollectedData] = useState({});
   const READINESS_CIRC = 2 * Math.PI * 52; // r=52 -> circumference ~326.7
 
@@ -1090,14 +1090,14 @@ useEffect(() => {
     setBillingLoading(true);
     try {
       const statusPath = adminWorkspacePreviewPlan
-        ? `/api/admin/preview/workspace?plan_key=${encodeURIComponent(adminWorkspacePreviewPlan)}`
-        : '/api/billing/status';
+        ? `/api/v1/admin/preview/workspace?plan_key=${encodeURIComponent(adminWorkspacePreviewPlan)}`
+        : '/api/v1/billing/status';
       const [statusRes, catalogRes] = await Promise.all([
         fetch(`${API_BASE}${statusPath}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include'
         }),
-        fetch(`${API_BASE}/api/billing/catalog`, { credentials: 'include' })
+        fetch(`${API_BASE}/api/v1/billing/catalog`, { credentials: 'include' })
       ]);
       const statusData = await statusRes.json().catch(() => ({}));
       const catalogData = await catalogRes.json().catch(() => ({}));
@@ -1138,7 +1138,7 @@ useEffect(() => {
     setThreadUsageLoading(true);
     setThreadUsageError('');
     try {
-      const response = await authFetch(`/api/ai-agent/threads/${encodeURIComponent(targetThreadId)}/usage`, {
+      const response = await authFetch(`/api/v1/ai-agent/threads/${encodeURIComponent(targetThreadId)}/usage`, {
         method: 'GET',
       });
       const payload = await response.json().catch(() => ({}));
@@ -1319,7 +1319,7 @@ useEffect(() => {
     setBillingActionLoading(planKey);
     setBillingMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1352,7 +1352,7 @@ useEffect(() => {
     setBillingActionLoading('portal');
     setBillingMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-portal-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2050,7 +2050,7 @@ const [aiScenarioBusy, setAiScenarioBusy] = useState(false);
     let abort = false;
     (async () => {
       try {
-        const res = await fetch(`${apiBase}/api/ai-agent/readiness/spec`, { credentials: 'include' });
+        const res = await fetch(`${apiBase}/api/v1/ai-agent/readiness/spec`, { credentials: 'include' });
         if (!res.ok) return;
         const json = await res.json();
         if (abort) return;
@@ -2119,7 +2119,7 @@ const [aiScenarioBusy, setAiScenarioBusy] = useState(false);
       return v;
     })();
 
-    const resp = await fetch(`${API_BASE}/api/ai-agent/conversation/continue`, {
+    const resp = await fetch(`${API_BASE}/api/v1/ai-agent/conversation/continue`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2164,7 +2164,7 @@ const [aiScenarioBusy, setAiScenarioBusy] = useState(false);
       const headers = { };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch(`${API_BASE}/api/ai-agent/threads`, {
+      const response = await fetch(`${API_BASE}/api/v1/ai-agent/threads`, {
         method: 'GET',
         headers,
         credentials: 'include'
@@ -2232,7 +2232,7 @@ async function loadSessionById(id) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const apiBase = API_BASE;
-  const url = `${apiBase}/api/ai-agent/threads/${encodeURIComponent(id )}`;
+  const url = `${apiBase}/api/v1/ai-agent/threads/${encodeURIComponent(id )}`;
 
   try {
     // Attempt 1: NEW AI Agent thread fetch (JWT + cookie)
@@ -2359,7 +2359,7 @@ useEffect(() => {
   setLastSessionId(sessionId);
 }, [sessionId]);
 
-// (removed duplicate /api/readiness/spec effect)
+// (removed duplicate /api/v1/readiness/spec effect)
 
   useEffect(() => {
     const isDesktop = window.matchMedia('(min-width: 769px)').matches;
@@ -2553,7 +2553,7 @@ async function fetchReadinessFor(sid) {
 
   try {
     const apiBase = API_BASE;
-    const url = `${apiBase}/api/ai-agent/readiness/audit?thread_id=${encodeURIComponent(sid)}`;
+    const url = `${apiBase}/api/v1/ai-agent/readiness/audit?thread_id=${encodeURIComponent(sid)}`;
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     console.log('[fetchReadinessFor] fetching URL:', url);
 
@@ -2650,7 +2650,7 @@ async function fetchReadinessFor(sid) {
   const modelMenuRef = useRef(null);
 
 // ======= UI Readiness - SINGLE SOURCE FROM BACKEND ====================
-// ONLY source: readinessAudit.overall.percent from GET /api/readiness/audit
+// ONLY source: readinessAudit.overall.percent from GET /api/v1/readiness/audit
 // NO fallbacks, NO cached values, NO guessing
 const hasConversationMessages = Array.isArray(messages)
   && messages.some((m) => String(m?.text || '').trim().length > 0);
@@ -2975,7 +2975,7 @@ useEffect(() => {
       setCurrentSessionId(sid);
       dispatchSidebar({ type: "OPEN_READINESS" });
 
-      // Step 3: await GET /api/readiness/audit (authoritative)
+      // Step 3: await GET /api/v1/readiness/audit (authoritative)
       console.log('[startConversation] calling fetchReadinessFor with sid:', sid);
       await fetchReadinessFor(sid);
       
@@ -3079,7 +3079,7 @@ async function continueConversation(userText) {
 
     console.log('[continueConversation] about to call fetchReadinessFor with sessionId:', sessionId);
 
-    // Step 3: await GET /api/readiness/audit
+    // Step 3: await GET /api/v1/readiness/audit
     const auditPayload = await fetchReadinessFor(sessionId);
 
     console.log('[continueConversation] fetchReadinessFor returned auditPayload:', {
@@ -3196,7 +3196,7 @@ async function onBeginProject() {
             commit_message: 'begin-project from Jaspen'
         };
 
-        const resp = await fetch(`${API_BASE}/api/projects/generate/ai`, {
+        const resp = await fetch(`${API_BASE}/api/v1/projects/generate/ai`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -4650,7 +4650,7 @@ if (!baselineRef.current) baselineRef.current = normalizedFallback; // only set 
       const headers = { };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-await fetch(`${API_BASE}/api/ai-agent/threads/${itemId}`, {
+await fetch(`${API_BASE}/api/v1/ai-agent/threads/${itemId}`, {
   method: 'DELETE',
   headers,
   credentials: 'include'
@@ -4706,7 +4706,7 @@ async function persistScenario(label, values) {
 
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     const res = await fetch(
-      `${apiBase}/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
+      `${apiBase}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
       {
         method: 'POST',
         credentials: 'include',
@@ -4823,7 +4823,7 @@ const handleSaveScenario = async (scenario) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/help/chat`, {
+      const response = await fetch(`${API_BASE}/api/v1/help/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -341,16 +341,16 @@ export default function Account() {
 
       try {
         const [statusRes, catalogRes, connectorsRes, adminCapsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/billing/status`, {
+          fetch(`${API_BASE}/api/v1/billing/status`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: 'include',
           }),
-          fetch(`${API_BASE}/api/billing/catalog`, { credentials: 'include' }),
-          fetch(`${API_BASE}/api/connectors/status`, {
+          fetch(`${API_BASE}/api/v1/billing/catalog`, { credentials: 'include' }),
+          fetch(`${API_BASE}/api/v1/connectors/status`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: 'include',
           }),
-          fetch(`${API_BASE}/api/admin/capabilities`, {
+          fetch(`${API_BASE}/api/v1/admin/capabilities`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: 'include',
           }),
@@ -399,7 +399,7 @@ export default function Account() {
             isAdmin,
           }));
           if (isAdmin) {
-            const usersRes = await fetch(`${API_BASE}/api/admin/users?limit=100`, {
+            const usersRes = await fetch(`${API_BASE}/api/v1/admin/users?limit=100`, {
               headers: token ? { Authorization: `Bearer ${token}` } : {},
               credentials: 'include',
             });
@@ -457,7 +457,7 @@ export default function Account() {
 
   const refreshStatus = async () => {
     const token = getToken();
-    const res = await fetch(`${API_BASE}/api/billing/status`, {
+    const res = await fetch(`${API_BASE}/api/v1/billing/status`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       credentials: 'include',
     });
@@ -467,7 +467,7 @@ export default function Account() {
 
   const refreshConnectors = async () => {
     const token = getToken();
-    const res = await fetch(`${API_BASE}/api/connectors/status`, {
+    const res = await fetch(`${API_BASE}/api/v1/connectors/status`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       credentials: 'include',
     });
@@ -497,7 +497,7 @@ export default function Account() {
     setMessage('');
     try {
       const next = encodeURIComponent('/account?tab=connectors');
-      const response = await fetch(`${API_BASE}/api/connectors/salesforce/oauth/start?next=${next}`, {
+      const response = await fetch(`${API_BASE}/api/v1/connectors/salesforce/oauth/start?next=${next}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
@@ -521,7 +521,7 @@ export default function Account() {
     setConnectorPendingId('salesforce_insights');
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/connectors/salesforce/pipeline/summary?days=90&limit=200`, {
+      const response = await fetch(`${API_BASE}/api/v1/connectors/salesforce/pipeline/summary?days=90&limit=200`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
@@ -554,7 +554,7 @@ export default function Account() {
       if (!firstTable) {
         throw new Error('Add at least one Snowflake table in the allowlist before testing.');
       }
-      const response = await fetch(`${API_BASE}/api/connectors/snowflake/query`, {
+      const response = await fetch(`${API_BASE}/api/v1/connectors/snowflake/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -587,7 +587,7 @@ export default function Account() {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -627,7 +627,7 @@ export default function Account() {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-portal-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -659,7 +659,7 @@ export default function Account() {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/billing/cancel-subscription`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/cancel-subscription`, {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -690,7 +690,7 @@ export default function Account() {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-overage-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-overage-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -721,7 +721,7 @@ export default function Account() {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}`, {
+      const response = await fetch(`${API_BASE}/api/v1/connectors/${encodeURIComponent(connectorId)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1222,7 +1222,7 @@ export default function Account() {
     const token = getToken();
     setAdminState((prev) => ({ ...prev, loading: true, query: nextQuery }));
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users?limit=100&q=${encodeURIComponent(nextQuery)}`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users?limit=100&q=${encodeURIComponent(nextQuery)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
@@ -1278,7 +1278,7 @@ export default function Account() {
         stripe_customer_id: String(draft.stripe_customer_id || '').trim(),
         stripe_subscription_id: String(draft.stripe_subscription_id || '').trim(),
       };
-      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(draft.id)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1317,7 +1317,7 @@ export default function Account() {
     setAdminState((prev) => ({ ...prev, pending: true }));
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(adminState.draft.id)}/force-plan`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(adminState.draft.id)}/force-plan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

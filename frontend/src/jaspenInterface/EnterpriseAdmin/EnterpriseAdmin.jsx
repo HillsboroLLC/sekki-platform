@@ -156,7 +156,7 @@ export default function EnterpriseAdmin() {
       });
       if (userId) params.set('user_id', userId);
       if (actionType) params.set('type', actionType);
-      const payload = await adminFetch(`/api/activity?${params.toString()}`);
+      const payload = await adminFetch(`/api/v1/activity?${params.toString()}`);
       setAuditEvents(Array.isArray(payload?.events) ? payload.events : []);
     } catch (err) {
       setAuditEvents([]);
@@ -171,15 +171,15 @@ export default function EnterpriseAdmin() {
     setError('');
     setNotice('');
     try {
-      const summaryPayload = await adminFetch('/api/team/summary');
+      const summaryPayload = await adminFetch('/api/v1/team/summary');
       const activeOrg = summaryPayload?.organization || null;
       if (!activeOrg?.id) {
         throw new Error('No active organization found.');
       }
 
       const [orgPayload, connectorPayload] = await Promise.all([
-        adminFetch(`/api/teams/${encodeURIComponent(activeOrg.id)}`),
-        adminFetch('/api/connectors/status').catch(() => ({ connectors: [] })),
+        adminFetch(`/api/v1/teams/${encodeURIComponent(activeOrg.id)}`),
+        adminFetch('/api/v1/connectors/status').catch(() => ({ connectors: [] })),
       ]);
 
       const orgFromApi = orgPayload?.organization || activeOrg;
@@ -262,7 +262,7 @@ export default function EnterpriseAdmin() {
     setError('');
     setNotice('');
     try {
-      await adminFetch(`/api/teams/${encodeURIComponent(org.id)}/settings`, {
+      await adminFetch(`/api/v1/teams/${encodeURIComponent(org.id)}/settings`, {
         method: 'PATCH',
         body: JSON.stringify({
           settings: {
@@ -304,7 +304,7 @@ export default function EnterpriseAdmin() {
     setError('');
     setNotice('');
     try {
-      await adminFetch(`/api/teams/${encodeURIComponent(org.id)}/settings`, {
+      await adminFetch(`/api/v1/teams/${encodeURIComponent(org.id)}/settings`, {
         method: 'PATCH',
         body: JSON.stringify({
           settings: {

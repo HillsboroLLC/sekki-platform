@@ -17,7 +17,7 @@ export default function RequireAuth({ children }) {
     const accessToken =
       localStorage.getItem("access_token") || localStorage.getItem("token");
 
-    fetch(`${API_BASE}/api/auth/me`, {
+    fetch(`${API_BASE}/api/v1/auth/me`, {
       method: "GET",
       credentials: "include",
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}

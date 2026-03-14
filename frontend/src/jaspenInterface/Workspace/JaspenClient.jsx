@@ -9,62 +9,62 @@ import { API_BASE } from '../../config/apiBase';
 
 export const endpoints = {
   // AI Agent endpoints (NEW)
-  convoStart:     `${API_BASE}/api/ai-agent/conversation/start`,
-  convoNext:      `${API_BASE}/api/ai-agent/conversation/continue`,
-  analyze:        `${API_BASE}/api/ai-agent/analyze`,
-  readinessSpec:  `${API_BASE}/api/ai-agent/readiness/spec`,
-  readinessAudit: (threadId) => `${API_BASE}/api/ai-agent/readiness/audit?thread_id=${encodeURIComponent(threadId)}`,
+  convoStart:     `${API_BASE}/api/v1/ai-agent/conversation/start`,
+  convoNext:      `${API_BASE}/api/v1/ai-agent/conversation/continue`,
+  analyze:        `${API_BASE}/api/v1/ai-agent/analyze`,
+  readinessSpec:  `${API_BASE}/api/v1/ai-agent/readiness/spec`,
+  readinessAudit: (threadId) => `${API_BASE}/api/v1/ai-agent/readiness/audit?thread_id=${encodeURIComponent(threadId)}`,
   
   // Threads
-  getThread:      (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}`,
-  updateThread:   (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}`,
+  getThread:      (threadId) => `${API_BASE}/api/v1/ai-agent/threads/${encodeURIComponent(threadId)}`,
+  updateThread:   (threadId) => `${API_BASE}/api/v1/ai-agent/threads/${encodeURIComponent(threadId)}`,
   
   // Analyses
-  listAnalyses:   (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}/analyses`,
+  listAnalyses:   (threadId) => `${API_BASE}/api/v1/ai-agent/threads/${encodeURIComponent(threadId)}/analyses`,
   
   // Legacy chat (keep for now)
-  chat:       `${API_BASE}/api/ai-agent/conversation/continue`,
-  chatStream: `${API_BASE}/api/chat/stream`,
+  chat:       `${API_BASE}/api/v1/ai-agent/conversation/continue`,
+  chatStream: `${API_BASE}/api/v1/chat/stream`,
 
   // PROMPT ALIGNMENT: Endpoint for beginning a project from a scorecard
-  beginProject: `${API_BASE}/api/projects/generate/ai`,
+  beginProject: `${API_BASE}/api/v1/projects/generate/ai`,
   
   // KEEP OLD ENDPOINTS for backward compat during migration
   threadBundle:   (threadId, msg = 50, scn = 50 ) =>
-    `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/bundle?msg_limit=${msg}&scn_limit=${scn}`,
-  scenario:   `${API_BASE}/api/ai-agent/scenario`,
+    `${API_BASE}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/bundle?msg_limit=${msg}&scn_limit=${scn}`,
+  scenario:   `${API_BASE}/api/v1/ai-agent/scenario`,
 
   // Scenario CRUD
-  createScenario:   (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
-  listScenarios:    (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
-  getLevers:        (threadId) => `${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}/levers`,
-  updateScenario:   (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}?thread_id=${encodeURIComponent(threadId)}`,
-  applyScenario:    (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}/apply?thread_id=${encodeURIComponent(threadId)}`,
-  adoptScenario:    (scenarioId, threadId) => `${API_BASE}/api/strategy/scenarios/${encodeURIComponent(scenarioId)}/adopt${threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''}`,
-  aiScenario:       (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/ai-scenario`,
-  aiWbs:            (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/ai-wbs`,
-  threadWbs:        (threadId) => `${API_BASE}/api/strategy/threads/${encodeURIComponent(threadId)}/wbs`,
-  analyzeData:      `${API_BASE}/api/ai-agent/analyze-data`,
-  insightsUpload:   `${API_BASE}/api/insights/upload`,
-  insightsAnalyze:  `${API_BASE}/api/insights/analyze`,
-  insightsDatasets: `${API_BASE}/api/insights/datasets`,
-  insightsDeleteDataset: (datasetId) => `${API_BASE}/api/insights/datasets/${encodeURIComponent(datasetId)}`,
-  starters:         `${API_BASE}/api/starters`,
-  starterById:      (starterId) => `${API_BASE}/api/starters/${encodeURIComponent(starterId)}`,
-  deleteAnalysis:   (analysisId) => `${API_BASE}/api/strategy/analyses/${encodeURIComponent(analysisId)}`,
+  createScenario:   (threadId) => `${API_BASE}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
+  listScenarios:    (threadId) => `${API_BASE}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/scenarios`,
+  getLevers:        (threadId) => `${API_BASE}/api/v1/ai-agent/threads/${encodeURIComponent(threadId)}/levers`,
+  updateScenario:   (scenarioId, threadId) => `${API_BASE}/api/v1/strategy/scenarios/${encodeURIComponent(scenarioId)}?thread_id=${encodeURIComponent(threadId)}`,
+  applyScenario:    (scenarioId, threadId) => `${API_BASE}/api/v1/strategy/scenarios/${encodeURIComponent(scenarioId)}/apply?thread_id=${encodeURIComponent(threadId)}`,
+  adoptScenario:    (scenarioId, threadId) => `${API_BASE}/api/v1/strategy/scenarios/${encodeURIComponent(scenarioId)}/adopt${threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''}`,
+  aiScenario:       (threadId) => `${API_BASE}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/ai-scenario`,
+  aiWbs:            (threadId) => `${API_BASE}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/ai-wbs`,
+  threadWbs:        (threadId) => `${API_BASE}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/wbs`,
+  analyzeData:      `${API_BASE}/api/v1/ai-agent/analyze-data`,
+  insightsUpload:   `${API_BASE}/api/v1/insights/upload`,
+  insightsAnalyze:  `${API_BASE}/api/v1/insights/analyze`,
+  insightsDatasets: `${API_BASE}/api/v1/insights/datasets`,
+  insightsDeleteDataset: (datasetId) => `${API_BASE}/api/v1/insights/datasets/${encodeURIComponent(datasetId)}`,
+  starters:         `${API_BASE}/api/v1/starters`,
+  starterById:      (starterId) => `${API_BASE}/api/v1/starters/${encodeURIComponent(starterId)}`,
+  deleteAnalysis:   (analysisId) => `${API_BASE}/api/v1/strategy/analyses/${encodeURIComponent(analysisId)}`,
   // Connector settings and PM sync profile
-  connectorStatus: `${API_BASE}/api/connectors/status`,
-  connectorUpdate: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}`,
-  threadPmSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/sync`,
-  threadJiraSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/jira/sync`,
-  threadWorkfrontSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/workfront/sync`,
-  threadSmartsheetSync: (threadId) => `${API_BASE}/api/connectors/threads/${encodeURIComponent(threadId)}/smartsheet/sync`,
-  connectorHealth: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}/health`,
-  connectorAudit: (connectorId) => `${API_BASE}/api/connectors/${encodeURIComponent(connectorId)}/audit`,
-  salesforceOauthStart: `${API_BASE}/api/connectors/salesforce/oauth/start`,
-  salesforcePipelineSummary: `${API_BASE}/api/connectors/salesforce/pipeline/summary`,
-  snowflakeQuery: `${API_BASE}/api/connectors/snowflake/query`,
-  snowflakeKpis: `${API_BASE}/api/connectors/snowflake/kpis`,
+  connectorStatus: `${API_BASE}/api/v1/connectors/status`,
+  connectorUpdate: (connectorId) => `${API_BASE}/api/v1/connectors/${encodeURIComponent(connectorId)}`,
+  threadPmSync: (threadId) => `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(threadId)}/sync`,
+  threadJiraSync: (threadId) => `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(threadId)}/jira/sync`,
+  threadWorkfrontSync: (threadId) => `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(threadId)}/workfront/sync`,
+  threadSmartsheetSync: (threadId) => `${API_BASE}/api/v1/connectors/threads/${encodeURIComponent(threadId)}/smartsheet/sync`,
+  connectorHealth: (connectorId) => `${API_BASE}/api/v1/connectors/${encodeURIComponent(connectorId)}/health`,
+  connectorAudit: (connectorId) => `${API_BASE}/api/v1/connectors/${encodeURIComponent(connectorId)}/audit`,
+  salesforceOauthStart: `${API_BASE}/api/v1/connectors/salesforce/oauth/start`,
+  salesforcePipelineSummary: `${API_BASE}/api/v1/connectors/salesforce/pipeline/summary`,
+  snowflakeQuery: `${API_BASE}/api/v1/connectors/snowflake/query`,
+  snowflakeKpis: `${API_BASE}/api/v1/connectors/snowflake/kpis`,
 };
 // ---- Session ID for memory that survives Safari ITP ----
 const SID_KEY = 'jas_sid';
@@ -232,7 +232,7 @@ export const Jaspen = {
     return { text: data.response || data.reply || String(data) };
   },
 
-  // ---------- Conversational intake (Claude via /api/chat) ----------
+  // ---------- Conversational intake (Claude via /api/v1/chat) ----------
 async convoStart({ description, project_id, model_type, strategy_objective, intake_context, lever_defaults, starter_id }) {
     console.log('[JaspenClient.convoStart] ENTRY', {
       description: description?.substring(0, 50),
@@ -359,7 +359,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
 
   // ---------- Streaming ----------
   streamChat({ prompt, onDelta, onDone }) {
-    const url = `${API_BASE}/api/chat/stream?q=${encodeURIComponent(prompt )}&sid=${encodeURIComponent(getSid())}`;
+    const url = `${API_BASE}/api/v1/chat/stream?q=${encodeURIComponent(prompt )}&sid=${encodeURIComponent(getSid())}`;
 
     const es = new EventSource(url, { withCredentials: true });
 
@@ -405,7 +405,7 @@ async analyzeFromConversation({ session_id, transcript, deterministic = true, se
     const token = getToken();
 
     const res = await fetch(
-      `${apiBase}/api/strategy/threads/${encodeURIComponent(threadId)}/adopt`,
+      `${apiBase}/api/v1/strategy/threads/${encodeURIComponent(threadId)}/adopt`,
       {
         method: 'POST',
         credentials: 'include',

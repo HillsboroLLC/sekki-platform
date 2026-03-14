@@ -64,7 +64,7 @@ export default function Activity() {
       if (fromIso) params.set('from', fromIso);
       if (toIso) params.set('to', toIso);
 
-      const res = await fetch(`${API_BASE}/api/activity?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/v1/activity?${params.toString()}`, {
         credentials: 'include',
         headers: authHeaders(),
       });

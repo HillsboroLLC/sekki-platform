@@ -47,7 +47,7 @@ export default function ThreadEditModal({
         setLoading(true);
         setError(null);
 
-        const res = await authFetch(`/api/ai-agent/threads/${encodeURIComponent(sessionId)}`, {
+        const res = await authFetch(`/api/v1/ai-agent/threads/${encodeURIComponent(sessionId)}`, {
           method: 'GET',
           headers: { Accept: 'application/json' },
         });
@@ -99,9 +99,9 @@ export default function ThreadEditModal({
     try {
       // 1) Rename
       // You may already have an endpoint. If not, you'll add it backend-side.
-      // This expects: PATCH /api/ai-agent/threads/:sid { name }
+      // This expects: PATCH /api/v1/ai-agent/threads/:sid { name }
       if (name && name.trim()) {
-        const r1 = await authFetch(`/api/ai-agent/threads/${encodeURIComponent(sessionId)}`, {
+        const r1 = await authFetch(`/api/v1/ai-agent/threads/${encodeURIComponent(sessionId)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ name: name.trim() }),
@@ -112,9 +112,9 @@ export default function ThreadEditModal({
 
       // 2) Adopt analysis for AI context
       // You likely already have thread_id. If not, backend can derive from session.
-      // Expected: POST /api/strategy/threads/:threadId/adopt { analysis_id }
+      // Expected: POST /api/v1/strategy/threads/:threadId/adopt { analysis_id }
       if (threadId && adoptedAnalysisId) {
-        const r2 = await authFetch(`/api/strategy/threads/${encodeURIComponent(threadId)}/adopt`, {
+        const r2 = await authFetch(`/api/v1/strategy/threads/${encodeURIComponent(threadId)}/adopt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ analysis_id: adoptedAnalysisId }),

@@ -113,7 +113,7 @@ export default function JaspenAdmin() {
 
   const loadUsers = async (nextQuery = query) => {
     const response = await fetch(
-      `${API_BASE}/api/admin/users?limit=200&q=${encodeURIComponent(nextQuery || '')}`,
+      `${API_BASE}/api/v1/admin/users?limit=200&q=${encodeURIComponent(nextQuery || '')}`,
       {
         headers: authHeaders(),
         credentials: 'include',
@@ -150,15 +150,15 @@ export default function JaspenAdmin() {
     setOpsLoading(true);
     try {
       const [connectorsRes, sessionsRes, auditRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/connectors`, {
+        fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(userId)}/connectors`, {
           headers: authHeaders(),
           credentials: 'include',
         }),
-        fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/sessions?limit=20`, {
+        fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(userId)}/sessions?limit=20`, {
           headers: authHeaders(),
           credentials: 'include',
         }),
-        fetch(`${API_BASE}/api/admin/audit?user_id=${encodeURIComponent(userId)}&limit=25`, {
+        fetch(`${API_BASE}/api/v1/admin/audit?user_id=${encodeURIComponent(userId)}&limit=25`, {
           headers: authHeaders(),
           credentials: 'include',
         }),
@@ -188,7 +188,7 @@ export default function JaspenAdmin() {
     let mounted = true;
     (async () => {
       try {
-        const capRes = await fetch(`${API_BASE}/api/admin/capabilities`, {
+        const capRes = await fetch(`${API_BASE}/api/v1/admin/capabilities`, {
           headers: authHeaders(),
           credentials: 'include',
         });
@@ -244,7 +244,7 @@ export default function JaspenAdmin() {
         max_concurrent_sessions: draft.max_concurrent_sessions === '' ? null : Number(draft.max_concurrent_sessions),
       };
 
-      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(draft.id)}`, {
         method: 'PATCH',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
@@ -269,7 +269,7 @@ export default function JaspenAdmin() {
     setPending(true);
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}/force-plan`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(draft.id)}/force-plan`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
@@ -317,7 +317,7 @@ export default function JaspenAdmin() {
     setPending(true);
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}/credits`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(draft.id)}/credits`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
@@ -355,7 +355,7 @@ export default function JaspenAdmin() {
     setMessage('');
     try {
       const response = await fetch(
-        `${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}/connectors/${encodeURIComponent(connectorId)}`,
+        `${API_BASE}/api/v1/admin/users/${encodeURIComponent(draft.id)}/connectors/${encodeURIComponent(connectorId)}`,
         {
           method: 'PATCH',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -386,7 +386,7 @@ export default function JaspenAdmin() {
     setPending(true);
     setMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(draft.id)}/recovery`, {
+      const response = await fetch(`${API_BASE}/api/v1/admin/users/${encodeURIComponent(draft.id)}/recovery`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',

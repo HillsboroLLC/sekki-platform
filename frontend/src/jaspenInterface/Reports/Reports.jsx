@@ -44,7 +44,7 @@ export default function Reports() {
   const [message, setMessage] = useState('');
 
   const loadThreads = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/api/ai-agent/threads`, {
+    const res = await fetch(`${API_BASE}/api/v1/ai-agent/threads`, {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -76,7 +76,7 @@ export default function Reports() {
   }, [selectedThreadId]);
 
   const loadReports = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/api/reports`, {
+    const res = await fetch(`${API_BASE}/api/v1/reports`, {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -114,7 +114,7 @@ export default function Reports() {
     setError('');
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/api/reports/generate`, {
+      const res = await fetch(`${API_BASE}/api/v1/reports/generate`, {
         method: 'POST',
         credentials: 'include',
         headers: authHeaders(),
@@ -142,7 +142,7 @@ export default function Reports() {
     setError('');
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}`, {
+      const res = await fetch(`${API_BASE}/api/v1/reports/${encodeURIComponent(reportId)}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: authHeaders(),
@@ -224,7 +224,7 @@ export default function Reports() {
                       <td>
                         <a
                           className="reports-action"
-                          href={`${API_BASE}${report.download_url || `/api/reports/${report.report_id}/download`}`}
+                          href={`${API_BASE}${report.download_url || `/api/v1/reports/${report.report_id}/download`}`}
                           target="_blank"
                           rel="noreferrer"
                         >

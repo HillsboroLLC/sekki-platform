@@ -279,11 +279,11 @@ export function AuthProvider({ children }) {
   // ===== Auth functions =====
 
   // IMPORTANT: do NOT require localStorage token just to check session.
-  // If the cookie is present, /api/auth/me will return 200 and user info.
+  // If the cookie is present, /api/v1/auth/me will return 200 and user info.
   const checkAuthStatus = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
-      const res = await authFetch('/api/auth/me', { method: 'GET' });
+      const res = await authFetch('/api/v1/auth/me', { method: 'GET' });
 
       if (res.ok) {
         const userData = await res.json();
@@ -318,7 +318,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const res = await authFetch('/api/auth/me', {
+      const res = await authFetch('/api/v1/auth/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed })
@@ -341,7 +341,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const res = await authFetch('/api/auth/login', {
+      const res = await authFetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -371,7 +371,7 @@ export function AuthProvider({ children }) {
   // Call server to clear the cookie; then clear local state.
   const logout = async () => {
     try {
-      await authFetch('/api/auth/logout', {
+      await authFetch('/api/v1/auth/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -400,7 +400,7 @@ export function AuthProvider({ children }) {
   const signup = async (email, password, name) => {
     try {
       setLoading(true);
-      const res = await authFetch('/api/auth/signup', {
+      const res = await authFetch('/api/v1/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name })

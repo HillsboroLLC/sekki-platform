@@ -126,7 +126,7 @@ export default function Dashboard() {
     try {
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await fetch(`${API_BASE}/api/dashboard`, {
+      const response = await fetch(`${API_BASE}/api/v1/dashboard`, {
         method: 'GET',
         credentials: 'include',
         headers,

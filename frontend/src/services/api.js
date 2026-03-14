@@ -23,7 +23,7 @@ async function jsonOrThrow(res) {
 
 const API = {
   login: (creds) =>
-    fetch(`${API_BASE}/api/auth/login`, {
+    fetch(`${API_BASE}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(creds),
@@ -32,7 +32,7 @@ const API = {
     }).then(jsonOrThrow),
 
   signup: (creds) =>
-    fetch(`${API_BASE}/api/auth/register`, {
+    fetch(`${API_BASE}/api/v1/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(creds),
@@ -41,7 +41,7 @@ const API = {
     }).then(jsonOrThrow),
 
   createPaymentIntent: (amount) =>
-    fetch(`${API_BASE}/api/billing/create-payment-intent`, {
+    fetch(`${API_BASE}/api/v1/billing/create-payment-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount }),

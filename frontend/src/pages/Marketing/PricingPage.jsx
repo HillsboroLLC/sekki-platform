@@ -86,7 +86,7 @@ export default function PricingPage() {
   const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/billing/catalog`)
+    fetch(`${API_BASE}/api/v1/billing/catalog`)
       .then((res) => res.json())
       .then((data) => {
         if (data?.plans) {
@@ -164,7 +164,7 @@ export default function PricingPage() {
     setPendingKey(planKey);
     setStatusMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -201,7 +201,7 @@ export default function PricingPage() {
     setPendingKey(packKey);
     setStatusMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-overage-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-overage-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +233,7 @@ export default function PricingPage() {
     setPendingKey('portal');
     setStatusMessage('');
     try {
-      const response = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-portal-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -51,7 +51,7 @@ export default function AuthModal({ isOpen, mode = 'email', onClose, onModeChang
 
   const handleGoogle = async () => {
     setError('');
-    window.location.href = `${API_BASE}/api/auth/google/start?next=${encodeURIComponent('/new')}`;
+    window.location.href = `${API_BASE}/api/v1/auth/google/start?next=${encodeURIComponent('/new')}`;
   };
 
   const handleEmailSubmit = async (event) => {

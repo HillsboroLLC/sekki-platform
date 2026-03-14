@@ -166,7 +166,7 @@ export default function Scores() {
       if (category !== 'All') params.set('category', category);
       if (search) params.set('search', search);
 
-      const data = await apiFetch(`/api/strategy/scores?${params.toString()}`);
+      const data = await apiFetch(`/api/v1/strategy/scores?${params.toString()}`);
       const rows = Array.isArray(data?.scores) ? data.scores : [];
       setScores(rows);
       setTotal(Number(data?.total) || 0);
@@ -266,7 +266,7 @@ export default function Scores() {
         if (category !== 'All') params.set('category', category);
         if (search) params.set('search', search);
 
-        const data = await apiFetch(`/api/strategy/scores?${params.toString()}`);
+        const data = await apiFetch(`/api/v1/strategy/scores?${params.toString()}`);
         const chunk = Array.isArray(data?.scores) ? data.scores : [];
         rows.push(...chunk);
 

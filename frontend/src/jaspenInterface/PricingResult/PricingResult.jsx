@@ -12,7 +12,7 @@ export default function PricingResult() {
 
   useEffect(() => {
     if (status === 'success' && sessionId) {
-      fetch(`${API_BASE}/api/billing/checkout-session?session_id=${sessionId}`)
+      fetch(`${API_BASE}/api/v1/billing/checkout-session?session_id=${sessionId}`)
         .then(res => res.json())
         .then(setSession)
         .catch(console.error);

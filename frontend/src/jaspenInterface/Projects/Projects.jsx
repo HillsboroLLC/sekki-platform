@@ -91,7 +91,7 @@ export default function Projects() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/ai-agent/threads`, {
+      const res = await fetch(`${API_BASE}/api/v1/ai-agent/threads`, {
         credentials: 'include',
         headers: authHeaders(),
       });
@@ -214,7 +214,7 @@ export default function Projects() {
     setError('');
     try {
       const updates = Array.from(selectedIds).map((threadId) =>
-        fetch(`${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}`, {
+        fetch(`${API_BASE}/api/v1/ai-agent/threads/${encodeURIComponent(threadId)}`, {
           method: 'PATCH',
           credentials: 'include',
           headers: authHeaders(),
@@ -239,7 +239,7 @@ export default function Projects() {
     setBulkBusy(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/ai-agent/threads/${encodeURIComponent(threadId)}`, {
+      const res = await fetch(`${API_BASE}/api/v1/ai-agent/threads/${encodeURIComponent(threadId)}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: authHeaders(),

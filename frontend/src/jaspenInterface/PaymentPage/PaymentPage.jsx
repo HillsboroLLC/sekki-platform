@@ -36,7 +36,7 @@ export default function PaymentPage() {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

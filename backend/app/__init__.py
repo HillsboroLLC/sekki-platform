@@ -227,6 +227,7 @@ def create_app():
     from .routes.starters import starters_bp
     from .routes.team import team_bp
     from .routes.teams import teams_bp
+    from .routes.monitoring import monitoring_bp
     from .routes.strategy import strategy_bp, analyze_project
 
     app.register_blueprint(auth_bp,      url_prefix='/api/v1/auth')
@@ -242,6 +243,7 @@ def create_app():
     app.register_blueprint(starters_bp,  url_prefix='/api/v1/starters')
     app.register_blueprint(team_bp, url_prefix='/api/v1/team')
     app.register_blueprint(teams_bp, url_prefix='/api/v1/teams')
+    app.register_blueprint(monitoring_bp, url_prefix='/api/v1/monitoring')
     app.register_blueprint(strategy_bp, url_prefix='/api/v1/strategy')
     app.add_url_rule(
         '/api/v1/ai-agent/analyze',

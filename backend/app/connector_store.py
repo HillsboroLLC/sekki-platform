@@ -416,6 +416,15 @@ def get_all_connector_settings(user_id):
     return result
 
 
+def load_user_connectors(user_id):
+    state = load_connector_state(user_id)
+    return {
+        "connectors": get_all_connector_settings(user_id),
+        "thread_sync": state.get("thread_sync") if isinstance(state.get("thread_sync"), dict) else {},
+        "audit_log": state.get("audit_log") if isinstance(state.get("audit_log"), list) else [],
+    }
+
+
 def redact_connector_settings(settings, connector_id=None):
     connector_id = str(connector_id or settings.get("connector_id") or "").strip().lower()
     secret_fields = _sensitive_fields_for(connector_id)

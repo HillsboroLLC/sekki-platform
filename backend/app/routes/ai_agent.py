@@ -20,6 +20,7 @@ from app.billing_config import (
     normalize_model_type,
     to_public_plan,
 )
+from app.connector_monitor import check_connector_health
 from app.tool_registry import (
     get_context_budget,
     get_tool_catalog,
@@ -235,6 +236,35 @@ def _scenario_modeling_prompt_suffix(user_id, thread_id):
             "Reference these directly when suggesting improvements."
         )
     return "\n" + "\n".join(lines)
+
+
+def _monitoring_prompt_suffix(user_id):
+    if not user_id:
+        return ""
+    try:
+        health_report = check_connector_health(user_id)
+    except Exception:
+        current_app.logger.exception("Failed to load connector health report for ai-agent prompt")
+        return ""
+
+    alerts = health_report.get("alerts") if isinstance(health_report, dict) else []
+    if not isinstance(alerts, list) or not alerts:
+        return ""
+
+    alert_summary = "\n".join(
+        f"- [{str(item.get('severity') or 'info').upper()}] {item.get('connector_id')}: {item.get('message')}"
+        for item in alerts
+        if isinstance(item, dict)
+    )
+    if not alert_summary:
+        return ""
+
+    return (
+        "\n\n## Connected Data Source Alerts\n"
+        "The following issues were detected with the user's connected data sources:\n"
+        f"{alert_summary}\n"
+        "Proactively inform the user of these issues and suggest corrective actions."
+    )
 
 
 def _mutation_result_summary(tool_name, result_payload):
@@ -1188,6 +1218,7 @@ def _generate_assistant_reply(
         f"{system_prompt}"
         f"{_intake_context_prompt_suffix(intake_context)}"
         f"{_scenario_modeling_prompt_suffix(user_id, thread_id)}"
+        f"{_monitoring_prompt_suffix(user_id)}"
     )
     max_turns = int((context_budget or {}).get("recent_turns") or 16)
     max_turns = max(8, min(80, max_turns))

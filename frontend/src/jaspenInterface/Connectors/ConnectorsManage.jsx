@@ -9,6 +9,7 @@ import {
   faSitemap,
 } from '@fortawesome/free-solid-svg-icons';
 import { API_BASE } from '../../config/apiBase';
+import ConnectorMonitor from '../Monitoring/ConnectorMonitor';
 import './ConnectorsManage.css';
 
 const CONNECTOR_ORDER = [
@@ -493,8 +494,8 @@ export default function ConnectorsManage() {
   return (
     <div className="connectors-manage-page">
       <header className="connectors-manage-header">
-        <h1>Connectors</h1>
-        <p>Centralized connector management with settings, health checks, and sync history.</p>
+        <h1>Data Sources</h1>
+        <p>Centralized connector management with monitoring, health checks, and sync history.</p>
       </header>
 
       {loading && <div className="connectors-manage-state">Loading connectors...</div>}
@@ -502,131 +503,134 @@ export default function ConnectorsManage() {
       {!loading && !error && message && <div className="connectors-manage-state is-success">{message}</div>}
 
       {!loading && !error && (
-        <div className="connectors-manage-layout">
-          <section className="connectors-card-grid">
-            {connectors.map((connector) => (
-              <button
-                key={connector.id}
-                type="button"
-                className={`connector-card ${selectedConnectorId === connector.id ? 'is-selected' : ''}`}
-                onClick={() => setSelectedConnectorId(connector.id)}
-              >
-                <div className="connector-card-head">
-                  <span className="connector-card-icon"><FontAwesomeIcon icon={connectorIcon(connector.id)} /></span>
-                  <span className={`connector-card-status ${connector.connected ? 'is-on' : 'is-off'}`}>
-                    {connector.connected ? 'Connected' : 'Disconnected'}
-                  </span>
-                </div>
-                <h3>{connector.label}</h3>
-                <p>{connector.description}</p>
-                <div className="connector-card-foot">
-                  <span>{connector.sync_mode || 'import'}</span>
-                  <span>{connector.last_sync_at ? new Date(connector.last_sync_at).toLocaleString() : 'Never synced'}</span>
-                </div>
-              </button>
-            ))}
-          </section>
-
-          <section className="connector-detail-panel">
-            {!selectedConnector && <div className="connectors-manage-state">Select a connector.</div>}
-            {selectedConnector && selectedDraft && (
-              <>
-                <header className="connector-detail-header">
-                  <div>
-                    <h2>{selectedConnector.label}</h2>
-                    <p>{selectedConnector.description}</p>
+        <>
+          <ConnectorMonitor selectedThreadId={selectedThreadId} onResynced={refresh} />
+          <div className="connectors-manage-layout">
+            <section className="connectors-card-grid">
+              {connectors.map((connector) => (
+                <button
+                  key={connector.id}
+                  type="button"
+                  className={`connector-card ${selectedConnectorId === connector.id ? 'is-selected' : ''}`}
+                  onClick={() => setSelectedConnectorId(connector.id)}
+                >
+                  <div className="connector-card-head">
+                    <span className="connector-card-icon"><FontAwesomeIcon icon={connectorIcon(connector.id)} /></span>
+                    <span className={`connector-card-status ${connector.connected ? 'is-on' : 'is-off'}`}>
+                      {connector.connected ? 'Connected' : 'Disconnected'}
+                    </span>
                   </div>
-                  <div className="connector-detail-actions">
-                    <button type="button" onClick={testConnection} disabled={busy}><FontAwesomeIcon icon={faFlask} /> Test Connection</button>
-                    <button type="button" onClick={syncNow} disabled={busy}><FontAwesomeIcon icon={faRotate} /> Sync Now</button>
-                    <button type="button" onClick={saveConnector} disabled={busy}><FontAwesomeIcon icon={faServer} /> Save Settings</button>
+                  <h3>{connector.label}</h3>
+                  <p>{connector.description}</p>
+                  <div className="connector-card-foot">
+                    <span>{connector.sync_mode || 'import'}</span>
+                    <span>{connector.last_sync_at ? new Date(connector.last_sync_at).toLocaleString() : 'Never synced'}</span>
                   </div>
-                </header>
+                </button>
+              ))}
+            </section>
 
-                <div className="connector-core-controls">
-                  <label>
-                    Status
-                    <select value={selectedDraft.connection_status} onChange={(event) => updateDraft('connection_status', event.target.value)}>
-                      <option value="disconnected">Disconnected</option>
-                      <option value="connected">Connected</option>
-                    </select>
-                  </label>
-                  <label>
-                    Sync Mode
-                    <select value={selectedDraft.sync_mode} onChange={(event) => updateDraft('sync_mode', event.target.value)}>
-                      {(selectedConnector.available_sync_modes || ['import']).map((mode) => (
-                        <option key={mode} value={mode}>{mode}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Conflict Policy
-                    <select value={selectedDraft.conflict_policy} onChange={(event) => updateDraft('conflict_policy', event.target.value)}>
-                      {(selectedConnector.available_conflict_policies || ['prefer_external']).map((policy) => (
-                        <option key={policy} value={policy}>{policy}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    External Workspace
-                    <input value={selectedDraft.external_workspace} onChange={(event) => updateDraft('external_workspace', event.target.value)} />
-                  </label>
-                  <label className="connector-auto-sync">
-                    <input type="checkbox" checked={Boolean(selectedDraft.auto_sync)} onChange={(event) => updateDraft('auto_sync', event.target.checked)} />
-                    Auto-sync
-                  </label>
-                  {(selectedConnector.id === 'jira_sync' || selectedConnector.id === 'workfront_sync' || selectedConnector.id === 'smartsheet_sync') && (
+            <section className="connector-detail-panel">
+              {!selectedConnector && <div className="connectors-manage-state">Select a connector.</div>}
+              {selectedConnector && selectedDraft && (
+                <>
+                  <header className="connector-detail-header">
+                    <div>
+                      <h2>{selectedConnector.label}</h2>
+                      <p>{selectedConnector.description}</p>
+                    </div>
+                    <div className="connector-detail-actions">
+                      <button type="button" onClick={testConnection} disabled={busy}><FontAwesomeIcon icon={faFlask} /> Test Connection</button>
+                      <button type="button" onClick={syncNow} disabled={busy}><FontAwesomeIcon icon={faRotate} /> Sync Now</button>
+                      <button type="button" onClick={saveConnector} disabled={busy}><FontAwesomeIcon icon={faServer} /> Save Settings</button>
+                    </div>
+                  </header>
+
+                  <div className="connector-core-controls">
                     <label>
-                      Sync Thread
-                      <select value={selectedThreadId} onChange={(event) => setSelectedThreadId(event.target.value)}>
-                        <option value="">Select thread...</option>
-                        {threads.map((thread) => (
-                          <option key={thread.threadId} value={thread.threadId}>{thread.name || thread.threadId}</option>
+                      Status
+                      <select value={selectedDraft.connection_status} onChange={(event) => updateDraft('connection_status', event.target.value)}>
+                        <option value="disconnected">Disconnected</option>
+                        <option value="connected">Connected</option>
+                      </select>
+                    </label>
+                    <label>
+                      Sync Mode
+                      <select value={selectedDraft.sync_mode} onChange={(event) => updateDraft('sync_mode', event.target.value)}>
+                        {(selectedConnector.available_sync_modes || ['import']).map((mode) => (
+                          <option key={mode} value={mode}>{mode}</option>
                         ))}
                       </select>
                     </label>
-                  )}
-                </div>
-
-                <div className="connector-field-grid">
-                  {renderConnectorSpecificFields(selectedConnector.id, selectedDraft)}
-                </div>
-
-                <section className="connector-audit-history">
-                  <h3>Sync History</h3>
-                  {auditRows.length === 0 ? (
-                    <p>No sync events yet.</p>
-                  ) : (
-                    <div className="connector-audit-table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Timestamp</th>
-                            <th>Action</th>
-                            <th>Status</th>
-                            <th>Thread</th>
-                            <th>Message</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {auditRows.map((row) => (
-                            <tr key={row.id || `${row.timestamp}-${row.action}`}>
-                              <td>{row.timestamp ? new Date(row.timestamp).toLocaleString() : 'N/A'}</td>
-                              <td>{row.action || 'sync'}</td>
-                              <td>{row.status || 'unknown'}</td>
-                              <td>{row.thread_id || '—'}</td>
-                              <td>{row.message || '—'}</td>
-                            </tr>
+                    <label>
+                      Conflict Policy
+                      <select value={selectedDraft.conflict_policy} onChange={(event) => updateDraft('conflict_policy', event.target.value)}>
+                        {(selectedConnector.available_conflict_policies || ['prefer_external']).map((policy) => (
+                          <option key={policy} value={policy}>{policy}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      External Workspace
+                      <input value={selectedDraft.external_workspace} onChange={(event) => updateDraft('external_workspace', event.target.value)} />
+                    </label>
+                    <label className="connector-auto-sync">
+                      <input type="checkbox" checked={Boolean(selectedDraft.auto_sync)} onChange={(event) => updateDraft('auto_sync', event.target.checked)} />
+                      Auto-sync
+                    </label>
+                    {(selectedConnector.id === 'jira_sync' || selectedConnector.id === 'workfront_sync' || selectedConnector.id === 'smartsheet_sync') && (
+                      <label>
+                        Sync Thread
+                        <select value={selectedThreadId} onChange={(event) => setSelectedThreadId(event.target.value)}>
+                          <option value="">Select thread...</option>
+                          {threads.map((thread) => (
+                            <option key={thread.threadId} value={thread.threadId}>{thread.name || thread.threadId}</option>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </section>
-              </>
-            )}
-          </section>
-        </div>
+                        </select>
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="connector-field-grid">
+                    {renderConnectorSpecificFields(selectedConnector.id, selectedDraft)}
+                  </div>
+
+                  <section className="connector-audit-history">
+                    <h3>Sync History</h3>
+                    {auditRows.length === 0 ? (
+                      <p>No sync events yet.</p>
+                    ) : (
+                      <div className="connector-audit-table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Timestamp</th>
+                              <th>Action</th>
+                              <th>Status</th>
+                              <th>Thread</th>
+                              <th>Message</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {auditRows.map((row) => (
+                              <tr key={row.id || `${row.timestamp}-${row.action}`}>
+                                <td>{row.timestamp ? new Date(row.timestamp).toLocaleString() : 'N/A'}</td>
+                                <td>{row.action || 'sync'}</td>
+                                <td>{row.status || 'unknown'}</td>
+                                <td>{row.thread_id || '—'}</td>
+                                <td>{row.message || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+                </>
+              )}
+            </section>
+          </div>
+        </>
       )}
     </div>
   );

@@ -71,6 +71,19 @@ class User(db.Model):
         db.DateTime,
         nullable=True,
     )
+    mfa_secret = db.Column(
+        db.String(64),
+        nullable=True,
+    )
+    mfa_enabled = db.Column(
+        db.Boolean,
+        default=False,
+        nullable=False,
+    )
+    mfa_backup_codes = db.Column(
+        db.JSON,
+        nullable=True,
+    )
 
     # Referrals & feedback
     referral_code = db.Column(

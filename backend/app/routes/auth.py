@@ -1,8 +1,12 @@
 from urllib.parse import urlencode
 from datetime import datetime, timedelta, timezone
+import base64
+import io
 import re
 import secrets
 
+import pyotp
+import qrcode
 import requests
 from flask import Blueprint, request, jsonify, current_app, redirect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -143,6 +147,7 @@ def _user_payload(user):
         'is_admin': is_global_admin_email(user.email, current_app.config),
         'subscription_plan': to_public_plan(user.subscription_plan),
         'credits_remaining': user.credits_remaining,
+        'mfa_enabled': bool(user.mfa_enabled),
         'active_organization_id': user.active_organization_id,
         **organization_access_payload_for_user(user),
     }
@@ -288,6 +293,17 @@ def login():
     if changed:
         db.session.commit()
 
+    if user.mfa_enabled:
+        pending_token = create_access_token(
+            identity=str(user.id),
+            expires_delta=timedelta(minutes=5),
+            additional_claims={"mfa_pending": True},
+        )
+        return jsonify({
+            "mfa_required": True,
+            "pending_token": pending_token,
+        }), 200
+
     token = create_access_token(identity=str(user.id))
     resp = jsonify(
         token=token,
@@ -314,6 +330,104 @@ def get_current_user():
         db.session.commit()
 
     return jsonify(**_user_payload(user)), 200
+
+
+@auth_bp.route('/mfa/setup', methods=['POST'])
+@jwt_required()
+def mfa_setup():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify(message='User not found'), 404
+    if user.mfa_enabled:
+        return jsonify(message='MFA is already enabled.'), 400
+
+    secret = pyotp.random_base32()
+    user.mfa_secret = secret  # TODO: encrypt with Fernet before storing
+    db.session.commit()
+
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(name=user.email, issuer_name='Jaspen')
+
+    img = qrcode.make(provisioning_uri)
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+    return jsonify({
+        'secret': secret,
+        'qr_code': f'data:image/png;base64,{qr_base64}',
+        'provisioning_uri': provisioning_uri,
+    }), 200
+
+
+@auth_bp.route('/mfa/verify', methods=['POST'])
+@jwt_required()
+def mfa_verify():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify(message='User not found'), 404
+
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code') or '').strip()
+
+    if not user.mfa_secret:
+        return jsonify(message='MFA setup not initiated.'), 400
+
+    totp = pyotp.TOTP(user.mfa_secret)
+    if not totp.verify(code, valid_window=1):
+        return jsonify(message='Invalid code. Please try again.'), 400
+
+    backup_codes = [pyotp.random_base32()[:8] for _ in range(10)]
+    user.mfa_backup_codes = [generate_password_hash(item.upper()) for item in backup_codes]
+    user.mfa_enabled = True
+    db.session.commit()
+
+    return jsonify({
+        'mfa_enabled': True,
+        'backup_codes': backup_codes,
+        'message': 'MFA enabled successfully. Save your backup codes.',
+    }), 200
+
+
+@auth_bp.route('/mfa/challenge', methods=['POST'])
+def mfa_challenge():
+    data = request.get_json(silent=True) or {}
+    pending_token = str(data.get('pending_token') or '').strip()
+    code = str(data.get('code') or '').strip()
+
+    try:
+        decoded = decode_token(pending_token)
+        if not decoded.get('mfa_pending'):
+            return jsonify(message='Invalid or expired token.'), 401
+        user_id = decoded.get('sub')
+    except Exception:
+        return jsonify(message='Invalid or expired token.'), 401
+
+    user = User.query.get(user_id)
+    if not user or not user.mfa_enabled:
+        return jsonify(message='MFA not enabled.'), 400
+
+    totp = pyotp.TOTP(user.mfa_secret or '')
+    if totp.verify(code, valid_window=1):
+        access_token = create_access_token(identity=str(user.id))
+        resp = jsonify({"token": access_token, "user": _user_payload(user)})
+        return _attach_auth_cookie(resp, access_token), 200
+
+    if user.mfa_backup_codes:
+        normalized_code = code.upper()
+        for idx, hashed_code in enumerate(list(user.mfa_backup_codes)):
+            if check_password_hash(hashed_code, normalized_code):
+                remaining_codes = list(user.mfa_backup_codes)
+                remaining_codes.pop(idx)
+                user.mfa_backup_codes = remaining_codes
+                db.session.commit()
+                access_token = create_access_token(identity=str(user.id))
+                resp = jsonify({"token": access_token, "user": _user_payload(user)})
+                return _attach_auth_cookie(resp, access_token), 200
+
+    return jsonify(message='Invalid MFA code.'), 401
 
 
 @auth_bp.route('/google/start', methods=['GET'])

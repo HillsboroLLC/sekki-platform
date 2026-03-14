@@ -1,3 +1,4 @@
+import hmac
 import os
 from urllib.parse import urlencode
 
@@ -520,32 +521,21 @@ def _sync_thread_with_connector(user, thread_id, connector_id, sync_callable):
         "connector_id": connector_id,
         "sync_result": result,
     }), 200
+def _require_webhook_secret(connector_id):
+    """Validate webhook secret. Returns error response or None if valid."""
+    env_key = f"{connector_id.upper().replace('-', '_')}_WEBHOOK_SECRET"
+    configured_secret = current_app.config.get(env_key) or os.getenv(env_key)
 
+    if not configured_secret:
+        current_app.logger.error("Webhook secret not configured for %s", connector_id)
+        return jsonify({"error": "Webhook not configured"}), 503
 
+    provided_secret = request.headers.get("X-Webhook-Secret", "")
 
-def _read_webhook_secret(config_key, env_key):
-    return (
-        current_app.config.get(config_key)
-        or os.getenv(env_key)
-        or ""
-    ).strip()
+    if not hmac.compare_digest(provided_secret, configured_secret):
+        current_app.logger.warning("Invalid webhook secret for %s from %s", connector_id, request.remote_addr)
+        return jsonify({"error": "Unauthorized"}), 401
 
-
-
-def _provided_webhook_secret():
-    return (
-        request.headers.get("X-Jaspen-Webhook-Secret")
-        or request.args.get("secret")
-        or ""
-    ).strip()
-
-
-
-def _require_webhook_secret(config_key, env_key):
-    configured_secret = _read_webhook_secret(config_key, env_key)
-    provided_secret = _provided_webhook_secret()
-    if configured_secret and provided_secret != configured_secret:
-        return jsonify({"error": "Unauthorized webhook"}), 401
     return None
 
 
@@ -1292,7 +1282,7 @@ def sync_thread_to_smartsheet(thread_id):
 @connectors_bp.route("/jira/webhook", methods=["POST"])
 @limiter.limit("60 per minute")
 def jira_webhook():
-    unauthorized = _require_webhook_secret("JIRA_WEBHOOK_SECRET", "JIRA_WEBHOOK_SECRET")
+    unauthorized = _require_webhook_secret("jira")
     if unauthorized:
         return unauthorized
 
@@ -1339,7 +1329,7 @@ def jira_webhook():
 @connectors_bp.route("/workfront/webhook", methods=["POST"])
 @limiter.limit("60 per minute")
 def workfront_webhook():
-    unauthorized = _require_webhook_secret("WORKFRONT_WEBHOOK_SECRET", "WORKFRONT_WEBHOOK_SECRET")
+    unauthorized = _require_webhook_secret("workfront")
     if unauthorized:
         return unauthorized
 
@@ -1387,7 +1377,7 @@ def workfront_webhook():
 @connectors_bp.route("/smartsheet/webhook", methods=["POST"])
 @limiter.limit("60 per minute")
 def smartsheet_webhook():
-    unauthorized = _require_webhook_secret("SMARTSHEET_WEBHOOK_SECRET", "SMARTSHEET_WEBHOOK_SECRET")
+    unauthorized = _require_webhook_secret("smartsheet")
     if unauthorized:
         return unauthorized
 

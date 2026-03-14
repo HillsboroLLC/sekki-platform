@@ -1,3 +1,4 @@
+import os
 import time
 from flask import Blueprint, request, jsonify, current_app, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -298,13 +299,14 @@ def stripe_webhook():
     """Receive Stripe events and keep user subscription/credits in sync."""
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
-    secret = current_app.config.get('STRIPE_WEBHOOK_SECRET')
+    webhook_secret = current_app.config.get('STRIPE_WEBHOOK_SECRET') or os.getenv('STRIPE_WEBHOOK_SECRET')
+
+    if not webhook_secret:
+        current_app.logger.error("STRIPE_WEBHOOK_SECRET not configured")
+        return jsonify({"error": "Webhook not configured"}), 503
 
     try:
-        if secret:
-            event = stripe.Webhook.construct_event(payload, sig_header, secret)
-        else:
-            event = request.get_json(force=True)
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except (ValueError, stripe.error.SignatureVerificationError):
         return abort(400)
 

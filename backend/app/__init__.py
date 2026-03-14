@@ -73,6 +73,13 @@ def create_app():
         SECRET_KEY                     = os.getenv('SECRET_KEY'),
         SQLALCHEMY_DATABASE_URI        = os.getenv('DATABASE_URL'),
         SQLALCHEMY_TRACK_MODIFICATIONS = False,
+        SQLALCHEMY_ENGINE_OPTIONS      = {
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "10")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "300")),
+            "pool_pre_ping": True,
+            "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "30")),
+        },
         MAX_CONTENT_LENGTH             = int(os.getenv('MAX_CONTENT_LENGTH', 10 * 1024 * 1024)),
 
         # Stripe

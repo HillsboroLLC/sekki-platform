@@ -16,8 +16,6 @@ from app.billing_config import (
 )
 from app.connector_registry import get_connector_catalog, get_connector_definition
 from app.connector_store import (
-    CONFLICT_POLICIES,
-    SYNC_MODES,
     get_all_connector_settings,
     get_connector_settings,
     save_connector_state,
@@ -28,6 +26,7 @@ from app.tool_registry import get_context_budget, get_tool_entitlements
 
 
 admin_bp = Blueprint("admin", __name__)
+ADMIN_ALLOWED_CONNECTOR_FIELDS = {"connection_status", "auto_sync"}
 
 
 def _to_bool(value, default=False):
@@ -52,7 +51,7 @@ def _request_meta():
     }
 
 
-def _serialize_user(user):
+def _serialize_user_for_admin(user):
     if not user:
         return None
     return {
@@ -65,8 +64,7 @@ def _serialize_user(user):
         "max_seats": user.max_seats,
         "unlimited_analysis": bool(user.unlimited_analysis),
         "max_concurrent_sessions": user.max_concurrent_sessions,
-        "stripe_customer_id": user.stripe_customer_id,
-        "stripe_subscription_id": user.stripe_subscription_id,
+        "referral_code": user.referral_code,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
     }
@@ -118,71 +116,33 @@ def _audit(admin_user, action, target_user=None, details=None):
     )
 
 
-def _connector_entitlements(plan_key):
-    entitlements = get_tool_entitlements(plan_key)
-    return {
-        item.get("id"): item
-        for item in entitlements
-        if str(item.get("type") or "").lower() == "connector"
-    }
-
-
 def _connector_views_for_user(user):
-    plan_key = to_public_plan(user.subscription_plan)
-    entitlements = _connector_entitlements(plan_key)
     connector_settings = get_all_connector_settings(user.id)
     items = []
 
     for connector in get_connector_catalog():
         connector_id = connector.get("id")
-        entitlement = entitlements.get(connector_id) or {}
         settings = connector_settings.get(connector_id) or get_connector_settings(user.id, connector_id)
-
-        enabled = bool(entitlement.get("enabled"))
-        allowed_read = bool(entitlement.get("allowed_read"))
-        allowed_write = bool(entitlement.get("allowed_write"))
-        available_sync_modes = ["import", "push", "two_way"] if allowed_write else (["import"] if allowed_read else [])
 
         raw_connection_status = str(settings.get("connection_status") or "disconnected").strip().lower()
         if raw_connection_status not in ("connected", "disconnected"):
             raw_connection_status = "disconnected"
-        connected = enabled and raw_connection_status == "connected"
-        sync_mode = str(settings.get("sync_mode") or "import").strip().lower()
-        if sync_mode not in SYNC_MODES:
-            sync_mode = "import"
+        health_status = str(settings.get("health_status") or "unknown").strip().lower() or "unknown"
+        consecutive_failures = _to_int(settings.get("consecutive_failures"), default=0)
 
         item = {
             "id": connector_id,
             "label": connector.get("label") or connector_id,
             "group": connector.get("group") or "data",
-            "description": connector.get("description") or "",
-            "supports_pm_sync": bool(connector.get("supports_pm_sync")),
-            "required_min_tier": entitlement.get("required_min_tier"),
-            "enabled": enabled,
-            "allowed_read": allowed_read,
-            "allowed_write": allowed_write,
-            "available_sync_modes": list(SYNC_MODES) if allowed_write else available_sync_modes,
-            "connection_status": "connected" if connected else "disconnected",
-            "raw_connection_status": raw_connection_status,
-            "sync_mode": sync_mode,
-            "conflict_policy": settings.get("conflict_policy") or "prefer_external",
-            "available_conflict_policies": list(CONFLICT_POLICIES),
+            "connection_status": raw_connection_status,
+            "health_status": health_status,
+            "consecutive_failures": max(0, consecutive_failures or 0),
             "auto_sync": _to_bool(settings.get("auto_sync"), default=True),
-            "external_workspace": settings.get("external_workspace") or "",
-            "updated_at": settings.get("updated_at"),
             "last_sync_at": settings.get("last_sync_at"),
+            "sync_mode": str(settings.get("sync_mode") or "").strip().lower() or None,
         }
-        if connector_id == "jira_sync":
-            item["jira"] = {
-                "base_url": settings.get("jira_base_url") or "",
-                "project_key": settings.get("jira_project_key") or "",
-                "email": settings.get("jira_email") or "",
-                "issue_type": settings.get("jira_issue_type") or "",
-                "has_api_token": bool(settings.get("jira_api_token")),
-                "field_mapping": settings.get("jira_field_mapping") if isinstance(settings.get("jira_field_mapping"), dict) else {},
-            }
         items.append(item)
-    return plan_key, items
+    return items
 
 
 @admin_bp.route("/capabilities", methods=["GET"])
@@ -227,8 +187,6 @@ def workspace_preview():
         "default_model_type": get_default_model_type(plan_key, current_app.config),
         "context_budget": get_context_budget(plan_key),
         "tool_entitlements": get_tool_entitlements(plan_key),
-        "stripe_customer_id": None,
-        "stripe_subscription_id": None,
     }), 200
 
 
@@ -250,7 +208,7 @@ def list_users():
 
     users = q.order_by(User.updated_at.desc()).limit(limit).all()
     return jsonify({
-        "users": [_serialize_user(user) for user in users],
+        "users": [_serialize_user_for_admin(user) for user in users],
         "count": len(users),
     }), 200
 
@@ -265,7 +223,7 @@ def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    return jsonify({"user": _serialize_user(user)}), 200
+    return jsonify({"user": _serialize_user_for_admin(user)}), 200
 
 
 @admin_bp.route("/users/<user_id>", methods=["PATCH"])
@@ -280,7 +238,7 @@ def patch_user(user_id):
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    before = _serialize_user(user)
+    before = _serialize_user_for_admin(user)
     data = request.get_json(silent=True) or {}
     plan_catalog = get_plan_catalog(current_app.config)
     allowed_plans = set(plan_catalog.keys())
@@ -342,13 +300,8 @@ def patch_user(user_id):
                 return jsonify({"error": "max_concurrent_sessions must be at least 1 when set"}), 400
             user.max_concurrent_sessions = sessions
 
-    if "stripe_customer_id" in data:
-        user.stripe_customer_id = str(data.get("stripe_customer_id") or "").strip() or None
-    if "stripe_subscription_id" in data:
-        user.stripe_subscription_id = str(data.get("stripe_subscription_id") or "").strip() or None
-
     db.session.commit()
-    after = _serialize_user(user)
+    after = _serialize_user_for_admin(user)
     changed_fields = {}
     for key, value in after.items():
         if before.get(key) != value:
@@ -394,7 +347,7 @@ def force_plan(user_id):
             "reset_credits": reset_credits,
         },
     )
-    return jsonify({"success": True, "user": _serialize_user(user)}), 200
+    return jsonify({"success": True, "user": _serialize_user_for_admin(user)}), 200
 
 
 @admin_bp.route("/users/<user_id>/credits", methods=["POST"])
@@ -460,7 +413,7 @@ def adjust_user_credits(user_id):
             "value": data.get("value"),
         },
     )
-    return jsonify({"success": True, "user": _serialize_user(user), "credits_before": before, "credits_after": after}), 200
+    return jsonify({"success": True, "user": _serialize_user_for_admin(user), "credits_before": before, "credits_after": after}), 200
 
 
 @admin_bp.route("/users/<user_id>/connectors", methods=["GET"])
@@ -474,13 +427,10 @@ def get_user_connectors(user_id):
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    plan_key, connectors = _connector_views_for_user(user)
+    connectors = _connector_views_for_user(user)
     return jsonify({
         "user_id": user.id,
-        "plan_key": plan_key,
         "connectors": connectors,
-        "sync_modes": list(SYNC_MODES),
-        "conflict_policies": list(CONFLICT_POLICIES),
     }), 200
 
 
@@ -501,7 +451,14 @@ def patch_user_connector(user_id, connector_id):
         return jsonify({"error": f"Unknown connector '{connector_id}'"}), 404
 
     payload = request.get_json(silent=True) or {}
-    before = get_connector_settings(user.id, connector_id)
+    unsupported_fields = sorted(set(payload.keys()) - ADMIN_ALLOWED_CONNECTOR_FIELDS)
+    if unsupported_fields:
+        return jsonify({"error": f"Unsupported connector fields: {', '.join(unsupported_fields)}"}), 400
+
+    before = next(
+        (item for item in _connector_views_for_user(user) if item.get("id") == connector_id),
+        None,
+    )
     updates = {}
 
     if "connection_status" in payload:
@@ -510,43 +467,11 @@ def patch_user_connector(user_id, connector_id):
             return jsonify({"error": "connection_status must be connected or disconnected"}), 400
         updates["connection_status"] = status
 
-    if "sync_mode" in payload:
-        mode = str(payload.get("sync_mode") or "").strip().lower()
-        if mode not in SYNC_MODES:
-            return jsonify({"error": f"sync_mode must be one of {', '.join(SYNC_MODES)}"}), 400
-        updates["sync_mode"] = mode
-
-    if "conflict_policy" in payload:
-        policy = str(payload.get("conflict_policy") or "").strip().lower()
-        if policy not in CONFLICT_POLICIES:
-            return jsonify({"error": f"conflict_policy must be one of {', '.join(CONFLICT_POLICIES)}"}), 400
-        updates["conflict_policy"] = policy
-
     if "auto_sync" in payload:
         updates["auto_sync"] = _to_bool(payload.get("auto_sync"), default=True)
 
-    if "external_workspace" in payload:
-        updates["external_workspace"] = str(payload.get("external_workspace") or "").strip()
-
-    if connector_id == "jira_sync":
-        if "jira_base_url" in payload:
-            updates["jira_base_url"] = str(payload.get("jira_base_url") or "").strip()
-        if "jira_project_key" in payload:
-            updates["jira_project_key"] = str(payload.get("jira_project_key") or "").strip()
-        if "jira_email" in payload:
-            updates["jira_email"] = str(payload.get("jira_email") or "").strip()
-        if "jira_api_token" in payload:
-            updates["jira_api_token"] = str(payload.get("jira_api_token") or "").strip()
-        if "jira_issue_type" in payload:
-            updates["jira_issue_type"] = str(payload.get("jira_issue_type") or "").strip()
-        if "jira_field_mapping" in payload:
-            mapping = payload.get("jira_field_mapping")
-            if mapping is not None and not isinstance(mapping, dict):
-                return jsonify({"error": "jira_field_mapping must be an object"}), 400
-            updates["jira_field_mapping"] = mapping or {}
-
-    saved = update_connector_settings(user.id, connector_id, updates)
-    _, connectors = _connector_views_for_user(user)
+    update_connector_settings(user.id, connector_id, updates)
+    connectors = _connector_views_for_user(user)
     connector_view = next((item for item in connectors if item.get("id") == connector_id), None)
 
     _audit(
@@ -557,14 +482,13 @@ def patch_user_connector(user_id, connector_id):
             "connector_id": connector_id,
             "updates": updates,
             "before": before,
-            "after": saved,
+            "after": connector_view,
         },
     )
 
     return jsonify({
         "success": True,
         "connector": connector_view,
-        "saved_settings": saved,
     }), 200
 
 
@@ -636,7 +560,7 @@ def run_user_recovery(user_id):
 
     db.session.commit()
     _audit(admin_user, "user.recovery", target_user=user, details={"reason": reason, **result})
-    return jsonify({"success": True, "result": result, "user": _serialize_user(user)}), 200
+    return jsonify({"success": True, "result": result, "user": _serialize_user_for_admin(user)}), 200
 
 
 @admin_bp.route("/audit", methods=["GET"])

@@ -32,6 +32,12 @@ OBJECTIVE_ALIASES = {
 }
 
 
+def _pagination_params():
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 25, type=int), 100)
+    return max(page, 1), max(per_page, 1)
+
+
 def _normalize_objective(value, default="balanced"):
     text = str(value or "").strip().lower()
     if not text:
@@ -176,8 +182,21 @@ def list_starters():
 
     query = SavedStarter.query.filter(or_(*conditions))
 
-    starters = query.order_by(SavedStarter.created_at.desc()).all()
-    return jsonify({"starters": [item.to_dict() for item in starters]}), 200
+    page, per_page = _pagination_params()
+    pagination = query.order_by(SavedStarter.created_at.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
+    items = [item.to_dict() for item in pagination.items]
+    return jsonify({
+        "items": items,
+        "starters": items,
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages,
+    }), 200
 
 
 @starters_bp.route("/<starter_id>", methods=["PATCH"])

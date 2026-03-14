@@ -34,6 +34,12 @@ team_bp = Blueprint("team", __name__)
 PROJECT_VISIBILITY_VALUES = {"private", "team", "specific"}
 
 
+def _pagination_params():
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 25, type=int), 100)
+    return max(page, 1), max(per_page, 1)
+
+
 def _now_iso():
     return datetime.utcnow().isoformat()
 
@@ -312,18 +318,25 @@ def list_members():
 
     touch_member_activity(membership)
 
-    members = (
+    page, per_page = _pagination_params()
+    pagination = (
         OrganizationMember.query
         .filter_by(organization_id=org.id, status="active")
         .order_by(OrganizationMember.role.asc(), OrganizationMember.created_at.asc())
-        .all()
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
+    items = [_membership_payload(item) for item in pagination.items]
 
     return jsonify({
         "success": True,
         "organization": org_payload(org),
         "seat_usage": build_seat_usage(org),
-        "members": [_membership_payload(item) for item in members],
+        "items": items,
+        "members": items,
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages,
     }), 200
 
 

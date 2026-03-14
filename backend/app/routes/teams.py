@@ -24,6 +24,12 @@ ROLE_SET = {ROLE_OWNER, ROLE_ADMIN, ROLE_CREATOR, ROLE_COLLABORATOR, ROLE_VIEWER
 MANAGE_ROLES = {ROLE_OWNER, ROLE_ADMIN}
 
 
+def _pagination_params():
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 25, type=int), 100)
+    return max(page, 1), max(per_page, 1)
+
+
 def _now():
     return datetime.utcnow()
 
@@ -321,12 +327,14 @@ def get_team_org(org_id):
     membership.last_active_at = _now()
     db.session.commit()
 
-    members = (
+    page, per_page = _pagination_params()
+    member_pagination = (
         OrganizationMember.query
         .filter_by(organization_id=org.id, status="active")
         .order_by(OrganizationMember.created_at.asc())
-        .all()
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
+    member_items = [_member_payload(item) for item in member_pagination.items]
 
     invitations = (
         OrganizationInvitation.query
@@ -339,7 +347,12 @@ def get_team_org(org_id):
     return jsonify({
         "organization": _org_payload(org, membership_role=membership.role),
         "seat_usage": _seat_usage(org),
-        "members": [_member_payload(item) for item in members],
+        "items": member_items,
+        "members": member_items,
+        "total": member_pagination.total,
+        "page": member_pagination.page,
+        "per_page": member_pagination.per_page,
+        "pages": member_pagination.pages,
         "invitations": [_invitation_payload(item) for item in invitations],
     }), 200
 

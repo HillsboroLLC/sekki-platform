@@ -21,6 +21,12 @@ _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _ALLOWED_EXTENSIONS = {'.csv', '.xlsx', '.xls'}
 
 
+def _pagination_params():
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 25, type=int), 100)
+    return max(page, 1), max(per_page, 1)
+
+
 def _extract_json_object(text):
     try:
         return json.loads(text)
@@ -338,14 +344,21 @@ def analyze_dataset():
 @jwt_required()
 def list_datasets():
     user_id = str(get_jwt_identity())
-    rows = (
+    page, per_page = _pagination_params()
+    pagination = (
         UserDataset.query
         .filter_by(user_id=user_id)
         .order_by(UserDataset.created_at.desc())
-        .all()
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
+    items = [row.to_dict() for row in pagination.items]
     return jsonify({
-        'datasets': [row.to_dict() for row in rows],
+        'items': items,
+        'datasets': items,
+        'total': pagination.total,
+        'page': pagination.page,
+        'per_page': pagination.per_page,
+        'pages': pagination.pages,
     }), 200
 
 

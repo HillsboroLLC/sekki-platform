@@ -109,6 +109,12 @@ def _normalize_session_payload(user_id, session_id, payload):
     return normalized
 
 
+def _pagination_params():
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 25, type=int), 100)
+    return max(page, 1), max(per_page, 1)
+
+
 def _session_row_to_payload(row):
     payload = row.payload if isinstance(row.payload, dict) else {}
     normalized = _normalize_session_payload(row.user_id, row.session_id, payload)
@@ -209,6 +215,22 @@ def load_user_sessions(user_id):
     return sessions
 
 
+def _session_query_for_user(user_id):
+    user_id = str(user_id)
+    query = (
+        UserSession.query
+        .filter_by(user_id=user_id)
+        .order_by(UserSession.updated_at.desc(), UserSession.id.desc())
+    )
+    if query.first() is None and _migrate_legacy_file_to_db(user_id):
+        query = (
+            UserSession.query
+            .filter_by(user_id=user_id)
+            .order_by(UserSession.updated_at.desc(), UserSession.id.desc())
+        )
+    return query
+
+
 def save_user_sessions(user_id, sessions):
     """Persist the complete session map for a user into DB."""
     user_id = str(user_id)
@@ -275,10 +297,22 @@ def get_sessions():
     """Get all sessions for the current user."""
     try:
         current_user_id = get_jwt_identity()
-        sessions = load_user_sessions(current_user_id)
-        sessions_list = list(sessions.values())
-        sessions_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        return jsonify({'success': True, 'sessions': sessions_list})
+        page, per_page = _pagination_params()
+        pagination = _session_query_for_user(current_user_id).paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False,
+        )
+        items = [_session_row_to_payload(row) for row in pagination.items]
+        return jsonify({
+            'success': True,
+            'items': items,
+            'sessions': items,
+            'total': pagination.total,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'pages': pagination.pages,
+        })
     except Exception as e:
         logger.error(f"Error getting sessions: {e}")
         return jsonify({'error': str(e)}), 500

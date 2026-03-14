@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import stripe
@@ -244,24 +244,56 @@ def create_app():
         from .routes.sessions import sessions_bp
         app.register_blueprint(sessions_bp, url_prefix='/api/sessions')
     except ImportError:
-        print("Warning: sessions blueprint not found. Session saving will not work.")
+        app.logger.warning("sessions blueprint not found; session saving will not work")
 
     # Jaspen strategy blueprint
-    print("DEBUG: Jaspen strategy API registered successfully at /api/strategy")
+    app.logger.info("Jaspen strategy API registered successfully at /api/strategy")
 
     # Statistical Analysis blueprint
-    print("DEBUG: About to register statistical analysis blueprint")
+    app.logger.info("About to register statistical analysis blueprint")
     try:
-        print("DEBUG: Attempting import...")
+        app.logger.info("Attempting statistical analysis blueprint import")
         from .statistical_analysis_api import statistical_bp
-        print("DEBUG: Import successful, registering blueprint...")
+        app.logger.info("Statistical analysis blueprint import successful; registering blueprint")
         app.register_blueprint(statistical_bp, url_prefix='/api/statistical-analysis')
-        print("DEBUG: Statistical Analysis API registered successfully")
+        app.logger.info("Statistical Analysis API registered successfully")
     except ImportError as e:
-        print(f"DEBUG: Import error: {e}")
+        app.logger.warning("Statistical analysis blueprint import failed: %s", e)
     except Exception as e:
-        print(f"DEBUG: Other error: {e}")
-        import traceback
-        traceback.print_exc()
+        app.logger.exception("Unexpected error registering statistical analysis blueprint: %s", e)
+
+    @app.errorhandler(400)
+    def handle_400(e):
+        return jsonify({"error": "Bad request", "message": str(e)}), 400
+
+    @app.errorhandler(401)
+    def handle_401(e):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    @app.errorhandler(403)
+    def handle_403(e):
+        return jsonify({"error": "Forbidden"}), 403
+
+    @app.errorhandler(404)
+    def handle_404(e):
+        return jsonify({"error": "Not found"}), 404
+
+    @app.errorhandler(405)
+    def handle_405(e):
+        return jsonify({"error": "Method not allowed"}), 405
+
+    @app.errorhandler(429)
+    def handle_429(e):
+        return jsonify({"error": "Too many requests", "message": "Rate limit exceeded. Please try again shortly."}), 429
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        app.logger.exception("Unhandled server error")
+        return jsonify({"error": "Internal server error"}), 500
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        app.logger.exception("Unhandled exception: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
 
     return app

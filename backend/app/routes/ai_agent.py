@@ -2497,5 +2497,5 @@ def analyze_data():
     except RuntimeError as re_err:
         return jsonify({"error": str(re_err)}), 500
     except Exception as e:
-        print(f"[analyze_data] {e}")
+        current_app.logger.error("[analyze_data] %s", e)
         return jsonify({"error": "Failed to analyze uploaded data."}), 500

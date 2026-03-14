@@ -292,7 +292,7 @@ def upload_dataset():
         return jsonify({'error': str(err)}), 400
     except Exception as err:
         db.session.rollback()
-        print(f"[insights.upload] {err}")
+        current_app.logger.error("[insights.upload] %s", err)
         return jsonify({'error': 'Failed to upload dataset'}), 500
 
 
@@ -330,7 +330,7 @@ def analyze_dataset():
             'charts': analysis.get('charts') if isinstance(analysis.get('charts'), list) else [],
         }), 200
     except Exception as err:
-        print(f"[insights.analyze] {err}")
+        current_app.logger.error("[insights.analyze] %s", err)
         return jsonify({'error': 'Failed to analyze dataset'}), 500
 
 
@@ -371,5 +371,5 @@ def delete_dataset(dataset_id):
         return jsonify({'success': True}), 200
     except Exception as err:
         db.session.rollback()
-        print(f"[insights.delete] {err}")
+        current_app.logger.error("[insights.delete] %s", err)
         return jsonify({'error': 'Failed to delete dataset'}), 500

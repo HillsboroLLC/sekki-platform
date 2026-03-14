@@ -311,7 +311,7 @@ def _load_thread_conversation(user_id, thread_id):
     try:
         sessions = load_user_sessions(user_id) or {}
     except Exception as e:
-        print(f"[strategy.analyze] failed reading sessions for user {user_id}: {e}")
+        current_app.logger.error("[strategy.analyze] failed reading sessions for user %s: %s", user_id, e)
         return []
 
     if not isinstance(sessions, dict):
@@ -766,7 +766,7 @@ def analyze_project():
         }), 200
 
     except Exception as e:
-        print(f"Error in Jaspen analysis: {str(e)}")
+        current_app.logger.error("Error in Jaspen analysis: %s", e)
         return jsonify({'error': 'Analysis failed. Please try again.'}), 500
 
 @strategy_bp.route('/chat', methods=['POST'])
@@ -838,7 +838,7 @@ Keep responses concise but comprehensive (2-3 paragraphs maximum).
         }), 200
         
     except Exception as e:
-        print(f"Error in Jaspen chat: {str(e)}")
+        current_app.logger.error("Error in Jaspen chat: %s", e)
         return jsonify({'error': 'Chat failed. Please try again.'}), 500
 
 @strategy_bp.route('/history', methods=['GET'])
@@ -852,7 +852,7 @@ def get_analysis_history():
         return jsonify([]), 200
         
     except Exception as e:
-        print(f"Error retrieving analysis history: {str(e)}")
+        current_app.logger.error("Error retrieving analysis history: %s", e)
         return jsonify({'error': 'Failed to retrieve history.'}), 500
 
 
@@ -1008,7 +1008,7 @@ def get_completed_scores():
             'offset': offset,
         }), 200
     except Exception as e:
-        print(f"[get_completed_scores] {e}")
+        current_app.logger.error("[get_completed_scores] %s", e)
         return jsonify({'error': 'Failed to load completed scores'}), 500
 
 
@@ -1032,7 +1032,7 @@ def _load_scenarios(user_id):
             with open(path, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[scenarios] load error for {user_id}: {e}")
+            current_app.logger.error("[scenarios] load error for %s: %s", user_id, e)
     return {}
 
 def _save_scenarios(user_id, data):
@@ -1042,7 +1042,7 @@ def _save_scenarios(user_id, data):
             json.dump(data, f, indent=2)
         return True
     except Exception as e:
-        print(f"[scenarios] save error for {user_id}: {e}")
+        current_app.logger.error("[scenarios] save error for %s: %s", user_id, e)
         return False
 
 def _thread_entry():
@@ -2379,7 +2379,7 @@ def create_ai_scenario(thread_id):
 
         return jsonify(response_payload), 200
     except Exception as e:
-        print(f"[create_ai_scenario] {e}")
+        current_app.logger.error("[create_ai_scenario] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2491,7 +2491,7 @@ def generate_ai_wbs(thread_id):
             'limits': limits,
         }), 200
     except Exception as e:
-        print(f"[generate_ai_wbs] {e}")
+        current_app.logger.error("[generate_ai_wbs] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2604,7 +2604,7 @@ def create_scenario(thread_id):
         }), 201
 
     except Exception as e:
-        print(f"[create_scenario] {e}")
+        current_app.logger.error("[create_scenario] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2631,7 +2631,7 @@ def list_scenarios(thread_id):
         }), 200
 
     except Exception as e:
-        print(f"[list_scenarios] {e}")
+        current_app.logger.error("[list_scenarios] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2667,7 +2667,7 @@ def update_scenario(scenario_id):
         return jsonify(scenario), 200
 
     except Exception as e:
-        print(f"[update_scenario] {e}")
+        current_app.logger.error("[update_scenario] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2698,7 +2698,7 @@ def delete_scenario(scenario_id):
         return jsonify({'success': True}), 200
 
     except Exception as e:
-        print(f"[delete_scenario] {e}")
+        current_app.logger.error("[delete_scenario] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2759,8 +2759,7 @@ def apply_scenario(scenario_id):
         }), 200
 
     except Exception as e:
-        print(f"[apply_scenario] {e}")
-        import traceback; traceback.print_exc()
+        current_app.logger.error("[apply_scenario] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2799,7 +2798,7 @@ def adopt_scenario(scenario_id):
         return jsonify({'success': True, 'adopted_scenario_id': scenario_id}), 200
 
     except Exception as e:
-        print(f"[adopt_scenario] {e}")
+        current_app.logger.error("[adopt_scenario] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2826,7 +2825,7 @@ def get_thread_wbs(thread_id):
             'limits': get_wbs_limits_for_plan(plan_key),
         }), 200
     except Exception as e:
-        print(f"[get_thread_wbs] {e}")
+        current_app.logger.error("[get_thread_wbs] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2907,7 +2906,7 @@ def upsert_thread_wbs(thread_id):
             'jira_sync': sync_result,
         }), 200
     except Exception as e:
-        print(f"[upsert_thread_wbs] {e}")
+        current_app.logger.error("[upsert_thread_wbs] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -3002,7 +3001,7 @@ def get_thread_bundle(thread_id):
         }), 200
 
     except Exception as e:
-        print(f"[get_thread_bundle] {e}")
+        current_app.logger.error("[get_thread_bundle] %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -3040,5 +3039,5 @@ def adopt_analysis_for_thread(thread_id):
         return jsonify({'success': True, 'adopted_analysis_id': analysis_id}), 200
 
     except Exception as e:
-        print(f"[adopt_analysis_for_thread] {e}")
+        current_app.logger.error("[adopt_analysis_for_thread] %s", e)
         return jsonify({'error': str(e)}), 500
